@@ -39,9 +39,7 @@ impl System {
             // }
             self.cpu.step(&mut self.bus);
 
-
-
-            let t = Duration::new(0, 20_000_000) - Duration::from(Instant::now() - start);
+            let t = Duration::new(0, 20_000_000).checked_sub(Duration::from(Instant::now() - start)).unwrap_or_default();
             println!("{}", t.as_micros());
             sleep(t);
         }

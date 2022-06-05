@@ -1,4 +1,3 @@
-use std::borrow::BorrowMut;
 use std::collections::VecDeque;
  
 use super::bus::Bus;
@@ -104,14 +103,19 @@ impl CPU {
             },
             0x01 => {
                 self.add_rm16_r16(bus);
+            },
+            0x02 => {
+                self.add_r8_rm8(bus);
+            },
+            0x03 => {
+                self.add_r16_rm16(bus);
             }
             _ => unreachable!("Instruccion no reconocida {:02X}.", self.op)
         }
     }
 }
 
-// Set de instrucciones. No quiero ponerlo en otro archivo para que no den probelmas las
-// variables privadas.
+// Utilidades para el set de instrucciones
 impl CPU {
     fn set_reg8(self: &mut Self, reg: u8, val: u8) {
         match reg {
@@ -129,10 +133,10 @@ impl CPU {
 
     fn set_reg16(self: &mut Self, reg: u8, val: u16) {
         match reg {
-            0b000 => self.ax.setX(val),
-            0b001 => self.cx.setX(val),
-            0b010 => self.dx.setX(val),
-            0b011 => self.bx.setX(val),
+            0b000 => self.ax.set_x(val),
+            0b001 => self.cx.set_x(val),
+            0b010 => self.dx.set_x(val),
+            0b011 => self.bx.set_x(val),
             0b100 => self.sp = val,
             0b101 => self.bp = val,
             0b110 => self.si = val,
@@ -157,10 +161,10 @@ impl CPU {
 
     fn get_reg16(self: &Self, reg: u8) -> u16 {
         match reg {
-            0b000 => self.ax.getX(),
-            0b001 => self.cx.getX(),
-            0b010 => self.dx.getX(),
-            0b011 => self.bx.getX(),
+            0b000 => self.ax.get_x(),
+            0b001 => self.cx.get_x(),
+            0b010 => self.dx.get_x(),
+            0b011 => self.bx.get_x(),
             0b100 => self.sp,
             0b101 => self.bp,
             0b110 => self.si,
@@ -189,8 +193,8 @@ impl CPU {
         };
 
         match rm {
-            0b000 => (self.bx.getX().wrapping_add(self.si).wrapping_add(disp), 7 + cycles_extra),
-            0b001 => (self.bx.getX().wrapping_add(self.di).wrapping_add(disp), 8 + cycles_extra),
+            0b000 => (self.bx.get_x().wrapping_add(self.si).wrapping_add(disp), 7 + cycles_extra),
+            0b001 => (self.bx.get_x().wrapping_add(self.di).wrapping_add(disp), 8 + cycles_extra),
             0b010 => (self.bp.wrapping_add(self.si).wrapping_add(disp), 8 + cycles_extra),
             0b011 => (self.bp.wrapping_add(self.di).wrapping_add(disp), 7 + cycles_extra),
             0b100 => (self.si.wrapping_add(disp), 5 + cycles_extra),
@@ -203,11 +207,15 @@ impl CPU {
                 }
                 (self.bp.wrapping_add(disp), 5 + cycles_extra)
             },
-            0b111 => (self.bx.getX().wrapping_add(disp), 5 + cycles_extra),
+            0b111 => (self.bx.get_x().wrapping_add(disp), 5 + cycles_extra),
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
+}
 
+// Set de instrucciones. No quiero ponerlo en otro archivo para que no den probelmas las
+// variables privadas.
+impl CPU {
     fn add_rm8_r8(self: &mut Self, bus: &mut Bus) {
         // ADD r/m8,r8
         // Bastante XD esto (son las 3 am, mañana tengo que estudiar un final entero, no deberia estar haciendo esto)
@@ -246,8 +254,7 @@ impl CPU {
         self.flags.set_p_8(sum.0);
         self.flags.set_c_8(dst, sum.0);
 
-        self.instr_cycles = ea + 3;
-        
+        self.instr_cycles = ea + 3;        
     }
 
     fn add_rm16_r16(self: &mut Self, bus: &mut Bus) {
@@ -281,5 +288,95 @@ impl CPU {
         };
 
         // TODO Flags
+        self.flags.set_o(sum.1);
+        self.flags.set_s_16(sum.0);
+        self.flags.set_z_16(sum.0);
+        self.flags.set_a_16(src, dst);
+        self.flags.set_p_16(sum.0);
+        self.flags.set_c_16(dst, sum.0);
+
+        self.instr_cycles = ea + 3;
+    }
+
+    fn add_r8_rm8(self: &mut Self, bus: &mut Bus) {
+        // ADD r/m8,r8
+        // Bastante XD esto (son las 3 am, mañana tengo que estudiar un final entero, no deberia estar haciendo esto)
+        let operand1 = self.fetch(bus);
+        let mod_instr = operand1 >> 6;
+        let reg = (operand1 & 0b00111000) >> 3;
+        let rm = operand1 & 0b00000111;
+
+        let (ea, src, dst, sum) = if mod_instr == 0b11 {
+            let src = self.get_reg8(reg);
+            let dst = self.get_reg8(rm);
+            
+            let sum = dst.overflowing_add(src);
+
+            self.set_reg8(reg, sum.0);
+
+            (0, src, dst, sum)
+        } else {
+            let segment = self.get_segment(reg);
+            let (offset, cycles) = self.get_offset(bus, rm, mod_instr);
+            
+            let dst = self.get_reg8(reg);
+            let src = bus.read_8(segment, offset);
+
+            let sum = src.overflowing_add(dst);
+
+            self.set_reg8(reg, sum.0);
+
+            (cycles, src, dst, sum)
+        };
+
+        self.flags.set_o(sum.1);
+        self.flags.set_s_8(sum.0);
+        self.flags.set_z_8(sum.0);
+        self.flags.set_a_8(src, dst);
+        self.flags.set_p_8(sum.0);
+        self.flags.set_c_8(dst, sum.0);
+
+        self.instr_cycles = ea + 3;        
+    }
+
+    fn add_r16_rm16(self: &mut Self, bus: &mut Bus) {
+        // ADD r/m8,r8
+        // Bastante XD esto (son las 3 am, mañana tengo que estudiar un final entero, no deberia estar haciendo esto)
+        let operand1 = self.fetch(bus);
+        let mod_instr = operand1 >> 6;
+        let reg = (operand1 & 0b00111000) >> 3;
+        let rm = operand1 & 0b00000111;
+
+        let (ea, src, dst, sum) = if mod_instr == 0b11 {
+            let src = self.get_reg16(reg);
+            let dst = self.get_reg16(rm);
+            
+            let sum = dst.overflowing_add(src);
+
+            self.set_reg16(reg, sum.0);
+
+            (0, src, dst, sum)
+        } else {
+            let segment = self.get_segment(reg);
+            let (offset, cycles) = self.get_offset(bus, rm, mod_instr);
+            
+            let dst = self.get_reg16(reg);
+            let src = bus.read_16(segment, offset);
+
+            let sum = src.overflowing_add(dst);
+
+            self.set_reg16(reg, sum.0);
+
+            (cycles, src, dst, sum)
+        };
+
+        self.flags.set_o(sum.1);
+        self.flags.set_s_16(sum.0);
+        self.flags.set_z_16(sum.0);
+        self.flags.set_a_16(src, dst);
+        self.flags.set_p_16(sum.0);
+        self.flags.set_c_16(dst, sum.0);
+
+        self.instr_cycles = ea + 3;        
     }
 }

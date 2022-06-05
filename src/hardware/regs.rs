@@ -1,0 +1,109 @@
+use super::cpu_utils::*;
+
+// Registro de proposito general (AX, BX, CX, DX)
+pub struct GPReg {
+    pub high: u8,
+    pub low: u8,
+}
+
+impl GPReg {
+    pub fn new() -> Self {
+        GPReg { high: 0x00, low: 0x00 }
+    }
+
+    pub fn getX(self: &Self) -> u16 {
+        to_u16(self.low, self.high)
+    }
+
+    pub fn setX(self: &mut Self, val: u16) {
+        self.high = (val >> 8) as u8;
+        self.low = val as u8;
+    }
+}
+
+pub enum FlagsEnum {
+    O,
+    D,
+    I,
+    T,
+    S,
+    Z,
+    A,
+    P,
+    C
+}
+
+pub struct Flags {
+    pub o: bool,
+    pub d: bool,
+    pub i: bool,
+    pub t: bool,
+    pub s: bool,
+    pub z: bool,
+    pub a: bool,
+    pub p: bool,
+    pub c: bool
+}
+
+impl Flags {
+    pub fn new() -> Self {
+        Flags { o: false, d: false, i: false, t: false, s: false, z: false, a: false, p: false, c: false }
+    }
+
+    pub fn setFlags(self: &mut Self, val: u16) {
+        self.o = val & 0b0000100000000000 == 0b0000100000000000;
+        self.d = val & 0b0000010000000000 == 0b0000010000000000;
+        self.i = val & 0b0000001000000000 == 0b0000001000000000;
+        self.t = val & 0b0000000100000000 == 0b0000000100000000;
+        self.s = val & 0b0000000010000000 == 0b0000000010000000;
+        self.z = val & 0b0000000001000000 == 0b0000000001000000;
+        self.a = val & 0b0000000000010000 == 0b0000000000010000;
+        self.p = val & 0b0000000000000100 == 0b0000000000000100;
+        self.c = val & 0b0000000000000001 == 0b0000000000000001;
+    }
+
+    pub fn getFlags(self: &Self) -> u16 {
+        self.o as u16 & 0b0000100000000000 +
+        self.d as u16 & 0b0000010000000000 +
+        self.i as u16 & 0b0000001000000000 +
+        self.t as u16 & 0b0000000100000000 +
+        self.s as u16 & 0b0000000010000000 +
+        self.z as u16 & 0b0000000001000000 +
+        self.a as u16 & 0b0000000000010000 +
+        self.p as u16 & 0b0000000000000100 +
+        self.c as u16 & 0b0000000000000001
+    }
+
+    pub fn set_o(self: &mut Self, val: bool) {
+        self.o = val;
+    }
+
+    pub fn set_s_8(self: &mut Self, val: u8) {
+        self.z = (val & 0x80) != 0;
+    }
+
+    pub fn set_z_8(self: &mut Self, val: u8) {
+        self.z = val == 0;
+    }
+
+    pub fn set_a_8(self: &mut Self, src: u8, dst: u8) {
+        self.a = ((src & 0x0F) + (dst & 0x0F)) & 0xF0 != 0;
+    }
+
+    pub fn set_p_8(self: &mut Self, val: u8) {
+        let mut a = 0;
+
+        for x in 0..8 {
+            if (1 << x) & val != 0 {
+                a += 1;
+            }
+        }
+        self.p = a % 2 == 0;
+    }
+
+    pub fn set_c_8(self: &mut Self, dst: u8, val: u8) {
+        self.c = (dst & 0x80) != (val & 0x80);
+    }
+
+}
+

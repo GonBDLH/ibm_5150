@@ -1,3 +1,10 @@
+mod hardware;
+
+use hardware::sys::System;
+
 fn main() {
-    println!("Hello, world!");
+    let mut sys = System::new();
+
+    sys.clock();
+
 }

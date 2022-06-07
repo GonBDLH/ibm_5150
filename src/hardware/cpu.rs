@@ -1,5 +1,3 @@
-use num::ToPrimitive;
-
 use super::bus::Bus;
 use super::instr_utils::*;
 use super::regs::{GPReg, Flags};
@@ -22,17 +20,16 @@ pub struct CPU {
     flags: Flags,
 
     // Registros de segmentos
-    cs: u16,
-    ds: u16,
-    es: u16,
-    ss: u16,
+    pub cs: u16,
+    pub ds: u16,
+    pub es: u16,
+    pub ss: u16,
 
     // Instruction pointer
     ip: u16,
     
     // Utilizado para guardar info de la operacion que se esta decodificando
-    pop: bool,
-    pub op: Instruction,
+    pub instr: Instruction,
 }
 
 impl CPU {
@@ -57,8 +54,7 @@ impl CPU {
 
             ip: 0x0000,
 
-            pop: true,
-            op: Instruction::default(),
+            instr: Instruction::default(),
         }
     }
 }
@@ -72,7 +68,7 @@ impl CPU {
     
             // if self.pop {
             //     self.pop = false;
-            //     self.op = self.instr_queue.pop_front().expect("Error al extraer instruccion de la cola.");
+            //     self.instr = self.instr_queue.pop_front().expect("Error al extraer instruccion de la cola.");
             //     self.decode(bus);
             // }
 
@@ -91,99 +87,140 @@ impl CPU {
         bus.read_dir(dir)
     }
 
-    fn fetch_decode_execute(&mut self, bus: &mut Bus) {
+    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) {
         let op = self.fetch(bus);
+        self.instr = Instruction::default();
+
+        // True => reg
+        // False => mem
+        let (a, b): (bool, bool);
 
         match op {
-            // 0x88..=0x8B | 0xC6 | 0xC7 | 0xB0..=0xBF | 0xA0..=0xA3 | 0x8E | 0x8C => {
-            //     self.op.opcode = Opcode::MOV;
-            // }
+            // 0x88..=0x8B | 0xC6 | 0xC7 | 0xB0..=0xBF | 0xA0..=0xA3 | 0x8E | 0x8C
+
+            // MOV Register/Memory to/from Register
             0x88..=0x8B => {
-                self.op.opcode = Opcode::MOV;
-                self.op.direction = Direction::new(op);
-                self.op.data_length = Length::new(op);
+                // Decode
+                self.instr.opcode = Opcode::MOV;
+                self.instr.direction = Direction::new(op);
+                self.instr.data_length = Length::new(op);
                 decode_mod_reg_rm(self, bus);
 
-                match self.op.data_length {
-                    Length::Byte => {
-                        
+                // Execute
+                // Se obtiene el valor a mover
+                let val = match self.instr.operand2 as i32 {
+                    0 => unreachable!(), // None
+                    1..=16 => {
+                        b = true;
+                        self.get_reg(self.instr.data_length, self.instr.operand2)
                     },
-                    Length::Word => {
-                        
+                    21..=33 => {
+                        b = false;
+                        bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length)
+                    },
+                    _ => unreachable!(),
+                };
+
+                // Se mueve el valor a donde corresponda
+                match self.instr.direction {
+                    Direction::FromReg => {
+                        a = false;
+                        bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, val)
+                    },
+                    Direction::ToReg => {
+                        a = true;
+                        self.set_reg(self.instr.data_length, self.instr.operand1, val)
                     },
                     _ => unreachable!(),
                 }
-            }
 
-            _ => unreachable!(),
+                // Ciclos que ha tomado la instruccion
+                self.instr.cycles = match (a, b) {
+                    (true, true) => 2,
+                    (false, true) => 13 + self.instr.ea_cycles,
+                    (true, false) => 12 + self.instr.ea_cycles,
+                    (false, false) => unreachable!(),
+                }
+            },
+
+            // MOV Immediate to Register/Memory
+            0xC6 | 0xC7 => {
+                self.instr.opcode = Opcode::MOV;
+                self.instr.data_length = Length::new(op);
+                decode_mod_rm(self, bus);
+
+                self.instr.imm = match self.instr.data_length {
+                    Length::Byte => self.fetch(bus) as u16,
+                    Length::Word => to_u16(self.fetch(bus), self.fetch(bus)),
+                    _ => unreachable!()
+                };
+
+                match self.instr.addr_mode {
+                    AddrMode::Mode3 => {
+                        self.set_reg(self.instr.data_length, self.instr.operand1, self.instr.imm);
+                        self.instr.cycles = 4;
+                    },
+                    AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
+                        bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, self.instr.imm);
+                        self.instr.cycles = 14 + self.instr.ea_cycles;
+                    },
+                    _ => unreachable!()
+                };
+            },
+
+            _ => {},
         }
     }
-
-    // fn decode(self: &mut Self, bus: &mut Bus) {
-    //     match self.op {
-    //         0x00 => {
-    //             self.add_rm8_r8(bus);
-    //         },
-    //         0x01 => {
-    //             self.add_rm16_r16(bus);
-    //         },
-    //         0x02 => {
-    //             self.add_r8_rm8(bus);
-    //         },
-    //         0x03 => {
-    //             self.add_r16_rm16(bus);
-    //         },
-    //         0x04 => {
-    //             self.add_al_d8(bus);
-    //         },
-    //         0x05 => {
-    //             self.add_ax_d16(bus);
-    //         },
-    //         0x06 => {
-    //             self.push_sr(bus);
-    //         },
-    //         0x07 => {
-    //             self.pop_sr(bus);
-    //         }
-    //         _ => unreachable!("Instruccion no reconocida {:02X}.", self.op)
-    //     }
-    // }
 }
 
 // Utilidades para el set de instrucciones
 impl CPU {
-    fn set_reg<T: ToPrimitive>(self: &mut Self, reg: Operand, val: T) {
+    fn set_reg8(&mut self, reg: Operand, val: u8) {
         match reg {
-            Operand::AL => self.ax.low = val.to_u8().unwrap(),
-            Operand::CL => self.cx.low = val.to_u8().unwrap(),
-            Operand::DL => self.dx.low = val.to_u8().unwrap(),
-            Operand::BL => self.bx.low = val.to_u8().unwrap(),
-            Operand::AH => self.ax.high = val.to_u8().unwrap(),
-            Operand::CH => self.cx.high = val.to_u8().unwrap(),
-            Operand::DH => self.dx.high = val.to_u8().unwrap(),
-            Operand::BH => self.bx.high = val.to_u8().unwrap(),
-            Operand::AX => self.ax.set_x(val.to_u16().unwrap()),
-            Operand::CX => self.cx.set_x(val.to_u16().unwrap()),
-            Operand::DX => self.dx.set_x(val.to_u16().unwrap()),
-            Operand::BX => self.bx.set_x(val.to_u16().unwrap()),
-            Operand::SP => self.sp = val.to_u16().unwrap(),
-            Operand::BP => self.bp = val.to_u16().unwrap(),
-            Operand::SI => self.si = val.to_u16().unwrap(),
-            Operand::DI => self.di = val.to_u16().unwrap(),
+            Operand::AL => self.ax.low = val,
+            Operand::CL => self.cx.low = val,
+            Operand::DL => self.dx.low = val,
+            Operand::BL => self.bx.low = val,
+            Operand::AH => self.ax.high = val,
+            Operand::CH => self.cx.high = val,
+            Operand::DH => self.dx.high = val,
+            Operand::BH => self.bx.high = val,
+            _ => unreachable!(),
+        }
+    }
+
+    fn set_reg16(&mut self, reg: Operand, val: u16) {
+        match reg {
+            Operand::AX => self.ax.set_x(val),
+            Operand::CX => self.cx.set_x(val),
+            Operand::DX => self.dx.set_x(val),
+            Operand::BX => self.bx.set_x(val),
+            Operand::SP => self.sp = val,
+            Operand::BP => self.bp = val,
+            Operand::SI => self.si = val,
+            Operand::DI => self.di = val,
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
 
-    fn get_reg8(self: &Self, reg: Operand) -> u8 {
+    fn set_reg(self: &mut Self, length: Length, reg: Operand, val: u16) {
+        match length {
+            Length::Byte => self.set_reg8(reg, val as u8),
+            Length::Word => self.set_reg16(reg, val),
+            _ => unreachable!("Aqui no deberia entrar nunca")
+        }
+    }
+
+    fn get_reg8(self: &Self, reg: Operand) -> u16 {
         match reg {
-            Operand::AL => self.ax.low,
-            Operand::CL => self.cx.low,
-            Operand::DL => self.dx.low,
-            Operand::BL => self.bx.low,
-            Operand::AH => self.ax.high,
-            Operand::CH => self.cx.high,
-            Operand::DH => self.dx.high,
-            Operand::BH => self.bx.high,
+            Operand::AL => self.ax.low as u16,
+            Operand::CL => self.cx.low as u16,
+            Operand::DL => self.dx.low as u16,
+            Operand::BL => self.bx.low as u16,
+            Operand::AH => self.ax.high as u16,
+            Operand::CH => self.cx.high as u16,
+            Operand::DH => self.dx.high as u16,
+            Operand::BH => self.bx.high as u16,
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
@@ -202,51 +239,30 @@ impl CPU {
         }
     }
 
-    fn get_segment(self: &Self, reg: u8) -> u16 {
-        match reg {
-            0b00 => self.es,
-            0b01 => self.cs,
-            0b10 => self.ss,
-            0b11 => self.ds,
+    fn get_reg(&mut self, length: Length, reg: Operand) -> u16 {
+        match length {
+            Length::Byte => self.get_reg8(reg),
+            Length::Word => self.get_reg16(reg),
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
 
-    fn set_segment(self: &mut Self, reg: u8, val: u16) {
-        match reg {
-            0b00 => self.es = val,
-            0b01 => self.cs = val,
-            0b10 => self.ss = val,
-            0b11 => self.ds = val,
-            _ => unreachable!("Aqui no deberia entrar nunca")
-        }
-    }
+    // fn get_segment(self: &Self, reg: u8) -> u16 {
+    //     match reg {
+    //         0b00 => self.es,
+    //         0b01 => self.cs,
+    //         0b10 => self.ss,
+    //         0b11 => self.ds,
+    //         _ => unreachable!("Aqui no deberia entrar nunca")
+    //     }
+    // }
 
-    // Se obtiene el offset y los ciclos que tarda en calcularse
-    // fn get_offset(self: &mut Self, bus: &mut Bus) -> (u16, u8) {
-    //     let (disp, cycles_extra, direct) = match self.op.addr_mode {
-    //         AddrMode::Mode0 => (0, 0, true),
-    //         AddrMode::Mode1 => (sign_extend(self.fetch(bus)), 4, false),
-    //         AddrMode::Mode2 => (to_u16(self.fetch(bus), self.fetch(bus)), 4, false),
-    //         _ => unreachable!("Aqui no deberia entrar")
-    //     };
-
-    //     match rm {
-    //         0b000 => (self.bx.get_x().wrapping_add(self.si).wrapping_add(disp), 7 + cycles_extra),
-    //         0b001 => (self.bx.get_x().wrapping_add(self.di).wrapping_add(disp), 8 + cycles_extra),
-    //         0b010 => (self.bp.wrapping_add(self.si).wrapping_add(disp), 8 + cycles_extra),
-    //         0b011 => (self.bp.wrapping_add(self.di).wrapping_add(disp), 7 + cycles_extra),
-    //         0b100 => (self.si.wrapping_add(disp), 5 + cycles_extra),
-    //         0b101 => (self.di.wrapping_add(disp), 5 + cycles_extra),
-    //         0b110 => {
-    //             if direct {
-    //                 let low = self.fetch(bus);
-    //                 let high = self.fetch(bus);
-    //                 return (low as u16 + high as u16 * 0x100, 6);
-    //             }
-    //             (self.bp.wrapping_add(disp), 5 + cycles_extra)
-    //         },
-    //         0b111 => (self.bx.get_x().wrapping_add(disp), 5 + cycles_extra),
+    // fn set_segment(self: &mut Self, reg: u8, val: u16) {
+    //     match reg {
+    //         0b00 => self.es = val,
+    //         0b01 => self.cs = val,
+    //         0b10 => self.ss = val,
+    //         0b11 => self.ds = val,
     //         _ => unreachable!("Aqui no deberia entrar nunca")
     //     }
     // }

@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 num = "0.4.0"
+
+[env]
+RUST_MIN_STACK = 8388608

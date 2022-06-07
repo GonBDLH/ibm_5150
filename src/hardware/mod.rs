@@ -1,5 +1,5 @@
 pub mod sys;
-mod cpu;
+pub mod cpu;
 mod instr_utils;
 pub mod cpu_utils;
 mod regs;

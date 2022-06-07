@@ -62,8 +62,24 @@ impl Flags {
         self.c as u16 & 0b0000000000000001
     }
 
-    pub fn set_o(self: &mut Self, val: bool) {
-        self.o = val;
+    pub fn set_o_8(self: &mut Self, src: u8, dst: u8) {
+        /*
+        Si b6 y b7 generan carry, o b6 no generan carry -> false
+        Si solo 1 de los 2 genera carry -> true
+        */
+        self.o = (src & 0x7F + dst & 0x7F) == 0x80 && dst.overflowing_add(src).1 || 
+                 !((src & 0x7F + dst & 0x7F) == 0x80 && dst.overflowing_add(src).1);
+
+    }
+
+    pub fn set_o_16(self: &mut Self, src: u16, dst: u16) {
+        /*
+        Si b6 y b7 generan carry, o b6 no generan carry -> false
+        Si solo 1 de los 2 genera carry -> true
+        */
+        self.o = (src & 0x7FFF + dst & 0x7FFF) == 0x8000 && dst.overflowing_add(src).1 || 
+                 !((src & 0x7FFF + dst & 0x7FFF) == 0x8000 && dst.overflowing_add(src).1);
+
     }
 
     pub fn set_s_8(self: &mut Self, val: u8) {

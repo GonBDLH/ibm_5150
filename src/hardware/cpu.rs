@@ -91,50 +91,19 @@ impl CPU {
         let op = self.fetch(bus);
         self.instr = Instruction::default();
 
-        // True => reg
-        // False => mem
-        let (a, b): (bool, bool);
-
         match op {
-            // 0x88..=0x8B | 0xC6 | 0xC7 | 0xB0..=0xBF | 0xA0..=0xA3 | 0x8E | 0x8C
-
             // MOV Register/Memory to/from Register
             0x88..=0x8B => {
-                // Decode
                 self.instr.opcode = Opcode::MOV;
                 self.instr.direction = Direction::new(op);
-                self.instr.data_length = Length::new(op);
-                decode_mod_reg_rm(self, bus);
+                self.instr.data_length = Length::new(op, 0);
+                
+                let operand = self.fetch(bus);
+                decode_mod_reg_rm(self, bus, operand);
+                
+                // TRUE -> Reg, False -> Mem
+                let (a, b) = mov_reg_rm(self, bus);
 
-                // Execute
-                // Se obtiene el valor a mover
-                let val = match self.instr.operand2 as i32 {
-                    0 => unreachable!(), // None
-                    1..=16 => {
-                        b = true;
-                        self.get_reg(self.instr.data_length, self.instr.operand2)
-                    },
-                    21..=33 => {
-                        b = false;
-                        bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length)
-                    },
-                    _ => unreachable!(),
-                };
-
-                // Se mueve el valor a donde corresponda
-                match self.instr.direction {
-                    Direction::FromReg => {
-                        a = false;
-                        bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, val)
-                    },
-                    Direction::ToReg => {
-                        a = true;
-                        self.set_reg(self.instr.data_length, self.instr.operand1, val)
-                    },
-                    _ => unreachable!(),
-                }
-
-                // Ciclos que ha tomado la instruccion
                 self.instr.cycles = match (a, b) {
                     (true, true) => 2,
                     (false, true) => 13 + self.instr.ea_cycles,
@@ -146,26 +115,24 @@ impl CPU {
             // MOV Immediate to Register/Memory
             0xC6 | 0xC7 => {
                 self.instr.opcode = Opcode::MOV;
-                self.instr.data_length = Length::new(op);
-                decode_mod_rm(self, bus);
+                self.instr.data_length = Length::new(op, 0);
 
-                self.instr.imm = match self.instr.data_length {
-                    Length::Byte => self.fetch(bus) as u16,
-                    Length::Word => to_u16(self.fetch(bus), self.fetch(bus)),
-                    _ => unreachable!()
-                };
 
-                match self.instr.addr_mode {
-                    AddrMode::Mode3 => {
-                        self.set_reg(self.instr.data_length, self.instr.operand1, self.instr.imm);
-                        self.instr.cycles = 4;
-                    },
-                    AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
-                        bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, self.instr.imm);
-                        self.instr.cycles = 14 + self.instr.ea_cycles;
-                    },
-                    _ => unreachable!()
-                };
+            },
+
+            // MOV Immediate to Register
+            0xB0..=0xBF => {
+                
+            }
+
+            // MOV Memory To/From Accumulator
+            0xA0..=0xA3 => {
+                
+            }
+
+            // MOV Register/Memory To/From SegmentRegister
+            0x8E | 0x8C => {
+                
             },
 
             _ => {},
@@ -203,7 +170,7 @@ impl CPU {
         }
     }
 
-    fn set_reg(self: &mut Self, length: Length, reg: Operand, val: u16) {
+    pub fn set_reg(self: &mut Self, length: Length, reg: Operand, val: u16) {
         match length {
             Length::Byte => self.set_reg8(reg, val as u8),
             Length::Word => self.set_reg16(reg, val),
@@ -239,10 +206,30 @@ impl CPU {
         }
     }
 
-    fn get_reg(&mut self, length: Length, reg: Operand) -> u16 {
+    pub fn get_reg(&mut self, length: Length, reg: Operand) -> u16 {
         match length {
             Length::Byte => self.get_reg8(reg),
             Length::Word => self.get_reg16(reg),
+            _ => unreachable!("Aqui no deberia entrar nunca")
+        }
+    }
+
+    pub fn get_segment(&mut self, segment: Operand) -> u16 {
+        match segment {
+            Operand::ES => self.es,
+            Operand::CS => self.cs,
+            Operand::SS => self.ss,
+            Operand::DS => self.ds,
+            _ => unreachable!("Aqui no deberia entrar nunca")
+        }
+    }
+
+    pub fn set_segment(&mut self, segment: Operand, val: u16) {
+        match segment {
+            Operand::ES => self.es = val,
+            Operand::CS => self.cs = val,
+            Operand::SS => self.ss = val,
+            Operand::DS => self.ds = val,
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }

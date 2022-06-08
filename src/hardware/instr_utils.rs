@@ -61,8 +61,9 @@ pub enum Length {
 }
 
 impl Length {
-    pub fn new(val: u8) -> Self {
-        if val & 0x01 != 0 {
+    pub fn new(val: u8, pos: u8) -> Self {
+        assert!(pos < 8);
+        if val & (0x01 << pos) != 0 {
             Length::Word
         } else {
             Length::Byte
@@ -130,25 +131,28 @@ impl Direction {
     }
 }
 
-fn decode_mod(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
+pub fn decode_mod(operand: u8) -> AddrMode {
     match operand & 0b11000000 {
         0b00000000 => {
-            cpu.instr.addr_mode = AddrMode::Mode0;
+            AddrMode::Mode0
         },
         0b01000000 => {
-            cpu.instr.addr_mode = AddrMode::Mode1;
+            AddrMode::Mode1
         },
         0b10000000 => {
-            cpu.instr.addr_mode = AddrMode::Mode2;
+            AddrMode::Mode2
         },
         0b11000000 => {
-            cpu.instr.addr_mode = AddrMode::Mode3;
+            AddrMode::Mode3
         },
         _ => unreachable!("Aqui no deberia entrar"),
     }
 }
 
-fn get_reg_operand(reg: u8, length: Length) -> Operand {
+pub fn decode_reg(operand: u8, pos: u8, length: Length) -> Operand {
+    assert!(pos < 8);
+    let reg = (operand << pos) & 0x07;
+
     match reg {
         0b000 => {
             match length {
@@ -210,36 +214,45 @@ fn get_reg_operand(reg: u8, length: Length) -> Operand {
     }
 }
 
-fn get_mem_operand(cpu: &mut CPU, bus: &mut Bus, rm: u8, mode: AddrMode) -> Operand {
+pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: AddrMode) -> Operand {
+    assert!(pos < 8);
+    let rm = (operand >> pos) & 0x07;
+
     match mode {
         AddrMode::Mode0 => {
             match rm {
                 0b000 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si);
                     cpu.instr.ea_cycles = 7;
                     Operand::BXSI
                 },
                 0b001 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di);
                     cpu.instr.ea_cycles = 8;
                     Operand::BXDI
                 },
                 0b010 => {
+                    cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si);
                     cpu.instr.ea_cycles = 8;
                     Operand::BPSI
                 },
                 0b011 => {
+                    cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di);
                     cpu.instr.ea_cycles = 7;
                     Operand::BPDI
                 },
                 0b100 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.si;
                     cpu.instr.ea_cycles = 5;
                     Operand::SI
                 },
                 0b101 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.di;
                     cpu.instr.ea_cycles = 5;
                     Operand::DI
@@ -247,11 +260,13 @@ fn get_mem_operand(cpu: &mut CPU, bus: &mut Bus, rm: u8, mode: AddrMode) -> Oper
                 0b110 => {
                     let disp_low = cpu.fetch(bus);
                     let disp_high = cpu.fetch(bus);
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = to_u16(disp_low, disp_high);
                     cpu.instr.ea_cycles = 6;
                     Operand::Disp
                 },
                 0b111 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x();
                     cpu.instr.ea_cycles = 5;
                     Operand::BX
@@ -275,41 +290,49 @@ fn get_mem_operand(cpu: &mut CPU, bus: &mut Bus, rm: u8, mode: AddrMode) -> Oper
             
             match rm {
                 0b000 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
                     Operand::DispBXSI
                 },
                 0b001 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
                     Operand::DispBXDI
                 },
                 0b010 => {
+                    cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
                     Operand::DispBPSI
                 },
                 0b011 => {
+                    cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
                     Operand::DispBPDI
                 },
                 0b100 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.si.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     Operand::DispSI
                 },
                 0b101 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.di.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     Operand::DispDI
                 },
                 0b110 => {
+                    cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     Operand::DispBP
                 },
                 0b111 => {
+                    cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     Operand::DispBX
@@ -321,73 +344,94 @@ fn get_mem_operand(cpu: &mut CPU, bus: &mut Bus, rm: u8, mode: AddrMode) -> Oper
     }
 }
 
-pub fn decode_segment(cpu: &mut CPU, reg: u8) {
+pub fn decode_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8, reg_pos: u8, rm_pos: u8) -> Operand {
+    match cpu.instr.addr_mode {
+        AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
+            decode_mem(cpu, bus, operand, rm_pos, cpu.instr.addr_mode)
+        },
+        AddrMode::Mode3 => {
+            decode_reg(operand, rm_pos, cpu.instr.data_length)
+        },
+        _ => unreachable!("Aqui no deberia entrar"),
+    }
+}
+
+pub fn decode_segment(operand: u8, pos: u8) -> Operand {
+    assert!(pos < 8);
+    let reg = (operand >> pos) & 0x03;
+
     match reg {
-        0b00 => cpu.instr.segment = Operand::ES,
-        0b01 => cpu.instr.segment = Operand::CS,
-        0b10 => cpu.instr.segment = Operand::SS,
-        0b11 => cpu.instr.segment = Operand::DS,
+        0b00 => Operand::ES,
+        0b01 => Operand::CS,
+        0b10 => Operand::SS,
+        0b11 => Operand::DS,
         _ => unreachable!(),
     }
 }
 
-pub fn decode_mod_rm(cpu: &mut CPU, bus: &mut Bus) {
-    let operand = cpu.fetch(bus);
-    decode_mod(cpu, bus, operand);
+// pub fn decode_mod_rm(cpu: &mut CPU, bus: &mut Bus) {
+//     let operand = cpu.fetch(bus);
+//     decode_mod(cpu, operand);
 
-    cpu.instr.operand1 = match cpu.instr.addr_mode {
-        AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
-            decode_segment(cpu, (operand & 0b00011000) >> 3);
-            get_mem_operand(cpu, bus, operand & 0b00000111, cpu.instr.addr_mode)
-        },
-        AddrMode::Mode3 => {
-            get_reg_operand(operand & 0b00000111, cpu.instr.data_length)
-        },
-        _ => unreachable!("Aqui no deberia entrar"),
-    };
-}
+//     cpu.instr.operand1 = match cpu.instr.addr_mode {
+//         AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
+//             decode_segment(cpu, (operand & 0b00011000) >> 3);
+//             get_mem_operand(cpu, bus, operand & 0b00000111, cpu.instr.addr_mode)
+//         },
+//         AddrMode::Mode3 => {
+//             get_reg_operand(operand & 0b00000111, cpu.instr.data_length)
+//         },
+//         _ => unreachable!("Aqui no deberia entrar"),
+//     };
+// }
 
-pub fn decode_mod_reg_rm(cpu: &mut CPU, bus: &mut Bus) {
-    let operand = cpu.fetch(bus);
-    decode_mod(cpu, bus, operand);
+pub fn decode_mod_reg_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
+    cpu.instr.addr_mode = decode_mod(operand);
 
     match cpu.instr.direction {
         Direction::ToReg => {
-            cpu.instr.operand1 = get_reg_operand((operand & 0b00111000) >> 3, cpu.instr.data_length);
-            cpu.instr.operand2 = match cpu.instr.addr_mode {
-                AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
-                    decode_segment(cpu, (operand & 0b00011000) >> 3);
-                    get_mem_operand(cpu, bus, operand & 0b00000111, cpu.instr.addr_mode)
-                },
-                AddrMode::Mode3 => {
-                    get_reg_operand(operand & 0b00000111, cpu.instr.data_length)
-                },
-                _ => unreachable!("Aqui no deberia entrar"),
-            }
+            cpu.instr.operand1 = decode_reg(operand, 3, cpu.instr.data_length);
+            cpu.instr.operand2 = decode_rm(cpu, bus, operand, 3, 0);
         },
         Direction::FromReg => {
-            cpu.instr.operand1 = match cpu.instr.addr_mode {
-                AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
-                    decode_segment(cpu, (operand & 0b00011000) >> 3);
-                    get_mem_operand(cpu, bus, operand & 0b00000111, cpu.instr.addr_mode)
-                },
-                AddrMode::Mode3 => {
-                    get_reg_operand(operand & 0b00000111, cpu.instr.data_length)
-                },
-                _ => unreachable!("Aqui no deberia entrar"),
-            };
-            cpu.instr.operand2 = get_reg_operand((operand & 0b00111000) >> 3, cpu.instr.data_length);
+            cpu.instr.operand1 = decode_rm(cpu, bus, operand, 3, 0);
+            cpu.instr.operand2 = decode_reg(operand, 3, cpu.instr.data_length);
         },
         _ => unreachable!(),
     }
 }
 
-pub fn get_segment(cpu: &mut CPU, segment: Operand) -> u16 {
-    match segment {
-        Operand::ES => cpu.es,
-        Operand::CS => cpu.cs,
-        Operand::SS => cpu.ss,
-        Operand::DS => cpu.ds,
-        _ => unreachable!("Aqui no deberia entrar nunca")
+pub fn decode_mod_N_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
+    cpu.instr.addr_mode = decode_mod(operand);
+    //cpu.instr.operand1 = decode_rm(cpu, bus, operand, reg_pos, rm_pos)
+}
+
+// MOV ENTRE MEMORIA/REG Y REGISTRO
+pub fn mov_reg_rm(cpu: &mut CPU, bus: &mut Bus) -> (bool, bool) {
+    let (a, b);
+    let val = match cpu.instr.operand2 as i32 {
+        1..=16 => {
+            b = true;
+            cpu.get_reg(cpu.instr.data_length, cpu.instr.operand2)
+        },
+        21..=33 => {
+            b = false;
+            bus.read_length(cpu, cpu.instr.segment, cpu.instr.offset, cpu.instr.data_length)
+        }
+        _ => unreachable!(),
+    };
+
+    match cpu.instr.direction {
+        Direction::ToReg => {
+            a = true;
+            cpu.set_reg(cpu.instr.data_length, cpu.instr.operand1, val)
+        },
+        Direction::FromReg => {
+            a = false;
+            bus.write_length(cpu, cpu.instr.data_length, cpu.instr.segment, cpu.instr.offset, val)
+        },
+        _ => unreachable!(),
     }
+
+    (a, b)
 }

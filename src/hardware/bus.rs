@@ -1,4 +1,4 @@
-use super::{cpu_utils::to_u16, instr_utils::{Length, Operand, get_segment}, cpu::CPU};
+use super::{cpu_utils::to_u16, instr_utils::{Length, Operand}, cpu::CPU};
 
 pub struct Bus {
     pub memory: [u8; 0x100000]
@@ -35,7 +35,7 @@ impl Bus {
     }
 
     pub fn write_length(&mut self, cpu: &mut CPU, length: Length, segment: Operand, offset: u16, val: u16) {
-        let segment_u16 = get_segment(cpu, segment);
+        let segment_u16 = cpu.get_segment(segment);
 
         match length {
             Length::Byte => self.write_8(segment_u16, offset, val as u8),
@@ -49,7 +49,7 @@ impl Bus {
     }
 
     pub fn read_length(&self, cpu: &mut CPU, segment: Operand, offset: u16, length: Length) -> u16 {
-        let segment_u16 = get_segment(cpu, segment);
+        let segment_u16 = cpu.get_segment(segment);
 
         match length {
             Length::Byte => self.read_8(segment_u16, offset) as u16,

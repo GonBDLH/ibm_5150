@@ -113,6 +113,7 @@ pub enum Operand {
     DispBP = 31,
     DispBX = 32,
     Disp = 33,
+    Imm = 34,
 }
 
 pub enum Direction {
@@ -344,7 +345,7 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
     }
 }
 
-pub fn decode_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8, reg_pos: u8, rm_pos: u8) -> Operand {
+pub fn decode_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8, rm_pos: u8) -> Operand {
     match cpu.instr.addr_mode {
         AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
             decode_mem(cpu, bus, operand, rm_pos, cpu.instr.addr_mode)
@@ -391,10 +392,10 @@ pub fn decode_mod_reg_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
     match cpu.instr.direction {
         Direction::ToReg => {
             cpu.instr.operand1 = decode_reg(operand, 3, cpu.instr.data_length);
-            cpu.instr.operand2 = decode_rm(cpu, bus, operand, 3, 0);
+            cpu.instr.operand2 = decode_rm(cpu, bus, operand, 0);
         },
         Direction::FromReg => {
-            cpu.instr.operand1 = decode_rm(cpu, bus, operand, 3, 0);
+            cpu.instr.operand1 = decode_rm(cpu, bus, operand, 0);
             cpu.instr.operand2 = decode_reg(operand, 3, cpu.instr.data_length);
         },
         _ => unreachable!(),
@@ -403,7 +404,7 @@ pub fn decode_mod_reg_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
 
 pub fn decode_mod_N_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
     cpu.instr.addr_mode = decode_mod(operand);
-    //cpu.instr.operand1 = decode_rm(cpu, bus, operand, reg_pos, rm_pos)
+    cpu.instr.operand1 = decode_rm(cpu, bus, operand, 0)
 }
 
 // MOV ENTRE MEMORIA/REG Y REGISTRO
@@ -434,4 +435,12 @@ pub fn mov_reg_rm(cpu: &mut CPU, bus: &mut Bus) -> (bool, bool) {
     }
 
     (a, b)
+}
+
+pub fn read_imm(cpu: &mut CPU, bus: &mut Bus) {
+    match cpu.instr.data_length {
+        Length::Byte => cpu.instr.imm = cpu.fetch(bus) as u16,
+        Length::Word => cpu.instr.imm = to_u16(cpu.fetch(bus), cpu.fetch(bus)),
+        _ => unreachable!(),
+    }
 }

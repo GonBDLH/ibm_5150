@@ -116,8 +116,23 @@ impl CPU {
             0xC6 | 0xC7 => {
                 self.instr.opcode = Opcode::MOV;
                 self.instr.data_length = Length::new(op, 0);
+                self.instr.operand2 = Operand::Imm;
 
+                let operand = self.fetch(bus);
+                decode_mod_N_rm(self, bus, operand);
+                read_imm(self, bus);
 
+                match self.instr.addr_mode {
+                    AddrMode::Mode3 => {
+                        self.set_reg(self.instr.data_length, self.instr.operand1, self.instr.imm);
+                        self.instr.cycles = 4;
+                    },
+                    AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
+                        bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, self.instr.imm);
+                        self.instr.cycles = 14 + self.instr.ea_cycles;
+                    },
+                    _ => unreachable!(),
+                }
             },
 
             // MOV Immediate to Register

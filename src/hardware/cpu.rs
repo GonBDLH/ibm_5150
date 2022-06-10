@@ -189,28 +189,51 @@ impl CPU {
 
                 match operand & 0b00111000 {
                     0x0 => {
-                        Opcode::INC;
+                        self.instr.opcode = Opcode::INC;
                     },
                     0x8 => {
-                        Opcode::DEC;
+                        self.instr.opcode = Opcode::DEC;
                     },
                     0x10 => {
-                        Opcode::CALL;
+                        self.instr.opcode = Opcode::CALL;
                     },
                     0x18 => {
-                        Opcode::CALL;
+                        self.instr.opcode = Opcode::CALL;
                     },
                     0x20 => {
-                        Opcode::JMP;
+                        self.instr.opcode = Opcode::JMP;
                     },
                     0x28 => {
-                        Opcode::JMP;
+                        self.instr.opcode = Opcode::JMP;
                     },
                     0x30 => {
-                        Opcode::PUSH;
+                        self.instr.opcode = Opcode::PUSH;
+                        self.instr.data_length = Length::Word;
+                        self.instr.addr_mode = decode_mod(operand);
+                        self.instr.operand1 = decode_rm(self, bus, operand, 0);
+                        
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => 15,
+                            OperandType::Memory(_) => 24 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        }
                     },
                     _ => unreachable!(),    
                 }
+            }
+
+            0x50..=0x57 => {
+                self.instr.opcode = Opcode::PUSH;
+                self.instr.data_length = Length::Word;
+                self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
+                self.instr.cycles = 15;
+            }
+
+            0x06 | 0x16 | 0x0E | 0x1E => {
+                self.instr.opcode = Opcode::PUSH;
+                self.instr.data_length = Length::Word;
+                self.instr.operand1 = decode_segment(op, 3);
+                self.instr.cycles = 14;
             }
             _ => {}
             // _ => unreachable!(),
@@ -220,13 +243,7 @@ impl CPU {
     pub fn execute(&mut self, bus: &mut Bus) {
         match self.instr.opcode {
             Opcode::MOV => {
-                let val = match self.instr.operand2 {
-                    OperandType::Register(operand) => self.get_reg(self.instr.data_length, operand),
-                    OperandType::SegmentRegister(operand) => self.get_segment(operand),
-                    OperandType::Immediate(_operand) => self.instr.imm,
-                    OperandType::Memory(_operand) => bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length),
-                    _ => unreachable!(),
-                };
+                let val = self.get_val(bus, self.instr.operand2);
 
                 match self.instr.operand1 {
                     OperandType::Register(operand) => self.set_reg(self.instr.data_length, operand, val),
@@ -235,6 +252,11 @@ impl CPU {
                     _ => unreachable!(),
                 }
             },
+
+            Opcode::PUSH => {
+                let val = self.get_val(bus, self.instr.operand1);
+                self.push_stack(bus, val);
+            }
             _ => {}
             // _ => unreachable!(),
         }
@@ -322,7 +344,7 @@ impl CPU {
         }
     }
 
-    pub fn get_segment(&mut self, segment: Operand) -> u16 {
+    pub fn get_segment(&self, segment: Operand) -> u16 {
         match segment {
             Operand::ES => self.es,
             Operand::CS => self.cs,
@@ -342,6 +364,16 @@ impl CPU {
         }
     }
 
+    fn get_val(&mut self, bus: &mut Bus, operand: OperandType) -> u16 {
+        match operand {
+            OperandType::Register(operand) => self.get_reg(self.instr.data_length, operand),
+            OperandType::SegmentRegister(operand) => self.get_segment(operand),
+            OperandType::Immediate(_operand) => self.instr.imm,
+            OperandType::Memory(_operand) => bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length),
+            _ => unreachable!(),
+        }
+    }
+
     fn push_stack_8(self: &mut Self, bus: &mut Bus, val: u8) {
         bus.write_8(self.ss, self.sp, val);
         self.sp = self.sp.wrapping_add(1);
@@ -351,6 +383,14 @@ impl CPU {
         let val = to_2u8(val);
         self.push_stack_8(bus, val.0);
         self.push_stack_8(bus, val.1);
+    }
+
+    fn push_stack(&mut self, bus: &mut Bus, val: u16) {
+        match self.instr.data_length {
+            Length::Byte => self.push_stack_8(bus, val as u8),
+            Length::Word => self.push_stack_16(bus, val),
+            _ => unreachable!(),
+        }
     }
 
     fn pop_stack_8(self: &mut Self, bus: &mut Bus) -> u8 {

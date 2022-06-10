@@ -159,4 +159,17 @@ mod tests {
         cpu.fetch_decode_execute(&mut bus);
         assert_eq!(cpu.ds, 0x6942);
     }
+
+    #[test]
+    fn push_ax() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+
+        bus.memory[0] = 0xFF;
+        bus.memory[1] = 0b11110000;
+
+        cpu.ax.set_x(0x6942);
+        cpu.fetch_decode_execute(&mut bus);
+        assert_eq!(bus.read_16(cpu.ss, cpu.sp - 2), 0x6942);
+    }
 }

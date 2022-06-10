@@ -1,4 +1,4 @@
-use super::{cpu_utils::to_u16, instr_utils::{Length, Operand, OperandType}, cpu::CPU};
+use super::{cpu_utils::to_u16, instr_utils::{Length, Operand}, cpu::CPU};
 
 pub struct Bus {
     pub memory: [u8; 0x100000]
@@ -48,7 +48,7 @@ impl Bus {
         self.memory[dir]
     }
 
-    pub fn read_length(&self, cpu: &mut CPU, segment: Operand, offset: u16, length: Length) -> u16 {
+    pub fn read_length(&self, cpu: &CPU, segment: Operand, offset: u16, length: Length) -> u16 {
         let segment_u16 = cpu.get_segment(segment);
 
         match length {

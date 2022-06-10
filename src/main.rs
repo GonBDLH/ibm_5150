@@ -22,7 +22,6 @@ mod tests {
         bus.memory[1] = 0b11000011;
         
         cpu.bx.low = 0x69;
-        assert_eq!(cpu.ax.low, 0);
         cpu.fetch_decode_execute(&mut bus);
 
         assert_eq!(cpu.ax.low, 0x69);
@@ -37,7 +36,6 @@ mod tests {
         bus.memory[1] = 0b11000011;
 
         cpu.bx.set_x(0x6942);
-        assert_eq!(cpu.ax.low, 0);
         cpu.fetch_decode_execute(&mut bus);
         assert_eq!(cpu.ax.get_x(), 0x6942);
     }
@@ -53,7 +51,6 @@ mod tests {
         bus.memory[3] = 0b00000011;
 
         bus.write_8(0, 1000, 0x42);
-        assert_eq!(cpu.ax.get_x(), 0);
         cpu.fetch_decode_execute(&mut bus);
         assert_eq!(cpu.ax.low, 0x42);
     }
@@ -70,7 +67,6 @@ mod tests {
 
         //bus.write_8(0, 1000, 0x42);
         cpu.ax.low = 0x42;
-        assert_eq!(bus.read_8(0, 1000), 0);
         cpu.fetch_decode_execute(&mut bus);
         assert_eq!(bus.read_8(0, 1000), 0x42);
     }
@@ -84,7 +80,6 @@ mod tests {
         bus.memory[1] = 0b11000000;
         bus.memory[2] = 0x42;
 
-        assert_eq!(cpu.ax.low, 0);
         cpu.fetch_decode_execute(&mut bus);
         assert_eq!(cpu.ax.low, 0x42);
     }
@@ -101,7 +96,6 @@ mod tests {
         cpu.bp = 10;
         cpu.si = 10;
 
-        assert_eq!(bus.read_8(0, 20), 0);
         cpu.fetch_decode_execute(&mut bus);
         assert_eq!(bus.read_8(0, 20), 0x42);
     }
@@ -116,8 +110,53 @@ mod tests {
         bus.memory[2] = 0x42;
         bus.memory[3] = 0x69;
 
-        assert_eq!(cpu.ax.get_x(), 0);
         cpu.fetch_decode_execute(&mut bus);
         assert_eq!(cpu.ax.get_x(), 0x6942);
+    }
+
+    // Mem to AL
+    #[test]
+    fn mov_al_0x1234() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+
+        bus.memory[0] = 0xA0;
+        bus.memory[1] = 0x34;
+        bus.memory[2] = 0x12;
+
+        bus.memory[0x1234] = 0x69;
+
+        cpu.fetch_decode_execute(&mut bus);
+        assert_eq!(cpu.ax.low, 0x69)
+    }
+
+    #[test]
+    // AX to Mem
+    fn mov_0x1234_al() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+
+        bus.memory[0] = 0xA3;
+        bus.memory[1] = 0x34;
+        bus.memory[2] = 0x12;
+
+        cpu.ax.set_x(0x6942);
+
+        cpu.fetch_decode_execute(&mut bus);
+        assert_eq!(bus.read_16(cpu.ds, 0x1234), 0x6942)
+    }
+
+    #[test]
+    fn mov_ds_bx() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+
+        bus.memory[0] = 0x8E;
+        bus.memory[1] = 0xDB;
+
+        cpu.bx.set_x(0x6942);
+
+        cpu.fetch_decode_execute(&mut bus);
+        assert_eq!(cpu.ds, 0x6942);
     }
 }

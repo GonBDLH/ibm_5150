@@ -63,7 +63,12 @@ impl CPU {
     pub fn step(self: &mut Self, bus: &mut Bus) {
         // 14,31818 MHz * 1/50 Hz / 3 ~= 95454 => Nº ciclos que hace la CPU en un frame 
         for _i in 0..95454 {
-            self.fetch_decode_execute(bus)
+            if self.instr.cycles == 0 {
+                self.fetch_decode_execute(bus)
+            } else {
+                self.instr.cycles -= 1;
+            }
+            
             // self.instr_queue.push_back(read);
     
             // if self.pop {
@@ -87,12 +92,8 @@ impl CPU {
         bus.read_dir(dir)
     }
 
-    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) {
-        let op = self.fetch(bus);
-        self.instr = Instruction::default();
-
+    pub fn decode(&mut self, bus: &mut Bus,op: u8) {
         match op {
-            // MOV Register/Memory to/from Register
             0x88..=0x8B => {
                 self.instr.opcode = Opcode::MOV;
                 self.instr.direction = Direction::new(op);
@@ -100,58 +101,149 @@ impl CPU {
                 
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
-                
-                // TRUE -> Reg, False -> Mem
-                let (a, b) = mov_reg_rm(self, bus);
 
-                self.instr.cycles = match (a, b) {
-                    (true, true) => 2,
-                    (false, true) => 13 + self.instr.ea_cycles,
-                    (true, false) => 12 + self.instr.ea_cycles,
-                    (false, false) => unreachable!(),
+                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                    (OperandType::Register(_), OperandType::Register(_)) => 2,
+                    (OperandType::Memory(_), OperandType::Register(_)) => 13 + self.instr.ea_cycles,
+                    (OperandType::Register(_), OperandType::Memory(_)) => 12 + self.instr.ea_cycles,
+                    _ => unreachable!(),
                 }
             },
-
-            // MOV Immediate to Register/Memory
             0xC6 | 0xC7 => {
                 self.instr.opcode = Opcode::MOV;
                 self.instr.data_length = Length::new(op, 0);
-                self.instr.operand2 = Operand::Imm;
+                self.instr.operand2 = OperandType::Immediate(Operand::Imm);
 
                 let operand = self.fetch(bus);
-                decode_mod_N_rm(self, bus, operand);
+                decode_mod_n_rm(self, bus, operand);
                 read_imm(self, bus);
 
-                match self.instr.addr_mode {
-                    AddrMode::Mode3 => {
-                        self.set_reg(self.instr.data_length, self.instr.operand1, self.instr.imm);
-                        self.instr.cycles = 4;
+                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                    (OperandType::Memory(_), OperandType::Immediate(_)) => 14 + self.instr.ea_cycles,
+                    (OperandType::Register(_), OperandType::Immediate(_)) => 4,
+                    _ => unreachable!(),
+                }
+            },
+            0xB0..=0xBF => {
+                self.instr.opcode = Opcode::MOV;
+                self.instr.data_length = Length::new(op, 3);
+                self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
+                self.instr.operand2 = OperandType::Immediate(Operand::Imm);
+                read_imm(self, bus);
+                self.instr.cycles = 4;
+            },
+            0xA0..=0xA3 => {
+                self.instr.opcode = Opcode::MOV;
+                self.instr.direction = if 0x02 & op == 0 {Direction::ToReg} else {Direction::FromReg};
+                self.instr.data_length = Length::new(op, 0);
+                if self.instr.direction == Direction::ToReg {
+                    if self.instr.data_length == Length::Byte {
+                        self.instr.operand1 = OperandType::Register(Operand::AL);
+                    } else {
+                        self.instr.operand1 = OperandType::Register(Operand::AX);
+                    }
+                    self.instr.operand2 = OperandType::Memory(Operand::Disp);
+                } else {
+                    self.instr.operand1 = OperandType::Memory(Operand::Disp);
+                    if self.instr.data_length == Length::Byte {
+                        self.instr.operand2 = OperandType::Register(Operand::AL);
+                    } else {
+                        self.instr.operand2 = OperandType::Register(Operand::AX);
+                    }
+                }
+                read_imm_addres(self, bus);
+                self.instr.cycles = 14;
+            },
+            0x8E | 0x8C => {
+                self.instr.opcode = Opcode::MOV;
+                self.instr.direction = Direction::new(op);
+                self.instr.data_length = Length::Word;
+
+                let operand = self.fetch(bus);
+                self.instr.addr_mode = decode_mod(operand);
+
+                match self.instr.direction {
+                    Direction::ToReg => {
+                        self.instr.operand1 = decode_segment(operand, 3);
+                        self.instr.operand2 = decode_rm(self, bus, operand, 0);
                     },
-                    AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
-                        bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, self.instr.imm);
-                        self.instr.cycles = 14 + self.instr.ea_cycles;
+                    Direction::FromReg => {
+                        self.instr.operand1 = decode_rm(self, bus, operand, 0);
+                        self.instr.operand2 = decode_segment(operand, 3);
                     },
+                    _ => unreachable!(),
+                }
+
+                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                    (OperandType::SegmentRegister(_), OperandType::Register(_)) => 2,
+                    (OperandType::Register(_), OperandType::Memory(_)) => 12 + self.instr.ea_cycles,
+                    (OperandType::Register(_), OperandType::SegmentRegister(_)) => 2,
+                    (OperandType::Memory(_), OperandType::Register(_)) => 13 + self.instr.ea_cycles,
                     _ => unreachable!(),
                 }
             },
 
-            // MOV Immediate to Register
-            0xB0..=0xBF => {
-                
+            // Prefijo _MISC r/m16
+            0xFF => {
+                let operand = self.fetch(bus);
+
+                match operand & 0b00111000 {
+                    0x0 => {
+                        Opcode::INC;
+                    },
+                    0x8 => {
+                        Opcode::DEC;
+                    },
+                    0x10 => {
+                        Opcode::CALL;
+                    },
+                    0x18 => {
+                        Opcode::CALL;
+                    },
+                    0x20 => {
+                        Opcode::JMP;
+                    },
+                    0x28 => {
+                        Opcode::JMP;
+                    },
+                    0x30 => {
+                        Opcode::PUSH;
+                    },
+                    _ => unreachable!(),    
+                }
             }
-
-            // MOV Memory To/From Accumulator
-            0xA0..=0xA3 => {
-                
-            }
-
-            // MOV Register/Memory To/From SegmentRegister
-            0x8E | 0x8C => {
-                
-            },
-
-            _ => {},
+            _ => {}
+            // _ => unreachable!(),
         }
+    }
+
+    pub fn execute(&mut self, bus: &mut Bus) {
+        match self.instr.opcode {
+            Opcode::MOV => {
+                let val = match self.instr.operand2 {
+                    OperandType::Register(operand) => self.get_reg(self.instr.data_length, operand),
+                    OperandType::SegmentRegister(operand) => self.get_segment(operand),
+                    OperandType::Immediate(_operand) => self.instr.imm,
+                    OperandType::Memory(_operand) => bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length),
+                    _ => unreachable!(),
+                };
+
+                match self.instr.operand1 {
+                    OperandType::Register(operand) => self.set_reg(self.instr.data_length, operand, val),
+                    OperandType::SegmentRegister(operand) => self.set_segment(operand, val),
+                    OperandType::Memory(_operand) => bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, val),
+                    _ => unreachable!(),
+                }
+            },
+            _ => {}
+            // _ => unreachable!(),
+        }
+    }
+
+    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) {
+        let op = self.fetch(bus);
+        self.decode(bus, op);
+        self.execute(bus);
     }
 }
 
@@ -186,6 +278,7 @@ impl CPU {
     }
 
     pub fn set_reg(self: &mut Self, length: Length, reg: Operand, val: u16) {
+
         match length {
             Length::Byte => self.set_reg8(reg, val as u8),
             Length::Word => self.set_reg16(reg, val),
@@ -248,26 +341,6 @@ impl CPU {
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
-
-    // fn get_segment(self: &Self, reg: u8) -> u16 {
-    //     match reg {
-    //         0b00 => self.es,
-    //         0b01 => self.cs,
-    //         0b10 => self.ss,
-    //         0b11 => self.ds,
-    //         _ => unreachable!("Aqui no deberia entrar nunca")
-    //     }
-    // }
-
-    // fn set_segment(self: &mut Self, reg: u8, val: u16) {
-    //     match reg {
-    //         0b00 => self.es = val,
-    //         0b01 => self.cs = val,
-    //         0b10 => self.ss = val,
-    //         0b11 => self.ds = val,
-    //         _ => unreachable!("Aqui no deberia entrar nunca")
-    //     }
-    // }
 
     fn push_stack_8(self: &mut Self, bus: &mut Bus, val: u8) {
         bus.write_8(self.ss, self.sp, val);

@@ -1,4 +1,4 @@
-use super::{cpu_utils::to_u16, instr_utils::{Length, Operand}, cpu::CPU};
+use super::{cpu_utils::to_u16, instr_utils::{Length, Operand, OperandType}, cpu::CPU};
 
 pub struct Bus {
     pub memory: [u8; 0x100000]
@@ -9,7 +9,7 @@ pub struct Bus {
 impl Bus {
     pub fn new() -> Self {
         Bus {
-            memory: [0x00; 0x100000]
+            memory: [0x88; 0x100000]
             // memory: [0x00; 0x1000]
         }
     }
@@ -30,8 +30,8 @@ impl Bus {
     }
 
     pub fn write_16(self: &mut Self, segment: u16, offset: u16, val: u16) {
-        self.write_8(segment, offset, (val >> 8) as u8);
-        self.write_8(segment, offset + 1, val as u8);
+        self.write_8(segment, offset, val as u8);
+        self.write_8(segment, offset + 1, (val >> 8) as u8);
     }
 
     pub fn write_length(&mut self, cpu: &mut CPU, length: Length, segment: Operand, offset: u16, val: u16) {

@@ -2,8 +2,8 @@ use super::{cpu::CPU, bus::Bus, cpu_utils::{to_u16, sign_extend}};
 
 pub struct Instruction {
     pub opcode: Opcode,
-    pub operand1: Operand,
-    pub operand2: Operand,
+    pub operand1: OperandType,
+    pub operand2: OperandType,
 
     // True     R/M -> R
     // False    R   -> R/M
@@ -26,8 +26,8 @@ impl Default for Instruction {
     fn default() -> Self {
         Self { 
             opcode: Opcode::None, 
-            operand1: Operand::None, 
-            operand2: Operand::None, 
+            operand1: OperandType::None, 
+            operand2: OperandType::None, 
             
             direction: Direction::None,
             data_length: Length::None,
@@ -53,7 +53,7 @@ pub enum AddrMode {
     None
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Length {
     Byte,
     Word,
@@ -74,7 +74,11 @@ impl Length {
 pub enum Opcode {
     None,
     MOV,
-
+    PUSH,
+    INC,
+    DEC,
+    CALL,
+    JMP,
 }
 
 #[derive(Clone, Copy)]
@@ -116,6 +120,16 @@ pub enum Operand {
     Imm = 34,
 }
 
+#[derive(Clone, Copy)]
+pub enum OperandType {
+    Register(Operand),
+    SegmentRegister(Operand),
+    Memory(Operand),
+    Immediate(Operand),
+    None,
+}
+
+#[derive(PartialEq)]
 pub enum Direction {
     ToReg,
     FromReg,
@@ -150,64 +164,64 @@ pub fn decode_mod(operand: u8) -> AddrMode {
     }
 }
 
-pub fn decode_reg(operand: u8, pos: u8, length: Length) -> Operand {
+pub fn decode_reg(operand: u8, pos: u8, length: Length) -> OperandType {
     assert!(pos < 8);
     let reg = (operand << pos) & 0x07;
 
     match reg {
         0b000 => {
             match length {
-                Length::Byte => Operand::AL,
-                Length::Word => Operand::AX,
+                Length::Byte => OperandType::Register(Operand::AL),
+                Length::Word => OperandType::Register(Operand::AX),
                 _ => unreachable!(),
             }
         },
         0b001 => {
             match length {
-                Length::Byte => Operand::CL,
-                Length::Word => Operand::CX,
+                Length::Byte => OperandType::Register(Operand::CL),
+                Length::Word => OperandType::Register(Operand::CX),
                 _ => unreachable!(),
             }
         },
         0b010 => {
             match length {
-                Length::Byte => Operand::DL,
-                Length::Word => Operand::DX,
+                Length::Byte => OperandType::Register(Operand::DL),
+                Length::Word => OperandType::Register(Operand::DX),
                 _ => unreachable!(),
             }
         },
         0b011 => {
             match length {
-                Length::Byte => Operand::BL,
-                Length::Word => Operand::BX,
+                Length::Byte => OperandType::Register(Operand::BL),
+                Length::Word => OperandType::Register(Operand::BX),
                 _ => unreachable!(),
             }
         },
         0b100 => {
             match length {
-                Length::Byte => Operand::AH,
-                Length::Word => Operand::SP,
+                Length::Byte => OperandType::Register(Operand::AH),
+                Length::Word => OperandType::Register(Operand::SP),
                 _ => unreachable!(),
             }
         },
         0b101 => {
             match length {
-                Length::Byte => Operand::CH,
-                Length::Word => Operand::BP,
+                Length::Byte => OperandType::Register(Operand::CH),
+                Length::Word => OperandType::Register(Operand::BP),
                 _ => unreachable!(),
             }
         },
         0b110 => {
             match length {
-                Length::Byte => Operand::DH,
-                Length::Word => Operand::SI,
+                Length::Byte => OperandType::Register(Operand::DH),
+                Length::Word => OperandType::Register(Operand::SI),
                 _ => unreachable!(),
             }
         },
         0b111 => {
             match length {
-                Length::Byte => Operand::BH,
-                Length::Word => Operand::DI,
+                Length::Byte => OperandType::Register(Operand::BH),
+                Length::Word => OperandType::Register(Operand::DI),
                 _ => unreachable!(),
             }
         },
@@ -215,7 +229,7 @@ pub fn decode_reg(operand: u8, pos: u8, length: Length) -> Operand {
     }
 }
 
-pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: AddrMode) -> Operand {
+pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: AddrMode) -> OperandType {
     assert!(pos < 8);
     let rm = (operand >> pos) & 0x07;
 
@@ -226,37 +240,37 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si);
                     cpu.instr.ea_cycles = 7;
-                    Operand::BXSI
+                    OperandType::Memory(Operand::BXSI)
                 },
                 0b001 => {
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di);
                     cpu.instr.ea_cycles = 8;
-                    Operand::BXDI
+                    OperandType::Memory(Operand::BXDI)
                 },
                 0b010 => {
                     cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si);
                     cpu.instr.ea_cycles = 8;
-                    Operand::BPSI
+                    OperandType::Memory(Operand::BPSI)
                 },
                 0b011 => {
                     cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di);
                     cpu.instr.ea_cycles = 7;
-                    Operand::BPDI
+                    OperandType::Memory(Operand::BPDI)
                 },
                 0b100 => {
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.si;
                     cpu.instr.ea_cycles = 5;
-                    Operand::SI
+                    OperandType::Memory(Operand::SI)
                 },
                 0b101 => {
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.di;
                     cpu.instr.ea_cycles = 5;
-                    Operand::DI
+                    OperandType::Memory(Operand::DI)
                 },
                 0b110 => {
                     let disp_low = cpu.fetch(bus);
@@ -264,13 +278,13 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = to_u16(disp_low, disp_high);
                     cpu.instr.ea_cycles = 6;
-                    Operand::Disp
+                    OperandType::Memory(Operand::Disp)
                 },
                 0b111 => {
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x();
                     cpu.instr.ea_cycles = 5;
-                    Operand::BX
+                    OperandType::Memory(Operand::BX)
                 },
                 _ => unreachable!("Aqui no deberia entrar nunca")
             }
@@ -294,49 +308,49 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
-                    Operand::DispBXSI
+                    OperandType::Memory(Operand::DispBXSI)
                 },
                 0b001 => {
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
-                    Operand::DispBXDI
+                    OperandType::Memory(Operand::DispBXDI)
                 },
                 0b010 => {
                     cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
-                    Operand::DispBPSI
+                    OperandType::Memory(Operand::DispBPSI)
                 },
                 0b011 => {
                     cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
-                    Operand::DispBPDI
+                    OperandType::Memory(Operand::DispBPDI)
                 },
                 0b100 => {
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.si.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
-                    Operand::DispSI
+                    OperandType::Memory(Operand::DispSI)
                 },
                 0b101 => {
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.di.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
-                    Operand::DispDI
+                    OperandType::Memory(Operand::DispDI)
                 },
                 0b110 => {
                     cpu.instr.segment = Operand::SS;
                     cpu.instr.offset = cpu.bp.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
-                    Operand::DispBP
+                    OperandType::Memory(Operand::DispBP)
                 },
                 0b111 => {
                     cpu.instr.segment = Operand::DS;
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
-                    Operand::DispBX
+                    OperandType::Memory(Operand::DispBX)
                 },
                 _ => unreachable!("Aqui no deberia entrar nunca")
             }
@@ -345,7 +359,7 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
     }
 }
 
-pub fn decode_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8, rm_pos: u8) -> Operand {
+pub fn decode_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8, rm_pos: u8) -> OperandType {
     match cpu.instr.addr_mode {
         AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
             decode_mem(cpu, bus, operand, rm_pos, cpu.instr.addr_mode)
@@ -357,15 +371,15 @@ pub fn decode_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8, rm_pos: u8) -> Opera
     }
 }
 
-pub fn decode_segment(operand: u8, pos: u8) -> Operand {
+pub fn decode_segment(operand: u8, pos: u8) -> OperandType {
     assert!(pos < 8);
     let reg = (operand >> pos) & 0x03;
 
     match reg {
-        0b00 => Operand::ES,
-        0b01 => Operand::CS,
-        0b10 => Operand::SS,
-        0b11 => Operand::DS,
+        0b00 => OperandType::SegmentRegister(Operand::ES),
+        0b01 => OperandType::SegmentRegister(Operand::CS),
+        0b10 => OperandType::SegmentRegister(Operand::SS),
+        0b11 => OperandType::SegmentRegister(Operand::DS),
         _ => unreachable!(),
     }
 }
@@ -402,39 +416,9 @@ pub fn decode_mod_reg_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
     }
 }
 
-pub fn decode_mod_N_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
+pub fn decode_mod_n_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
     cpu.instr.addr_mode = decode_mod(operand);
     cpu.instr.operand1 = decode_rm(cpu, bus, operand, 0)
-}
-
-// MOV ENTRE MEMORIA/REG Y REGISTRO
-pub fn mov_reg_rm(cpu: &mut CPU, bus: &mut Bus) -> (bool, bool) {
-    let (a, b);
-    let val = match cpu.instr.operand2 as i32 {
-        1..=16 => {
-            b = true;
-            cpu.get_reg(cpu.instr.data_length, cpu.instr.operand2)
-        },
-        21..=33 => {
-            b = false;
-            bus.read_length(cpu, cpu.instr.segment, cpu.instr.offset, cpu.instr.data_length)
-        }
-        _ => unreachable!(),
-    };
-
-    match cpu.instr.direction {
-        Direction::ToReg => {
-            a = true;
-            cpu.set_reg(cpu.instr.data_length, cpu.instr.operand1, val)
-        },
-        Direction::FromReg => {
-            a = false;
-            bus.write_length(cpu, cpu.instr.data_length, cpu.instr.segment, cpu.instr.offset, val)
-        },
-        _ => unreachable!(),
-    }
-
-    (a, b)
 }
 
 pub fn read_imm(cpu: &mut CPU, bus: &mut Bus) {
@@ -443,4 +427,9 @@ pub fn read_imm(cpu: &mut CPU, bus: &mut Bus) {
         Length::Word => cpu.instr.imm = to_u16(cpu.fetch(bus), cpu.fetch(bus)),
         _ => unreachable!(),
     }
+}
+
+pub fn read_imm_addres(cpu: &mut CPU, bus: &mut Bus) {
+    cpu.instr.offset = to_u16(cpu.fetch(bus), cpu.fetch(bus));
+    cpu.instr.segment = Operand::DS;
 }

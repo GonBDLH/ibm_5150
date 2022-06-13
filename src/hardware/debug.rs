@@ -40,9 +40,9 @@ pub fn display(sys: &System) {
              |                                   |                                                                                  |\
              |                                   |                                                                                  |\
              *===================================*==================================================================================*\
-             |   >>                                                                                                                 |\
-             *======================================================================================================================*",
-                                                sys.cpu.flags.o as i32, sys.cpu.cs, dir, sys.bus.memory[dir],
+             |   >>                              |                                                                                  |\
+             *===================================*==================================================================================*",
+                                                sys.cpu.flags.o as i32, sys.cpu.cs, dir % 0x100000, sys.bus.memory[dir % 0x100000],
              sys.cpu.ax.high, sys.cpu.ax.low,   sys.cpu.flags.d as i32, sys.cpu.ds, (dir + 1) % 0x100000, sys.bus.memory[(dir + 1) % 0x100000],
                                                 sys.cpu.flags.i as i32, sys.cpu.es, (dir + 2) % 0x100000, sys.bus.memory[(dir + 2) % 0x100000],
              sys.cpu.bx.high, sys.cpu.bx.low,   sys.cpu.flags.t as i32, sys.cpu.ss, (dir + 3) % 0x100000, sys.bus.memory[(dir + 3) % 0x100000],

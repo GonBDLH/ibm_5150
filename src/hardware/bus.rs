@@ -16,7 +16,7 @@ impl Bus {
 
     pub fn read_8(self: &Self, segment: u16, offset: u16) -> u8 {
         let ea = ((segment as usize) << 4) + offset as usize;
-        self.memory[ea]
+        self.memory[ea % 0x100000]
     }
 
     pub fn read_16(self: &Self, segment: u16, offset: u16) -> u16 {
@@ -26,7 +26,7 @@ impl Bus {
 
     pub fn write_8(self: &mut Self, segment: u16, offset: u16, val: u8) {
         let ea = ((segment as usize) << 4) + offset as usize;
-        self.memory[ea] = val;
+        self.memory[ea % 0x100000] = val;
     }
 
     pub fn write_16(self: &mut Self, segment: u16, offset: u16, val: u16) {
@@ -45,7 +45,7 @@ impl Bus {
     }
 
     pub fn read_dir(self: &Self, dir: usize) -> u8 {
-        self.memory[dir]
+        self.memory[dir % 0x100000]
     }
 
     pub fn read_length(&self, cpu: &CPU, segment: Operand, offset: u16, length: Length) -> u16 {

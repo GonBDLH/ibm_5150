@@ -2,11 +2,12 @@ mod hardware;
 
 use hardware::sys::System;
 
+use hardware::debug::*;
+
 fn main() {
     let mut sys = System::new();
 
-    sys.clock();
-
+    sys.run();
 }
 
 #[cfg(test)]
@@ -171,5 +172,14 @@ mod tests {
         cpu.ax.set_x(0x6942);
         cpu.fetch_decode_execute(&mut bus);
         assert_eq!(bus.read_16(cpu.ss, cpu.sp - 2), 0x6942);
+    }
+
+    #[test]
+    fn lea_ax_m() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+
+        bus.memory[0] = 0x8D;
+        bus.memory[1] = 0b11;
     }
 }

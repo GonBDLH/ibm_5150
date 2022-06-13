@@ -17,7 +17,7 @@ pub struct CPU {
     pub sp: u16,
 
     // Flags
-    flags: Flags,
+    pub flags: Flags,
 
     // Registros de segmentos
     pub cs: u16,
@@ -26,7 +26,7 @@ pub struct CPU {
     pub ss: u16,
 
     // Instruction pointer
-    ip: u16,
+    pub ip: u16,
     
     // Utilizado para guardar info de la operacion que se esta decodificando
     pub instr: Instruction,
@@ -47,7 +47,7 @@ impl CPU {
 
             flags: Flags::new(),
 
-            cs: 0x0000,
+            cs: 0xFFFF,
             ds: 0x0000,
             es: 0x0000,
             ss: 0x0000,
@@ -65,9 +65,9 @@ impl CPU {
         for _i in 0..95454 {
             if self.instr.cycles == 0 {
                 self.fetch_decode_execute(bus)
-            } else {
-                self.instr.cycles -= 1;
             }
+            
+            self.instr.cycles -= 1;
             
             // self.instr_queue.push_back(read);
     
@@ -102,7 +102,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 2,
                     (OperandType::Memory(_), OperandType::Register(_)) => 13 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 12 + self.instr.ea_cycles,
@@ -118,7 +118,7 @@ impl CPU {
                 decode_mod_n_rm(self, bus, operand);
                 read_imm(self, bus);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Memory(_), OperandType::Immediate(_)) => 14 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Immediate(_)) => 4,
                     _ => unreachable!(),
@@ -130,7 +130,7 @@ impl CPU {
                 self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
                 self.instr.operand2 = OperandType::Immediate(Operand::Imm);
                 read_imm(self, bus);
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0xA0..=0xA3 => {
                 self.instr.opcode = Opcode::MOV;
@@ -152,7 +152,7 @@ impl CPU {
                     }
                 }
                 read_imm_addres(self, bus);
-                self.instr.cycles = 14;
+                self.instr.cycles += 14;
             },
             0x8E | 0x8C => {
                 self.instr.opcode = Opcode::MOV;
@@ -174,7 +174,7 @@ impl CPU {
                     _ => unreachable!(),
                 }
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::SegmentRegister(_), OperandType::Register(_)) => 2,
                     (OperandType::Register(_), OperandType::Memory(_)) => 12 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::SegmentRegister(_)) => 2,
@@ -182,7 +182,6 @@ impl CPU {
                     _ => unreachable!(),
                 }
             },
-
             // Prefijo _MISC r/m16
             0xFF => {
                 let operand = self.fetch(bus);
@@ -212,7 +211,7 @@ impl CPU {
                         self.instr.addr_mode = decode_mod(operand);
                         self.instr.operand1 = decode_rm(self, bus, operand, 0);
                         
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 15,
                             OperandType::Memory(_) => 24 + self.instr.ea_cycles,
                             _ => unreachable!(),
@@ -220,22 +219,111 @@ impl CPU {
                     },
                     _ => unreachable!(),    
                 }
-            }
-
+            },
             0x50..=0x57 => {
                 self.instr.opcode = Opcode::PUSH;
                 self.instr.data_length = Length::Word;
                 self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
-                self.instr.cycles = 15;
-            }
-
+                self.instr.cycles += 15;
+            },
             0x06 | 0x16 | 0x0E | 0x1E => {
                 self.instr.opcode = Opcode::PUSH;
                 self.instr.data_length = Length::Word;
                 self.instr.operand1 = decode_segment(op, 3);
-                self.instr.cycles = 14;
+                self.instr.cycles += 14;
+            },
+            0x8F => {
+                self.instr.opcode = Opcode::POP;
+                let operand = self.fetch(bus);
+                self.instr.addr_mode = decode_mod(operand);
+                self.instr.data_length = Length::Word;
+                self.instr.operand1 = decode_rm(self, bus, operand, 0);
+
+                self.instr.cycles += match self.instr.operand1 {
+                    OperandType::Register(_) => 12,
+                    OperandType::Memory(_) => 25 + self.instr.ea_cycles,
+                    _ => unreachable!(),
+                }
+            },
+            0x58..=0x5F => {
+                self.instr.opcode = Opcode::POP;
+                self.instr.data_length = Length::Word;
+                self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
+                self.instr.cycles += 12;
+            },
+            0x07 | 0x17 | 0x0F | 0x1F => {
+                self.instr.opcode = Opcode::POP;
+                self.instr.data_length = Length::Word;
+                self.instr.operand1 = decode_segment(op, 3);
+                self.instr.cycles += 12;
+            },
+            0x86 | 0x87 => {
+                self.instr.opcode = Opcode::XCHG;
+                self.instr.data_length = Length::new(op, 0);
+                self.instr.direction = Direction::ToReg;
+                let operand = self.fetch(bus);
+                decode_mod_reg_rm(self, bus, operand);
+
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
+                    (OperandType::Register(_), OperandType::Register(_)) => 4,
+                    (OperandType::Register(_), OperandType::Memory(_)) => 25 + self.instr.ea_cycles,
+                    (OperandType::Memory(_), OperandType::Register(_)) => 25 + self.instr.ea_cycles, // Creo que no hace falta, pero por si acaso
+                    _ => unreachable!(),
+                }
+            },
+            0x90..=0x97 => {
+                self.instr.opcode = Opcode::XCHG;
+                self.instr.data_length = Length::Word;
+                self.instr.direction = Direction::ToReg;
+                self.instr.operand1 = OperandType::Register(Operand::AX);
+                self.instr.operand2 = decode_reg(op, 0, self.instr.data_length);
+                self.instr.cycles += 3;
+            },
+            // TODO IN
+            0xE4 | 0xE5 => {
+                
+                self.instr.opcode = Opcode::IN;
+            },
+            0xEC | 0xED => {
+                self.instr.opcode = Opcode::IN;
+            },
+            // TODO OUT
+            0xE6 | 0xE7 => {
+                self.instr.opcode = Opcode::OUT;
+            },
+            0xEE | 0xEF => {
+                self.instr.opcode = Opcode::OUT;
+            },
+            0xD7 => {
+                self.instr.opcode = Opcode::XLAT;
+                self.instr.operand1 = OperandType::Register(Operand::AL);
+
+                self.instr.cycles += 11;
+            },
+            0x8D => {
+                self.instr.opcode = Opcode::LEA;
+                self.instr.direction = Direction::ToReg;
+                self.instr.data_length = Length::Word;
+                let operand = self.fetch(bus);
+                decode_mod_reg_rm(self, bus, operand);
+            },
+
+
+
+
+            0xEA => {
+                self.instr.opcode = Opcode::JMP;
+                let offset_low = self.fetch(bus);
+                let offset_high = self.fetch(bus);
+                let seg_low = self.fetch(bus);
+                let seg_high = self.fetch(bus);
+                let offset = to_u16(offset_low, offset_high);
+                let seg = to_u16(seg_low, seg_high);
+                self.instr.jump_type = JumpType::Long(offset, seg);
+
+                self.instr.cycles += 15;
             }
-            _ => {}
+            _ => {self.instr.cycles += 3}
             // _ => unreachable!(),
         }
     }
@@ -244,18 +332,54 @@ impl CPU {
         match self.instr.opcode {
             Opcode::MOV => {
                 let val = self.get_val(bus, self.instr.operand2);
-
-                match self.instr.operand1 {
-                    OperandType::Register(operand) => self.set_reg(self.instr.data_length, operand, val),
-                    OperandType::SegmentRegister(operand) => self.set_segment(operand, val),
-                    OperandType::Memory(_operand) => bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, val),
-                    _ => unreachable!(),
-                }
+                self.set_val(bus, self.instr.operand1, val);
             },
 
             Opcode::PUSH => {
                 let val = self.get_val(bus, self.instr.operand1);
                 self.push_stack(bus, val);
+            },
+
+            Opcode::POP => {
+                let val = self.pop_stack(bus);
+                self.set_val(bus, self.instr.operand1, val);
+            },
+
+            Opcode::XCHG => {
+                let val1 = self.get_val(bus, self.instr.operand1);
+                let val2 = self.get_val(bus, self.instr.operand2);
+                
+                if let OperandType::Register(operand) = self.instr.operand1 {
+                    self.set_reg(self.instr.data_length, operand, val2);
+                } else {panic!("No se pudo hacer esto")};
+                self.set_val(bus, self.instr.operand2, val1);
+            },
+
+            Opcode::IN => {
+
+            },
+
+            Opcode::OUT => {
+
+            },
+
+            Opcode::XLAT => {
+                let val = bus.read_8(self.get_segment(Operand::DS), self.get_reg16(Operand::BX) + self.get_reg8(Operand::AL));
+                self.set_reg8(Operand::AL, val);
+            },
+
+            Opcode::LEA => {
+                let val = self.get_val(bus, self.instr.operand2);
+                self.set_val(bus, self.instr.operand1, val);
+            }
+
+
+            Opcode::JMP => {
+                match self.instr.jump_type {
+                    // TODO
+                    JumpType::Long(offset, segment) => {self.cs = segment; self.ip = offset},
+                    _ => unreachable!(),
+                }
             }
             _ => {}
             // _ => unreachable!(),
@@ -263,6 +387,7 @@ impl CPU {
     }
 
     pub fn fetch_decode_execute(&mut self, bus: &mut Bus) {
+        self.instr = Instruction::default();
         let op = self.fetch(bus);
         self.decode(bus, op);
         self.execute(bus);
@@ -374,6 +499,15 @@ impl CPU {
         }
     }
 
+    fn set_val(&mut self, bus: &mut Bus, operand: OperandType, val: u16) {
+        match operand {
+            OperandType::Register(operand) => self.set_reg(self.instr.data_length, operand, val),
+            OperandType::SegmentRegister(operand) => self.set_segment(operand, val),
+            OperandType::Memory(_operand) => bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, val),
+            _ => unreachable!(),
+        }
+    }
+
     fn push_stack_8(self: &mut Self, bus: &mut Bus, val: u8) {
         bus.write_8(self.ss, self.sp, val);
         self.sp = self.sp.wrapping_add(1);
@@ -403,6 +537,14 @@ impl CPU {
         let val_high = self.pop_stack_8(bus);
         let val_low = self.pop_stack_8(bus);
         to_u16(val_low, val_high)
+    }
+
+    fn pop_stack(&mut self, bus: &mut Bus) -> u16 {
+        match self.instr.data_length {
+            Length::Byte => self.pop_stack_8(bus) as u16,
+            Length::Word => self.pop_stack_16(bus),
+            _ => unreachable!(),
+        }
     }
 }
 

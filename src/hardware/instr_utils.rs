@@ -19,6 +19,9 @@ pub struct Instruction {
     // Valor inmediato en caso de que lo haya
     pub imm: u16,
 
+    // Tipo de JMP/CALL
+    pub jump_type: JumpType,
+
     pub cycles: u8,
 }
 
@@ -38,6 +41,8 @@ impl Default for Instruction {
             ea_cycles: 0x00,
 
             imm: 0,
+
+            jump_type: JumpType::None,
 
             cycles: 0 
         }
@@ -75,13 +80,19 @@ pub enum Opcode {
     None,
     MOV,
     PUSH,
+    POP,
+    XCHG,
+    IN,
+    OUT,
+    XLAT,
+    LEA,
     INC,
     DEC,
     CALL,
     JMP,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Operand {
     None = 0,
     AL = 1,
@@ -144,6 +155,12 @@ impl Direction {
             Direction::FromReg
         }
     }
+}
+
+pub enum JumpType {
+    Long(u16, u16),
+    Short(u16),
+    None,
 }
 
 pub fn decode_mod(operand: u8) -> AddrMode {
@@ -237,37 +254,37 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
         AddrMode::Mode0 => {
             match rm {
                 0b000 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si);
                     cpu.instr.ea_cycles = 7;
                     OperandType::Memory(Operand::BXSI)
                 },
                 0b001 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di);
                     cpu.instr.ea_cycles = 8;
                     OperandType::Memory(Operand::BXDI)
                 },
                 0b010 => {
-                    cpu.instr.segment = Operand::SS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::SS};
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si);
                     cpu.instr.ea_cycles = 8;
                     OperandType::Memory(Operand::BPSI)
                 },
                 0b011 => {
-                    cpu.instr.segment = Operand::SS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::SS};
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di);
                     cpu.instr.ea_cycles = 7;
                     OperandType::Memory(Operand::BPDI)
                 },
                 0b100 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.si;
                     cpu.instr.ea_cycles = 5;
                     OperandType::Memory(Operand::SI)
                 },
                 0b101 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.di;
                     cpu.instr.ea_cycles = 5;
                     OperandType::Memory(Operand::DI)
@@ -275,13 +292,13 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
                 0b110 => {
                     let disp_low = cpu.fetch(bus);
                     let disp_high = cpu.fetch(bus);
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = to_u16(disp_low, disp_high);
                     cpu.instr.ea_cycles = 6;
                     OperandType::Memory(Operand::Disp)
                 },
                 0b111 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x();
                     cpu.instr.ea_cycles = 5;
                     OperandType::Memory(Operand::BX)
@@ -305,49 +322,49 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
             
             match rm {
                 0b000 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
                     OperandType::Memory(Operand::DispBXSI)
                 },
                 0b001 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
                     OperandType::Memory(Operand::DispBXDI)
                 },
                 0b010 => {
-                    cpu.instr.segment = Operand::SS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::SS};
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
                     OperandType::Memory(Operand::DispBPSI)
                 },
                 0b011 => {
-                    cpu.instr.segment = Operand::SS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::SS};
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
                     OperandType::Memory(Operand::DispBPDI)
                 },
                 0b100 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.si.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     OperandType::Memory(Operand::DispSI)
                 },
                 0b101 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.di.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     OperandType::Memory(Operand::DispDI)
                 },
                 0b110 => {
-                    cpu.instr.segment = Operand::SS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::SS};
                     cpu.instr.offset = cpu.bp.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     OperandType::Memory(Operand::DispBP)
                 },
                 0b111 => {
-                    cpu.instr.segment = Operand::DS;
+                    if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     OperandType::Memory(Operand::DispBX)

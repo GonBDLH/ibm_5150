@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-num = "0.4.0"
+crossterm = "0.23.2"
 
 [env]
 RUST_MIN_STACK = 8388608

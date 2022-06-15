@@ -93,7 +93,11 @@ pub enum Opcode {
     PUSHF,
     POPF,
     ADD,
+    ADC,
     INC,
+    AAA,
+    DAA,
+    SUB,
     DEC,
     CALL,
     JMP,
@@ -135,7 +139,6 @@ pub enum Operand {
     DispBP = 31,
     DispBX = 32,
     Disp = 33,
-    Imm = 34,
 }
 
 #[derive(Clone, Copy)]
@@ -143,7 +146,7 @@ pub enum OperandType {
     Register(Operand),
     SegmentRegister(Operand),
     Memory(Operand),
-    Immediate(Operand),
+    Immediate,
     None,
 }
 
@@ -166,7 +169,7 @@ impl Direction {
 
 pub enum JumpType {
     Long(u16, u16),
-    Short(u16),
+    // Short(u16),
     None,
 }
 
@@ -190,7 +193,7 @@ pub fn decode_mod(operand: u8) -> AddrMode {
 
 pub fn decode_reg(operand: u8, pos: u8, length: Length) -> OperandType {
     assert!(pos < 8);
-    let reg = (operand << pos) & 0x07;
+    let reg = (operand >> pos) & 0x07;
 
     match reg {
         0b000 => {
@@ -407,22 +410,6 @@ pub fn decode_segment(operand: u8, pos: u8) -> OperandType {
         _ => unreachable!(),
     }
 }
-
-// pub fn decode_mod_rm(cpu: &mut CPU, bus: &mut Bus) {
-//     let operand = cpu.fetch(bus);
-//     decode_mod(cpu, operand);
-
-//     cpu.instr.operand1 = match cpu.instr.addr_mode {
-//         AddrMode::Mode0 | AddrMode::Mode1 | AddrMode::Mode2 => {
-//             decode_segment(cpu, (operand & 0b00011000) >> 3);
-//             get_mem_operand(cpu, bus, operand & 0b00000111, cpu.instr.addr_mode)
-//         },
-//         AddrMode::Mode3 => {
-//             get_reg_operand(operand & 0b00000111, cpu.instr.data_length)
-//         },
-//         _ => unreachable!("Aqui no deberia entrar"),
-//     };
-// }
 
 pub fn decode_mod_reg_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
     cpu.instr.addr_mode = decode_mod(operand);

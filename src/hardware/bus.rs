@@ -9,7 +9,7 @@ pub struct Bus {
 impl Bus {
     pub fn new() -> Self {
         Bus {
-            memory: [0x88; 0x100000]
+            memory: [0x00; 0x100000]
             // memory: [0x00; 0x1000]
         }
     }

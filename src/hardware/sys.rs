@@ -57,6 +57,16 @@ impl System {
     }
 
     pub fn run(self: &mut Self) {
+        self.bus.memory[0xFFFF0] = 0xEA;
+        self.bus.memory[0xFFFF1] = 0x00;
+        self.bus.memory[0xFFFF2] = 0x00;
+        self.bus.memory[0xFFFF3] = 0x00;
+        self.bus.memory[0xFFFF4] = 0x00;
+
+        self.bus.memory[0x00000] = 0x83;
+        self.bus.memory[0x00001] = 0b11000000;
+        self.bus.memory[0x00002] = 0x7F;
+
         while self.running {
             display(self);
             get_command(self);
@@ -69,6 +79,5 @@ impl System {
                 std::ptr::write(&mut self.bus.memory[0xFE000 + idx], element);
             }
         }
-        let a = 0;
     }
 }

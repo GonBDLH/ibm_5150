@@ -2,8 +2,6 @@ mod hardware;
 
 use hardware::sys::System;
 
-use hardware::debug::*;
-
 fn main() {
     let mut sys = System::new();
 
@@ -14,10 +12,16 @@ fn main() {
 mod tests {
     use crate::hardware::{cpu::CPU, bus::Bus};
 
+    fn ini(cpu: &mut CPU) {
+        cpu.cs = 0;
+        cpu.ip = 0;
+    }
+
     #[test]
     fn mov_al_bl() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0b10001010;
         bus.memory[1] = 0b11000011;
@@ -32,6 +36,7 @@ mod tests {
     fn mov_ax_bx() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0b10001011;
         bus.memory[1] = 0b11000011;
@@ -45,6 +50,7 @@ mod tests {
     fn mov_al_bxdi1000() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0b10001010;
         bus.memory[1] = 0b10000001;
@@ -60,6 +66,7 @@ mod tests {
     fn mov_bxdi1000_al() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0b10001000;
         bus.memory[1] = 0b10000001;
@@ -76,6 +83,7 @@ mod tests {
     fn mov_al_0x42() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0b11000110;
         bus.memory[1] = 0b11000000;
@@ -89,6 +97,7 @@ mod tests {
     fn mov_bpsi_0x42() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0b11000110;
         bus.memory[1] = 0b00000010;
@@ -105,6 +114,7 @@ mod tests {
     fn mov_ax_0x6942() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0b11000111;
         bus.memory[1] = 0b11000000;
@@ -120,6 +130,7 @@ mod tests {
     fn mov_al_0x1234() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0xA0;
         bus.memory[1] = 0x34;
@@ -136,6 +147,7 @@ mod tests {
     fn mov_0x1234_al() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0xA3;
         bus.memory[1] = 0x34;
@@ -151,6 +163,7 @@ mod tests {
     fn mov_ds_bx() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0x8E;
         bus.memory[1] = 0xDB;
@@ -165,6 +178,7 @@ mod tests {
     fn push_ax() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
         bus.memory[0] = 0xFF;
         bus.memory[1] = 0b11110000;
@@ -175,11 +189,17 @@ mod tests {
     }
 
     #[test]
-    fn lea_ax_m() {
+    fn add_ax_0x7fimm() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
+        ini(&mut cpu);
 
-        bus.memory[0] = 0x8D;
-        bus.memory[1] = 0b11;
+        cpu.ax.set_x(0x1000);
+
+        bus.memory[0] = 0x83;
+        bus.memory[1] = 0b11000000;
+        bus.memory[2] = 0x7F;
+        cpu.fetch_decode_execute(&mut bus);
+        assert_eq!(cpu.ax.get_x(), 0x107F);
     }
 }

@@ -208,7 +208,15 @@ impl CPU {
                     },
                     0x8 => {
                         self.instr.opcode = Opcode::DEC;
-                        self.instr.cycles = 1;
+                        self.instr.addr_mode = decode_mod(operand);
+                        self.instr.data_length = Length::Word;
+                        self.instr.operand1 = decode_rm(self, bus, operand, 0);
+
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => 3,
+                            OperandType::Memory(_) => 23 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        }
                     },
                     0x10 => {
                         self.instr.opcode = Opcode::CALL;
@@ -414,6 +422,21 @@ impl CPU {
                             _ => unreachable!(),
                         }
                     },
+                    0x18 => {
+                        self.instr.opcode = Opcode::SBB;
+
+                        match op & 0b00000011 {
+                            0b00..=0b10 => read_imm(self, bus),
+                            0b11 => self.instr.imm = sign_extend(self.fetch(bus)),
+                            _ => unreachable!(),
+                        }
+
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => 4,
+                            OperandType::Memory(_) => 23 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        }
+                    }
 
                     0x28 => {
                         self.instr.opcode = Opcode::SUB;
@@ -430,6 +453,22 @@ impl CPU {
                             _ => unreachable!(),
                         }
                     },
+
+                    0x38 => {
+                        self.instr.opcode = Opcode::CMP;
+
+                        match op & 0b00000011 {
+                            0b00..=0b10 => read_imm(self, bus),
+                            0b11 => self.instr.imm = sign_extend(self.fetch(bus)),
+                            _ => unreachable!(),
+                        }
+                        
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => 4,
+                            OperandType::Memory(_) => 14 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        }
+                    }
                     _ => unreachable!(),
                 }
             },
@@ -505,7 +544,7 @@ impl CPU {
             },
             0x27 => {
                 self.instr.opcode = Opcode::DAA;
-                self.instr.cycles = 8;
+                self.instr.cycles = 4;
             },
             0x28..=0x2B => {
                 self.instr.opcode = Opcode::SUB;
@@ -534,6 +573,110 @@ impl CPU {
 
                 self.instr.cycles = 4;
             },
+            0x18..=0x1B => {
+                self.instr.opcode = Opcode::SBB;
+                self.instr.direction = Direction::new(op);
+                self.instr.data_length = Length::new(op, 0);
+                let operand = self.fetch(bus);
+                decode_mod_reg_rm(self, bus, operand);
+
+                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                    (OperandType::Register(_), OperandType::Register(_)) => 3,
+                    (OperandType::Memory(_), OperandType::Register(_)) => 24 + self.instr.ea_cycles,
+                    (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
+                    _ => unreachable!(),
+                };
+            },
+            0x1C | 0x1D => {
+                self.instr.opcode = Opcode::SBB;
+                self.instr.data_length = Length::new(op, 0);
+                self.instr.operand1 = match self.instr.data_length {
+                    Length::Byte => OperandType::Register(Operand::AL),
+                    Length::Word => OperandType::Register(Operand::AX),
+                    _ => unreachable!(),
+                };
+                self.instr.operand2 = OperandType::Immediate;
+                read_imm(self, bus);
+
+                self.instr.cycles = 4;
+            },
+            // _ALU 2
+            0xF6 | 0xF7 => {
+                let operand = self.fetch(bus);
+                self.instr.data_length = Length::new(op, 0);
+                
+                match operand & 0b00111000 {
+                    
+                    0x18 => {
+                        self.instr.opcode = Opcode::NEG;
+                        self.instr.operand1 = decode_rm(self, bus, operand, 0);
+
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => 3,
+                            OperandType::Memory(_) => 24 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        };
+                    },
+                    0x20 => {
+                        self.instr.opcode = Opcode::MUL;
+                        decode_mod_n_rm(self, bus, operand);
+
+                        // TODO no se si esto esta bien del todo
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => if self.instr.data_length == Length::Byte {77} else {133},
+                            OperandType::Memory(_) => if self.instr.data_length == Length::Byte {83 + self.instr.ea_cycles} else {139 + self.instr.ea_cycles},
+                            _ => unreachable!(),
+                        };
+                    },
+                    0x28 => {
+                        self.instr.opcode = Opcode::IMUL;
+                        decode_mod_n_rm(self, bus, operand);
+
+                        // TODO no se si esto esta bien del todo
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => if self.instr.data_length == Length::Byte {98} else {154},
+                            OperandType::Memory(_) => if self.instr.data_length == Length::Byte {104 + self.instr.ea_cycles} else {160 + self.instr.ea_cycles},
+                            _ => unreachable!(),
+                        };
+                    }
+                    _ => unreachable!(),
+                }
+            },
+            0x38..=0x3B => {
+                self.instr.opcode = Opcode::CMP;
+                self.instr.direction = Direction::new(op);
+                self.instr.data_length = Length::new(op, 0);
+                let operand = self.fetch(bus);
+                decode_mod_reg_rm(self, bus, operand);
+
+                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                    (OperandType::Register(_), OperandType::Register(_)) => 3,
+                    (OperandType::Memory(_), OperandType::Register(_)) => 13 + self.instr.ea_cycles,
+                    (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
+                    _ => unreachable!(),
+                };
+            },
+            0x3C | 0x3D => {
+                self.instr.opcode = Opcode::CMP;
+                self.instr.data_length = Length::new(op, 0);
+                self.instr.operand1 = match self.instr.data_length {
+                    Length::Byte => OperandType::Register(Operand::AL),
+                    Length::Word => OperandType::Register(Operand::AX),
+                    _ => unreachable!(),
+                };
+                self.instr.operand2 = OperandType::Immediate;
+                read_imm(self, bus);
+
+                self.instr.cycles = 4;
+            },
+            0x3F => {
+                self.instr.opcode = Opcode::AAS;
+                self.instr.cycles = 8;
+            },
+            0x2F => {
+                self.instr.opcode = Opcode::DAS;
+                self.instr.cycles = 4;
+            }
 
             0xEA => {
                 self.instr.opcode = Opcode::JMP;
@@ -661,6 +804,9 @@ impl CPU {
                 }
                 if old_al > 0x99 || old_cf {
                     self.ax.low = self.ax.low.wrapping_add(0x60);
+                    self.flags.c = true;
+                } else {
+                    self.flags.c = false;
                 }
             },
             Opcode::SUB => {
@@ -670,7 +816,102 @@ impl CPU {
                 self.set_val(bus, self.instr.operand1, res);
                 self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
             },
-            
+            Opcode::SBB => {
+                let val1 = self.get_val(bus, self.instr.operand1);
+                let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
+                let res = val1.wrapping_sub(val2);
+                self.set_val(bus, self.instr.operand1, res);
+                self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
+            },
+            Opcode::DEC => {
+                let val = self.get_val(bus, self.instr.operand1);
+                let res = val.wrapping_sub(1);
+                self.set_val(bus, self.instr.operand1, res);
+                self.flags.set_sub_flags(self.instr.data_length, val, 1, res);
+            },
+            Opcode::NEG => {
+                let val = self.get_val(bus, self.instr.operand1);
+                let res = 0u16.wrapping_sub(val);
+                self.set_val(bus, self.instr.operand1, res);
+                self.flags.set_neg_flags(self.instr.data_length, 0, val, res);
+            },
+            Opcode::CMP => {
+                let val1 = self.get_val(bus, self.instr.operand1);
+                let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
+                let res = val1.wrapping_sub(val2);
+                self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
+            },
+            Opcode::AAS => {
+                if (self.ax.low & 0x0F) > 9 || self.flags.a {
+                    let val = self.ax.get_x();
+                    self.ax.set_x(val.wrapping_sub(6));
+                    self.ax.high = self.ax.high.wrapping_sub(1);
+                    self.flags.a = true;
+                    self.flags.c = true;
+                    self.ax.low = self.ax.low & 0x0F;
+                } else {
+                    self.flags.a = false;
+                    self.flags.c = false;
+                    self.ax.low = self.ax.low & 0x0F;
+                }
+            },
+            Opcode::DAS => {
+                let old_al = self.ax.low;
+                let old_cf = self.flags.c;
+                self.flags.c = false;
+                if (self.ax.low & 0x0F) > 9 || self.flags.a {
+                    let val = self.ax.low.overflowing_sub(6);
+                    self.ax.low = val.0;
+                    self.flags.c = old_cf || val.1;
+                    self.flags.a = true;
+                } else {
+                    self.flags.a = false;
+                }
+                if old_al > 0x99 || old_cf {
+                    self.ax.low = self.ax.low.wrapping_sub(0x60);
+                    self.flags.c = true;
+                }
+            },
+            Opcode::MUL => {
+                let val1 = match self.instr.data_length {
+                    Length::Byte => self.ax.low as u32,
+                    Length::Word => self.ax.get_x() as u32,
+                    _ => unreachable!(),
+                };
+                let val2 = self.get_val(bus, self.instr.operand1) as u32;
+                let res = val1.wrapping_mul(val2);
+
+                match self.instr.data_length {
+                    Length::Byte => self.ax.set_x(res as u16),
+                    Length::Word => {
+                        self.dx.set_x((res >> 16) as u16);
+                        self.ax.set_x(res as u16);
+                    },
+                    _ => unreachable!(),
+                };
+
+                self.flags.set_mul_flags(self.instr.data_length, res);
+            },
+            Opcode::IMUL => {
+                let val1 = match self.instr.data_length {
+                    Length::Byte => self.ax.low as i8 as i16 as i32,
+                    Length::Word => self.ax.get_x() as i16 as i32,
+                    _ => unreachable!(),
+                };
+                let val2 = self.get_val(bus, self.instr.operand1) as i32;
+                let res = val1.wrapping_mul(val2);
+
+                match self.instr.data_length {
+                    Length::Byte => self.ax.set_x(res as u16),
+                    Length::Word => {
+                        self.dx.set_x((res >> 16) as u16);
+                        self.ax.set_x(res as u16);
+                    },
+                    _ => unreachable!(),
+                };
+
+                self.flags.set_mul_flags(self.instr.data_length, res as u32);
+            },
 
             Opcode::JMP => {
                 match self.instr.jump_type {

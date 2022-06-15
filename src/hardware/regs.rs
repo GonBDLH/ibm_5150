@@ -191,5 +191,43 @@ impl Flags {
             _ => unreachable!(),
         }
     }
+
+    pub fn set_neg_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16) {
+        match length {
+            Length::Word => {
+                self.o = check_o_sub_16(val1, val2, res);
+                self.s = check_s_16(res);
+                self.z = check_z(res);
+                self.a = check_a_sub_16(val1, val2);
+                self.p = res.count_ones() % 2 == 0;
+                self.c = val2 != 0;
+            },
+            Length::Byte => {
+                self.o = check_o_sub_8(val1 as u8, val2 as u8, res as u8);
+                self.s = check_s_8(res as u8);
+                self.z = check_z(res);
+                self.a = check_a_sub_8(val1, val2);
+                self.p = res.count_ones() % 2 == 0;
+                self.c = val2 as u8 != 0;
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn set_mul_flags(&mut self, length: Length, res: u32) {
+        match length {
+            Length::Word => {
+                let res_high = res & 0xFFFF0000;
+                self.o = res_high != 0;
+                self.c = res_high != 0;
+            },
+            Length::Byte => {
+                let res_high = res as u16 & 0xFF00;
+                self.o = res_high != 0;
+                self.c = res_high != 0;
+            },
+            _ => unreachable!(),
+        }
+    }
 }
 

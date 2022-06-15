@@ -35,7 +35,7 @@ pub struct Flags {
 
 impl Flags {
     pub fn new() -> Self {
-        Flags { o: false, d: false, i: false, t: false, s: false, z: false, a: false, p: false, c: false }
+        Flags { o: false, d: false, i: true, t: false, s: false, z: false, a: false, p: false, c: false }
     }
 
     pub fn set_flags(self: &mut Self, val: u16) {
@@ -128,7 +128,7 @@ fn check_a_sub_16(val1: u16, val2: u16) -> bool {
 }
 
 fn check_a_sub_8(val1: u16, val2: u16) -> bool {
-    ((val1 as u8 & 0xF0) - (val2 as u8 & 0xF0)) & 0x0F != 0
+    (((val1 as u8) & 0xF0) - ((val2 as u8) & 0xF0)) & 0x0F != 0
 }
 
 fn check_c_add_16(val1: u16, val2: u16) -> bool {
@@ -228,6 +228,12 @@ impl Flags {
             },
             _ => unreachable!(),
         }
+    }
+
+    pub fn set_aam_flags(&mut self, val1: u8) {
+        self.s = check_s_8(val1);
+        self.z = check_z(val1 as u16);
+        self.p = val1.count_ones() % 2 == 0;
     }
 }
 

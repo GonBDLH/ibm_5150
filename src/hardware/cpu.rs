@@ -638,6 +638,28 @@ impl CPU {
                             OperandType::Memory(_) => if self.instr.data_length == Length::Byte {104 + self.instr.ea_cycles} else {160 + self.instr.ea_cycles},
                             _ => unreachable!(),
                         };
+                    },
+                    0x30 => {
+                        self.instr.opcode = Opcode::DIV;
+                        decode_mod_n_rm(self, bus, operand);
+
+                        // TODO no se si esto esta bien del todo
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => if self.instr.data_length == Length::Byte {90} else {162},
+                            OperandType::Memory(_) => if self.instr.data_length == Length::Byte {96 + self.instr.ea_cycles} else {168 + self.instr.ea_cycles},
+                            _ => unreachable!(),
+                        };
+                    }
+                    0x38 => {
+                        self.instr.opcode = Opcode::IDIV;
+                        decode_mod_n_rm(self, bus, operand);
+
+                        // TODO no se si esto esta bien del todo
+                        self.instr.cycles = match self.instr.operand1 {
+                            OperandType::Register(_) => if self.instr.data_length == Length::Byte {112} else {184},
+                            OperandType::Memory(_) => if self.instr.data_length == Length::Byte {118 + self.instr.ea_cycles} else {190 + self.instr.ea_cycles},
+                            _ => unreachable!(),
+                        };
                     }
                     _ => unreachable!(),
                 }
@@ -676,6 +698,13 @@ impl CPU {
             0x2F => {
                 self.instr.opcode = Opcode::DAS;
                 self.instr.cycles = 4;
+            },
+            0xD4 => {
+                self.instr.opcode = Opcode::AAM;
+                self.instr.operand1 = OperandType::Immediate;
+                self.instr.data_length = Length::Byte;
+                read_imm(self, bus);
+                self.instr.cycles = 83;
             }
 
             0xEA => {
@@ -911,6 +940,67 @@ impl CPU {
                 };
 
                 self.flags.set_mul_flags(self.instr.data_length, res as u32);
+            },
+            Opcode::AAM => {
+                let temp_al = self.ax.low;
+                self.ax.high = temp_al / self.instr.imm as u8;
+                self.ax.low = temp_al % self.instr.imm as u8;
+
+                self.flags.set_aam_flags(self.ax.low);
+            },
+            Opcode::DIV => {
+                let val2 = self.get_val(bus, self.instr.operand1);
+
+                if val2 == 0 {
+                    // TODO int 0
+                    return;
+                }
+
+                match self.instr.data_length {
+                    Length::Byte => {
+                        let val1 = self.ax.low as u16;
+                        self.set_reg(self.instr.data_length, Operand::AL, val1.wrapping_div(val2));
+                        self.set_reg(self.instr.data_length, Operand::AH, val1.wrapping_rem(val2));
+                    },
+                    Length::Word => {
+                        let val1 = self.ax.get_x();
+                        self.set_reg(self.instr.data_length, Operand::AX, val1.wrapping_div(val2));
+                        self.set_reg(self.instr.data_length, Operand::DX, val1.wrapping_rem(val2));
+                    },
+                    _ => unreachable!(),
+                };
+            },
+            Opcode::IDIV => {
+                let val2 = self.get_val(bus, self.instr.operand1) as i16;
+
+                if val2 == 0 {
+                    // TODO int 0
+                    return;
+                }
+
+                match self.instr.data_length {
+                    Length::Byte => {
+                        let val1 = self.ax.low as i8 as i16;
+                        let res = val1.wrapping_div(val2);
+                        if res > 0x7F || -res > 0x80 {
+                            // TODO int 0
+                        } else {
+                            self.set_reg(self.instr.data_length, Operand::AL, res as u16);
+                            self.set_reg(self.instr.data_length, Operand::AH, val1.wrapping_rem(val2) as u16);
+                        }
+                    },
+                    Length::Word => {
+                        let val1 = ((self.ax.get_x() as u32) + ((self.dx.get_x() as u32) << 16)) as i32;
+                        let res = val1.wrapping_div(val2 as i32);
+                        if res > 0x7FFF || -res > 0x8000 {
+                            // TODO int 0
+                        } else {
+                            self.set_reg(self.instr.data_length, Operand::AX, res as u16);
+                            self.set_reg(self.instr.data_length, Operand::DX, val1.wrapping_rem(val2 as i32) as u16);
+                        }
+                    },
+                    _ => unreachable!(),
+                };
             },
 
             Opcode::JMP => {

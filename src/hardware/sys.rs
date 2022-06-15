@@ -67,8 +67,9 @@ impl System {
         self.cpu.bx.set_x(0x1234);
 
         self.bus.memory[0x00000] = 0xF7;
-        self.bus.memory[0x00001] = 0xEB;
-        self.bus.memory[0x00002] = 0x7F;
+        self.bus.memory[0x00001] = 0xFB;
+        self.bus.memory[0x00002] = 0xD4;
+        self.bus.memory[0x00003] = 0x0A;
 
         while self.running {
             display(self);

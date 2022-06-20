@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::{cpu::CPU, bus::Bus, cpu_utils::{to_u16, sign_extend}};
 
 pub struct Instruction {
@@ -22,6 +24,8 @@ pub struct Instruction {
     // Tipo de JMP/CALL
     pub jump_type: JumpType,
 
+    pub repetition_prefix: RepetitionPrefix,
+
     pub cycles: u8,
 }
 
@@ -44,9 +48,18 @@ impl Default for Instruction {
 
             jump_type: JumpType::None,
 
+            repetition_prefix: RepetitionPrefix::None,
+
             cycles: 0 
         }
     }
+}
+
+#[derive(PartialEq)]
+pub enum RepetitionPrefix {
+    None,
+    REPNEZ,
+    REPEZ,
 }
 
 #[derive(Clone, Copy)]
@@ -124,8 +137,85 @@ pub enum Opcode {
     TEST,
     OR,
     XOR,
+    MOVSB,
+    MOVSW,
+    CMPSB,
+    CMPSW,
+    SCASB,
+    SCASW,
+    LODSB,
+    LODSW,
+    STOSB,
+    STOSW,
     CALL,
     JMP,
+}
+
+impl Display for Opcode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let val = match self {
+            Opcode::None => "NONE",
+            Opcode::MOV => "MOV",
+            Opcode::PUSH => "PUSH",
+            Opcode::POP => "OP",
+            Opcode::XCHG => "XCHG",
+            Opcode::IN => "IN",
+            Opcode::OUT => "OUT",
+            Opcode::XLAT => "XLAT",
+            Opcode::LEA => "LEA",
+            Opcode::LDS => "LDS",
+            Opcode::LES => "LES",
+            Opcode::LAHF => "LAHF",
+            Opcode::SAHF => "SAHF",
+            Opcode::PUSHF => "PUSHF",
+            Opcode::POPF => "POPF",
+            Opcode::ADD => "ADD",
+            Opcode::ADC => "ADC",
+            Opcode::INC => "INC",
+            Opcode::AAA => "AAA",
+            Opcode::DAA => "DAA",
+            Opcode::SUB => "SUB",
+            Opcode::SBB => "SBB",
+            Opcode::DEC => "DEC",
+            Opcode::NEG => "NEG",
+            Opcode::CMP => "CMP",
+            Opcode::AAS => "AAS",
+            Opcode::DAS => "DAS",
+            Opcode::MUL => "MUL",
+            Opcode::IMUL => "IMUL",
+            Opcode::AAM => "AAM",
+            Opcode::DIV => "DIV",
+            Opcode::IDIV => "IDIV",
+            Opcode::AAD => "AAD",
+            Opcode::CBW => "CBW",
+            Opcode::CWD => "CWD",
+            Opcode::NOT => "NOT",
+            Opcode::SALSHL => "SALSHL",
+            Opcode::SHR => "SHR",
+            Opcode::SAR => "SAR",
+            Opcode::ROL => "ROL",
+            Opcode::ROR => "ROR",
+            Opcode::RCL => "RCL",
+            Opcode::RCR => "RCR",
+            Opcode::AND => "AND",
+            Opcode::TEST => "TEST",
+            Opcode::OR => "OR",
+            Opcode::XOR => "XOR",
+            Opcode::MOVSB => "MOVSB",
+            Opcode::MOVSW => "MOVSW",
+            Opcode::CMPSB => "CMPSB",
+            Opcode::CMPSW => "CMPSW",
+            Opcode::SCASB => "SCASB",
+            Opcode::SCASW => "SCASW",
+            Opcode::LODSB => "LODSB",
+            Opcode::LODSW => "LODSW",
+            Opcode::STOSB => "STOSB",
+            Opcode::STOSW => "STOSW",
+            Opcode::CALL => "CALL",
+            Opcode::JMP => "JMP",
+        };
+        write!(f, "{}", val)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -166,6 +256,48 @@ pub enum Operand {
     Disp = 33,
 }
 
+impl Display for Operand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let val = match self {
+            Operand::None => "None",
+            Operand::AL => "AL",
+            Operand::BL => "BL",
+            Operand::CL => "CL",
+            Operand::DL => "DL",
+            Operand::AH => "AH",
+            Operand::BH => "BH",
+            Operand::CH => "CH",
+            Operand::DH => "DH",
+            Operand::AX => "AX",
+            Operand::BX => "BX",
+            Operand::CX => "CX",
+            Operand::DX => "DX",
+            Operand::SI => "SI",
+            Operand::DI => "DI",
+            Operand::BP => "BP",
+            Operand::SP => "SP",
+            Operand::CS => "CS",
+            Operand::DS => "DS",
+            Operand::ES => "ES",
+            Operand::SS => "SS",
+            Operand::BXSI => "BXSI",
+            Operand::BXDI => "BXDI",
+            Operand::BPSI => "BPSI",
+            Operand::BPDI => "BPDI",
+            Operand::DispBXSI => "DispBXSI",
+            Operand::DispBXDI => "DispBXDI",
+            Operand::DispBPSI => "DispBPSI",
+            Operand::DispBPDI => "DispBPDI",
+            Operand::DispSI => "DispSI",
+            Operand::DispDI => "DispDI",
+            Operand::DispBP => "DispBP",
+            Operand::DispBX => "DispBX",
+            Operand::Disp => "Disp",
+        };
+        write!(f, "{}", val)
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum OperandType {
     Register(Operand),
@@ -173,6 +305,18 @@ pub enum OperandType {
     Memory(Operand),
     Immediate,
     None,
+}
+
+impl Display for OperandType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperandType::Register(r) => write!(f, "{}", r),
+            OperandType::SegmentRegister(r) => write!(f, "{}", r),
+            OperandType::Memory(r) => write!(f, "{}", r),
+            OperandType::Immediate => write!(f, "Imm"),
+            OperandType::None => write!(f, "None"),
+        }
+    }
 }
 
 #[derive(PartialEq)]

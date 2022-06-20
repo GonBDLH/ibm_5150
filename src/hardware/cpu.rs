@@ -109,7 +109,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 2,
                     (OperandType::Memory(_), OperandType::Register(_)) => 13 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 12 + self.instr.ea_cycles,
@@ -125,7 +125,7 @@ impl CPU {
                 decode_mod_n_rm(self, bus, operand);
                 read_imm(self, bus);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Memory(_), OperandType::Immediate) => 14 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Immediate) => 4,
                     _ => unreachable!(),
@@ -137,7 +137,7 @@ impl CPU {
                 self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0xA0..=0xA3 => {
                 self.instr.opcode = Opcode::MOV;
@@ -159,7 +159,7 @@ impl CPU {
                     }
                 }
                 read_imm_addres(self, bus);
-                self.instr.cycles = 14;
+                self.instr.cycles += 14;
             },
             0x8E | 0x8C => {
                 self.instr.opcode = Opcode::MOV;
@@ -181,7 +181,7 @@ impl CPU {
                     _ => unreachable!(),
                 }
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::SegmentRegister(_), OperandType::Register(_)) => 2,
                     (OperandType::Register(_), OperandType::Memory(_)) => 12 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::SegmentRegister(_)) => 2,
@@ -200,7 +200,7 @@ impl CPU {
                         self.instr.data_length = Length::Word;
                         self.instr.operand1 = decode_rm(self, bus, operand, 0);
 
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 3,
                             OperandType::Memory(_) => 23 + self.instr.ea_cycles,
                             _ => unreachable!(),
@@ -212,7 +212,7 @@ impl CPU {
                         self.instr.data_length = Length::Word;
                         self.instr.operand1 = decode_rm(self, bus, operand, 0);
 
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 3,
                             OperandType::Memory(_) => 23 + self.instr.ea_cycles,
                             _ => unreachable!(),
@@ -220,19 +220,19 @@ impl CPU {
                     },
                     0x10 => {
                         self.instr.opcode = Opcode::CALL;
-                        self.instr.cycles = 1;
+                        self.instr.cycles += 1;
                     },
                     0x18 => {
                         self.instr.opcode = Opcode::CALL;
-                        self.instr.cycles = 1;
+                        self.instr.cycles += 1;
                     },
                     0x20 => {
                         self.instr.opcode = Opcode::JMP;
-                        self.instr.cycles = 1;
+                        self.instr.cycles += 1;
                     },
                     0x28 => {
                         self.instr.opcode = Opcode::JMP;
-                        self.instr.cycles = 1;
+                        self.instr.cycles += 1;
                     },
                     0x30 => {
                         self.instr.opcode = Opcode::PUSH;
@@ -240,7 +240,7 @@ impl CPU {
                         self.instr.addr_mode = decode_mod(operand);
                         self.instr.operand1 = decode_rm(self, bus, operand, 0);
                         
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 15,
                             OperandType::Memory(_) => 24 + self.instr.ea_cycles,
                             _ => unreachable!(),
@@ -253,13 +253,13 @@ impl CPU {
                 self.instr.opcode = Opcode::PUSH;
                 self.instr.data_length = Length::Word;
                 self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
-                self.instr.cycles = 15;
+                self.instr.cycles += 15;
             },
             0x06 | 0x16 | 0x0E | 0x1E => {
                 self.instr.opcode = Opcode::PUSH;
                 self.instr.data_length = Length::Word;
                 self.instr.operand1 = decode_segment(op, 3);
-                self.instr.cycles = 14;
+                self.instr.cycles += 14;
             },
             0x8F => {
                 self.instr.opcode = Opcode::POP;
@@ -268,7 +268,7 @@ impl CPU {
                 self.instr.data_length = Length::Word;
                 self.instr.operand1 = decode_rm(self, bus, operand, 0);
 
-                self.instr.cycles = match self.instr.operand1 {
+                self.instr.cycles += match self.instr.operand1 {
                     OperandType::Register(_) => 12,
                     OperandType::Memory(_) => 25 + self.instr.ea_cycles,
                     _ => unreachable!(),
@@ -278,13 +278,13 @@ impl CPU {
                 self.instr.opcode = Opcode::POP;
                 self.instr.data_length = Length::Word;
                 self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
-                self.instr.cycles = 12;
+                self.instr.cycles += 12;
             },
             0x07 | 0x17 | 0x0F | 0x1F => {
                 self.instr.opcode = Opcode::POP;
                 self.instr.data_length = Length::Word;
                 self.instr.operand1 = decode_segment(op, 3);
-                self.instr.cycles = 12;
+                self.instr.cycles += 12;
             },
             0x86 | 0x87 => {
                 self.instr.opcode = Opcode::XCHG;
@@ -293,7 +293,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 4,
                     (OperandType::Register(_), OperandType::Memory(_)) => 25 + self.instr.ea_cycles,
                     (OperandType::Memory(_), OperandType::Register(_)) => 25 + self.instr.ea_cycles, // Creo que no hace falta, pero por si acaso
@@ -306,31 +306,31 @@ impl CPU {
                 self.instr.direction = Direction::ToReg;
                 self.instr.operand1 = OperandType::Register(Operand::AX);
                 self.instr.operand2 = decode_reg(op, 0, self.instr.data_length);
-                self.instr.cycles = 3;
+                self.instr.cycles += 3;
             },
             // TODO IN
             0xE4 | 0xE5 => {
                 self.instr.opcode = Opcode::IN;
-                self.instr.cycles = 1;
+                self.instr.cycles += 1;
             },
             0xEC | 0xED => {
                 self.instr.opcode = Opcode::IN;
-                self.instr.cycles = 1;
+                self.instr.cycles += 1;
             },
             // TODO OUT
             0xE6 | 0xE7 => {
                 self.instr.opcode = Opcode::OUT;
-                self.instr.cycles = 1;
+                self.instr.cycles += 1;
             },
             0xEE | 0xEF => {
                 self.instr.opcode = Opcode::OUT;
-                self.instr.cycles = 1;
+                self.instr.cycles += 1;
             },
             0xD7 => {
                 self.instr.opcode = Opcode::XLAT;
                 self.instr.operand1 = OperandType::Register(Operand::AL);
 
-                self.instr.cycles = 11;
+                self.instr.cycles += 11;
             },
             0x8D => {
                 self.instr.opcode = Opcode::LEA;
@@ -339,33 +339,33 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
                 // TODO LEA
-                self.instr.cycles = 1;
+                self.instr.cycles += 1;
             },
             0xC5 => {
                 // TODO LDS
                 self.instr.opcode = Opcode::LDS;
-                self.instr.cycles = 1;
+                self.instr.cycles += 1;
             },
             0xC4 => {
                 // TODO LES
                 self.instr.opcode = Opcode::LES;
-                self.instr.cycles = 1;
+                self.instr.cycles += 1;
             },
             0x9F => {
                 self.instr.opcode = Opcode::LAHF;
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0x9E => {
                 self.instr.opcode = Opcode::SAHF;
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0x9C => {
                 self.instr.opcode = Opcode::PUSHF;
-                self.instr.cycles = 14;
+                self.instr.cycles += 14;
             },
             0x9D => {
                 self.instr.opcode = Opcode::POPF;
-                self.instr.cycles = 12;
+                self.instr.cycles += 12;
             },
 
             0x00..=0x03 => {
@@ -375,7 +375,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 3,
                     (OperandType::Memory(_), OperandType::Register(_)) => 24 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
@@ -396,7 +396,7 @@ impl CPU {
                     _ => unreachable!(),
                 }
 
-                self.instr.cycles = match self.instr.operand1 {
+                self.instr.cycles += match self.instr.operand1 {
                     OperandType::Register(_) => 4,
                     OperandType::Memory(_) => 23 + self.instr.ea_cycles,
                     _ => unreachable!(),
@@ -425,7 +425,7 @@ impl CPU {
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
 
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0x10..=0x13 => {
                 self.instr.opcode = Opcode::ADC;
@@ -434,7 +434,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 3,
                     (OperandType::Memory(_), OperandType::Register(_)) => 24 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
@@ -452,7 +452,7 @@ impl CPU {
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
 
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             // Prefijo _MISC r/m8
             0xFE => {
@@ -462,7 +462,7 @@ impl CPU {
                 self.instr.data_length = Length::Byte;
                 self.instr.operand1 = decode_rm(self, bus, operand, 0);
 
-                self.instr.cycles = match self.instr.operand1 {
+                self.instr.cycles += match self.instr.operand1 {
                     OperandType::Register(_) => 3,
                     OperandType::Memory(_) => 23 + self.instr.ea_cycles,
                     _ => unreachable!(),
@@ -478,15 +478,15 @@ impl CPU {
                 self.instr.opcode = Opcode::INC;
                 self.instr.data_length = Length::Word;
                 self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
-                self.instr.cycles = 3;
+                self.instr.cycles += 3;
             },
             0x37 => {
                 self.instr.opcode = Opcode::AAA;
-                self.instr.cycles = 8;
+                self.instr.cycles += 8;
             },
             0x27 => {
                 self.instr.opcode = Opcode::DAA;
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0x28..=0x2B => {
                 self.instr.opcode = Opcode::SUB;
@@ -495,7 +495,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 3,
                     (OperandType::Memory(_), OperandType::Register(_)) => 24 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
@@ -513,7 +513,7 @@ impl CPU {
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
 
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0x18..=0x1B => {
                 self.instr.opcode = Opcode::SBB;
@@ -522,7 +522,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 3,
                     (OperandType::Memory(_), OperandType::Register(_)) => 24 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
@@ -540,7 +540,7 @@ impl CPU {
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
 
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             // _ALU 2
             0xF6 | 0xF7 => {
@@ -548,12 +548,23 @@ impl CPU {
                 self.instr.data_length = Length::new(op, 0);
                 
                 match operand & 0b00111000 {
-                    
+                    0x00 | 0x08 => {
+                        self.instr.opcode = Opcode::TEST;
+                        decode_mod_n_rm(self, bus, operand);
+                        self.instr.operand2 = OperandType::Immediate;
+                        read_imm(self, bus);
+        
+                        self.instr.cycles += match self.instr.operand1 {
+                            OperandType::Register(_) => 5,
+                            OperandType::Memory(_) => 11 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        };
+                    }
                     0x10 => {
                         self.instr.opcode = Opcode::NOT;
                         decode_mod_n_rm(self, bus, operand);
 
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 3,
                             OperandType::Memory(_) => 24 + self.instr.ea_cycles,
                             _ => unreachable!(),
@@ -563,7 +574,7 @@ impl CPU {
                         self.instr.opcode = Opcode::NEG;
                         decode_mod_n_rm(self, bus, operand);
 
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 3,
                             OperandType::Memory(_) => 24 + self.instr.ea_cycles,
                             _ => unreachable!(),
@@ -574,7 +585,7 @@ impl CPU {
                         decode_mod_n_rm(self, bus, operand);
 
                         // TODO no se si esto esta bien del todo
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => if self.instr.data_length == Length::Byte {77} else {133},
                             OperandType::Memory(_) => if self.instr.data_length == Length::Byte {83 + self.instr.ea_cycles} else {139 + self.instr.ea_cycles},
                             _ => unreachable!(),
@@ -585,7 +596,7 @@ impl CPU {
                         decode_mod_n_rm(self, bus, operand);
 
                         // TODO no se si esto esta bien del todo
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => if self.instr.data_length == Length::Byte {98} else {154},
                             OperandType::Memory(_) => if self.instr.data_length == Length::Byte {104 + self.instr.ea_cycles} else {160 + self.instr.ea_cycles},
                             _ => unreachable!(),
@@ -596,7 +607,7 @@ impl CPU {
                         decode_mod_n_rm(self, bus, operand);
 
                         // TODO no se si esto esta bien del todo
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => if self.instr.data_length == Length::Byte {90} else {162},
                             OperandType::Memory(_) => if self.instr.data_length == Length::Byte {96 + self.instr.ea_cycles} else {168 + self.instr.ea_cycles},
                             _ => unreachable!(),
@@ -607,7 +618,7 @@ impl CPU {
                         decode_mod_n_rm(self, bus, operand);
 
                         // TODO no se si esto esta bien del todo
-                        self.instr.cycles = match self.instr.operand1 {
+                        self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => if self.instr.data_length == Length::Byte {112} else {184},
                             OperandType::Memory(_) => if self.instr.data_length == Length::Byte {118 + self.instr.ea_cycles} else {190 + self.instr.ea_cycles},
                             _ => unreachable!(),
@@ -623,7 +634,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 3,
                     (OperandType::Memory(_), OperandType::Register(_)) => 13 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
@@ -641,37 +652,37 @@ impl CPU {
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
 
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0x3F => {
                 self.instr.opcode = Opcode::AAS;
-                self.instr.cycles = 8;
+                self.instr.cycles += 8;
             },
             0x2F => {
                 self.instr.opcode = Opcode::DAS;
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0xD4 => {
                 self.instr.opcode = Opcode::AAM;
                 self.instr.operand1 = OperandType::Immediate;
                 self.instr.data_length = Length::Byte;
                 read_imm(self, bus);
-                self.instr.cycles = 83;
+                self.instr.cycles += 83;
             },
             0xD5 => {
                 self.instr.opcode = Opcode::AAD;
                 self.instr.operand1 = OperandType::Immediate;
                 self.instr.data_length = Length::Byte;
                 read_imm(self, bus);
-                self.instr.cycles = 60;
+                self.instr.cycles += 60;
             },
             0x98 => {
                 self.instr.opcode = Opcode::CBW;
-                self.instr.cycles = 2;
+                self.instr.cycles += 2;
             },
             0x99 => {
                 self.instr.opcode = Opcode::CWD;
-                self.instr.cycles = 5;
+                self.instr.cycles += 5;
             },
 
             // _ROT 1
@@ -699,7 +710,7 @@ impl CPU {
                     _ => unreachable!(),
                 }
                 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Immediate) => 2,
                     (OperandType::Memory(_), OperandType::Immediate) => 23 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Register(_)) => 8,
@@ -715,7 +726,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 3,
                     (OperandType::Memory(_), OperandType::Register(_)) => 24 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
@@ -733,7 +744,7 @@ impl CPU {
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
 
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0x08..=0x0B => {
                 self.instr.opcode = Opcode::OR;
@@ -742,7 +753,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 3,
                     (OperandType::Memory(_), OperandType::Register(_)) => 24 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
@@ -760,7 +771,7 @@ impl CPU {
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
 
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
             },
             0x30..=0x33 => {
                 self.instr.opcode = Opcode::XOR;
@@ -769,7 +780,7 @@ impl CPU {
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
 
-                self.instr.cycles = match (self.instr.operand1, self.instr.operand2) {
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
                     (OperandType::Register(_), OperandType::Register(_)) => 3,
                     (OperandType::Memory(_), OperandType::Register(_)) => 24 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
@@ -787,7 +798,58 @@ impl CPU {
                 self.instr.operand2 = OperandType::Immediate;
                 read_imm(self, bus);
 
-                self.instr.cycles = 4;
+                self.instr.cycles += 4;
+            },
+            0x84 | 0x85 => {
+                self.instr.opcode = Opcode::TEST;
+                self.instr.data_length = Length::new(op, 0);
+                self.instr.direction = Direction::FromReg;
+                let operand = self.fetch(bus);
+                decode_mod_reg_rm(self, bus, operand);
+
+                self.instr.cycles += match (self.instr.operand1, self.instr.operand2) {
+                    (OperandType::Register(_), OperandType::Register(_)) => 3,
+                    (OperandType::Memory(_), OperandType::Register(_)) => 13 + self.instr.ea_cycles,
+                    (OperandType::Register(_), OperandType::Memory(_)) => 13 + self.instr.ea_cycles,
+                    _ => unreachable!(),
+                };
+            },
+            0xA8 | 0xA9 => {
+                self.instr.opcode = Opcode::AND;
+                self.instr.data_length = Length::new(op, 0);
+                self.instr.operand1 = match self.instr.data_length {
+                    Length::Byte => OperandType::Register(Operand::AL),
+                    Length::Word => OperandType::Register(Operand::AX),
+                    _ => unreachable!(),
+                };
+                self.instr.operand2 = OperandType::Immediate;
+                read_imm(self, bus);
+
+                self.instr.cycles += 4;
+            },
+
+            0x26 | 0x2E | 0x36 | 0x3E => {
+                self.instr.segment = if let OperandType::Register(operand) = decode_segment(op, 4) {
+                    operand
+                } else {
+                    panic!()
+                };
+                
+                self.instr.cycles += 4;
+
+                let new_op = self.fetch(bus);
+                self.decode(bus, new_op);
+            },
+
+            0xF2 | 0xF3 => {
+                self.instr.repetition_prefix = if op & 0x01 == 1 {
+                    RepetitionPrefix::REPEZ
+                } else {
+                    RepetitionPrefix::REPNEZ
+                };
+
+                let new_op = self.fetch(bus);
+                self.decode(bus, new_op);
             },
 
             0xEA => {
@@ -800,12 +862,73 @@ impl CPU {
                 let seg = to_u16(seg_low, seg_high);
                 self.instr.jump_type = JumpType::Long(offset, seg);
 
-                self.instr.cycles = 15;
-            }
+                self.instr.cycles += 15;
+            },
+            0xA4 => {
+                self.instr.opcode = Opcode::MOVSB;
+                self.instr.data_length = Length::Byte;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {18} else {9}
+            },
+            0xA5 => {
+                self.instr.opcode = Opcode::MOVSW;
+                self.instr.data_length = Length::Word;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {26} else {9}
+            },
+            0xA6 => {
+                self.instr.opcode = Opcode::CMPSB;
+                self.instr.data_length = Length::Byte;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {22} else {9}
+            },
+            0xA7 => {
+                self.instr.opcode = Opcode::CMPSW;
+                self.instr.data_length = Length::Word;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {30} else {9}
+            },
+            0xAE => {
+                self.instr.opcode = Opcode::SCASB;
+                self.instr.data_length = Length::Byte;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {15} else {9}
+            },
+            0xAF => {
+                self.instr.opcode = Opcode::SCASW;
+                self.instr.data_length = Length::Word;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {19} else {9}
+            },
+            0xAC => {
+                self.instr.opcode = Opcode::LODSB;
+                self.instr.data_length = Length::Byte;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {12} else {9}
+            },
+            0xAD => {
+                self.instr.opcode = Opcode::LODSW;
+                self.instr.data_length = Length::Word;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {16} else {9}
+            },
+            0xAA => {
+                self.instr.opcode = Opcode::STOSB;
+                self.instr.data_length = Length::Byte;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {11} else {9}
+            },
+            0xAB => {
+                self.instr.opcode = Opcode::STOSW;
+                self.instr.data_length = Length::Word;
+
+                self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {15} else {9}
+            },
+
             _ => {
                 writeln!(&mut self.file, "Instrucción sin hacer: {:02X}", op).unwrap();
 
-                self.instr.cycles = 3
+                self.instr.cycles += 3
             }
             // _ => unreachable!(),
         }
@@ -1178,6 +1301,8 @@ impl CPU {
             Opcode::TEST => {
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
+                let res = val1 & val2;
+                self.flags.set_logic_flags(self.instr.data_length, res)
                 
             },
             Opcode::OR => {
@@ -1193,7 +1318,214 @@ impl CPU {
                 let res = val1 ^ val2;
                 self.set_val(bus, self.instr.operand1, res);
                 self.flags.set_logic_flags(self.instr.data_length, res)
-            }
+            },
+
+            Opcode::MOVSB => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    movs(self, bus);
+                    adjust_string(self);
+                } else {
+                    let mut veces = 0;
+                    while self.cx.get_x() != 0 {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        movs(self, bus);
+                        adjust_string(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 17;
+                }
+            },
+            Opcode::MOVSW => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    movs(self, bus);
+                    adjust_string(self);
+                } else {
+                    let mut veces = 0;
+                    while self.cx.get_x() != 0 {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        movs(self, bus);
+                        adjust_string(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 25;
+                }
+            },
+            Opcode::CMPSB => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    cmps(self, bus);
+                    adjust_string(self);
+                } else {
+                    let mut veces = 0;
+                    let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
+                    while self.cx.get_x() != 0 && z_bool {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        cmps(self, bus);
+
+                        adjust_string(self);
+
+                        z_bool = check_z_str(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 22;
+                }
+            },
+            Opcode::CMPSW => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    cmps(self, bus);
+                    adjust_string(self);
+                } else {
+                    let mut veces = 0;
+                    let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
+                    while self.cx.get_x() != 0 && z_bool {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        cmps(self, bus);
+
+                        adjust_string(self);
+
+                        z_bool = check_z_str(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 30;
+                }
+            },
+            Opcode::SCASB => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    scas(self, bus);
+                    adjust_string_di(self);
+                } else {
+                    let mut veces = 0;
+                    let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
+                    while self.cx.get_x() != 0 && z_bool {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        scas(self, bus);
+
+                        adjust_string_di(self);
+
+                        z_bool = check_z_str(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 15;
+                }
+            },
+            Opcode::SCASW => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    scas(self, bus);
+                    adjust_string_di(self);
+                } else {
+                    let mut veces = 0;
+                    let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
+                    while self.cx.get_x() != 0 && z_bool {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        scas(self, bus);
+
+                        adjust_string_di(self);
+
+                        z_bool = check_z_str(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 19;
+                }
+            },
+            Opcode::LODSB => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    lods(self, bus);
+                    adjust_string_si(self);
+                } else {
+                    let mut veces = 0;
+                    while self.cx.get_x() != 0 {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        lods(self, bus);
+                        adjust_string_si(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 13;
+                }
+            },
+            Opcode::LODSW => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    lods(self, bus);
+                    adjust_string_si(self);
+                } else {
+                    let mut veces = 0;
+                    while self.cx.get_x() != 0 {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        lods(self, bus);
+                        adjust_string_si(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 17;
+                }
+            },
+            Opcode::STOSB => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    stos(self, bus);
+                    adjust_string_di(self);
+                } else {
+                    let mut veces = 0;
+                    while self.cx.get_x() != 0 {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        stos(self, bus);
+                        adjust_string_di(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 13;
+                }
+            },
+            Opcode::STOSW => {
+                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    stos(self, bus);
+                    adjust_string_di(self);
+                } else {
+                    let mut veces = 0;
+                    while self.cx.get_x() != 0 {
+                        // TODO Test interrupts
+
+                        self.cx.set_x(self.cx.get_x() - 1);
+                        // String op
+                        stos(self, bus);
+                        adjust_string_di(self);
+
+                        veces += 1;
+                    }
+                    self.instr.cycles += veces * 17;
+                }
+            },
 
             Opcode::JMP => {
                 match self.instr.jump_type {
@@ -1368,4 +1700,3 @@ impl CPU {
         }
     }
 }
-

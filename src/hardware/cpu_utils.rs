@@ -1,4 +1,4 @@
-use super::{instr_utils::{Length, Operand, RepetitionPrefix}, cpu::CPU, bus::Bus};
+use super::{instr_utils::{Length, Operand, RepetitionPrefix, JumpType}, cpu::CPU, bus::Bus};
 
 pub fn sign_extend(value: u8) -> u16 {
     value as i8 as i16 as u16
@@ -215,5 +215,16 @@ pub fn check_z_str(cpu: &mut CPU) -> bool {
             !cpu.flags.z
         },
         _ => unreachable!()
+    }
+}
+
+pub fn jump(cpu: &mut CPU, cond: bool) {
+    if cond {
+        if let JumpType::DirWithinSegmentShort(disp) = cpu.instr.jump_type {
+            cpu.ip = cpu.ip.wrapping_add(disp as u16)
+        }
+        cpu.instr.cycles += 16;
+    } else {
+        cpu.instr.cycles += 4;
     }
 }

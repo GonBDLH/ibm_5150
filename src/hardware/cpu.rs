@@ -196,9 +196,8 @@ impl CPU {
                 match operand & 0b00111000 {
                     0x0 => {
                         self.instr.opcode = Opcode::INC;
-                        self.instr.addr_mode = decode_mod(operand);
                         self.instr.data_length = Length::Word;
-                        self.instr.operand1 = decode_rm(self, bus, operand, 0);
+                        decode_mod_n_rm(self, bus, operand);
 
                         self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 3,
@@ -208,9 +207,8 @@ impl CPU {
                     },
                     0x8 => {
                         self.instr.opcode = Opcode::DEC;
-                        self.instr.addr_mode = decode_mod(operand);
                         self.instr.data_length = Length::Word;
-                        self.instr.operand1 = decode_rm(self, bus, operand, 0);
+                        decode_mod_n_rm(self, bus, operand);
 
                         self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 3,
@@ -220,25 +218,58 @@ impl CPU {
                     },
                     0x10 => {
                         self.instr.opcode = Opcode::CALL;
-                        self.instr.cycles += 1;
+                        self.instr.data_length = Length::Word;
+                        decode_mod_n_rm(self, bus, operand);
+
+                        self.instr.jump_type = JumpType::IndWithinSegment;
+
+                        self.instr.cycles += match self.instr.operand1 {
+                            OperandType::Register(_) => 24,
+                            OperandType::Memory(_) => 29 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        }
                     },
                     0x18 => {
                         self.instr.opcode = Opcode::CALL;
-                        self.instr.cycles += 1;
+                        self.instr.data_length = Length::Word;
+                        decode_mod_n_rm(self, bus, operand);
+
+                        self.instr.jump_type = JumpType::IndIntersegment;
+
+                        self.instr.cycles += match self.instr.operand1 {
+                            OperandType::Memory(_) => 53 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        }
                     },
                     0x20 => {
                         self.instr.opcode = Opcode::JMP;
-                        self.instr.cycles += 1;
+                        self.instr.data_length = Length::Word;
+                        decode_mod_n_rm(self, bus, operand);
+
+                        self.instr.jump_type = JumpType::IndWithinSegment;
+
+                        self.instr.cycles += match self.instr.operand1 {
+                            OperandType::Register(_) => 11,
+                            OperandType::Memory(_) => 18 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        }
                     },
                     0x28 => {
                         self.instr.opcode = Opcode::JMP;
-                        self.instr.cycles += 1;
+                        self.instr.data_length = Length::Word;
+                        decode_mod_n_rm(self, bus, operand);
+
+                        self.instr.jump_type = JumpType::IndIntersegment;
+
+                        self.instr.cycles += match self.instr.operand1 {
+                            OperandType::Memory(_) => 24 + self.instr.ea_cycles,
+                            _ => unreachable!(),
+                        }
                     },
                     0x30 => {
                         self.instr.opcode = Opcode::PUSH;
                         self.instr.data_length = Length::Word;
-                        self.instr.addr_mode = decode_mod(operand);
-                        self.instr.operand1 = decode_rm(self, bus, operand, 0);
+                        decode_mod_n_rm(self, bus, operand);
                         
                         self.instr.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 15,
@@ -338,18 +369,23 @@ impl CPU {
                 self.instr.data_length = Length::Word;
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
-                // TODO LEA
-                self.instr.cycles += 1;
+                self.instr.cycles += 2 + self.instr.ea_cycles;
             },
             0xC5 => {
-                // TODO LDS
                 self.instr.opcode = Opcode::LDS;
-                self.instr.cycles += 1;
+                self.instr.direction = Direction::ToReg;
+                self.instr.data_length = Length::Word;
+                let operand = self.fetch(bus);
+                decode_mod_reg_rm(self, bus, operand);
+                self.instr.cycles += 24 + self.instr.ea_cycles;
             },
             0xC4 => {
-                // TODO LES
                 self.instr.opcode = Opcode::LES;
-                self.instr.cycles += 1;
+                self.instr.direction = Direction::ToReg;
+                self.instr.data_length = Length::Word;
+                let operand = self.fetch(bus);
+                decode_mod_reg_rm(self, bus, operand);
+                self.instr.cycles += 24 + self.instr.ea_cycles;
             },
             0x9F => {
                 self.instr.opcode = Opcode::LAHF;
@@ -714,7 +750,7 @@ impl CPU {
                     (OperandType::Register(_), OperandType::Immediate) => 2,
                     (OperandType::Memory(_), OperandType::Immediate) => 23 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::Register(_)) => 8,
-                    (OperandType::Memory(_), OperandType::Register(_)) => 28 + self.instr.ea_cycles + 4 * self.cx.low,
+                    (OperandType::Memory(_), OperandType::Register(_)) => 28 + self.instr.ea_cycles + 4 * (self.cx.low as u64),
                     _ => unreachable!(),
                 };
 
@@ -829,13 +865,13 @@ impl CPU {
             },
 
             0x26 | 0x2E | 0x36 | 0x3E => {
-                self.instr.segment = if let OperandType::Register(operand) = decode_segment(op, 4) {
+                self.instr.segment = if let OperandType::SegmentRegister(operand) = decode_segment(op, 4) {
                     operand
                 } else {
                     panic!()
                 };
                 
-                self.instr.cycles += 4;
+                self.instr.cycles += 2;
 
                 let new_op = self.fetch(bus);
                 self.decode(bus, new_op);
@@ -860,7 +896,7 @@ impl CPU {
                 let seg_high = self.fetch(bus);
                 let offset = to_u16(offset_low, offset_high);
                 let seg = to_u16(seg_low, seg_high);
-                self.instr.jump_type = JumpType::Long(offset, seg);
+                self.instr.jump_type = JumpType::DirIntersegment(offset, seg);
 
                 self.instr.cycles += 15;
             },
@@ -925,6 +961,150 @@ impl CPU {
                 self.instr.cycles += if self.instr.repetition_prefix != RepetitionPrefix::None {15} else {9}
             },
 
+            0xE8 => {
+                self.instr.opcode = Opcode::CALL;
+                let val_low = self.fetch(bus);
+                let val_high = self.fetch(bus);
+                let val = to_u16(val_low, val_high);
+
+                self.instr.jump_type = JumpType::DirWithinSegment(val);
+
+                self.instr.cycles += 23;
+            },
+            0x9A => {
+                self.instr.opcode = Opcode::CALL;
+
+                let offset_low = self.fetch(bus);
+                let offset_high = self.fetch(bus);
+                let seg_low = self.fetch(bus);
+                let seg_high = self.fetch(bus);
+                let offset = to_u16(offset_low, offset_high);
+                let seg = to_u16(seg_low, seg_high);
+                self.instr.jump_type = JumpType::DirIntersegment(offset, seg);
+
+                self.instr.cycles += 36;
+            },
+            0xE9 => {
+                self.instr.opcode = Opcode::JMP;
+                let val_low = self.fetch(bus);
+                let val_high = self.fetch(bus);
+                let val = to_u16(val_low, val_high);
+
+                self.instr.jump_type = JumpType::DirWithinSegment(val);
+
+                self.instr.cycles += 15;
+            },
+            0xEB => {
+                self.instr.opcode = Opcode::JMP;
+                let val = self.fetch(bus);
+
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+
+                self.instr.cycles += 15;
+            },
+            0xC2 => {
+                self.instr.opcode = Opcode::RET;
+                let val = to_u16(self.fetch(bus), self.fetch(bus));
+                self.instr.ret_type = RetType::NearAdd(val);
+                self.instr.cycles += 24;
+            },
+            0xC3 => {
+                self.instr.opcode = Opcode::RET;
+                self.instr.ret_type = RetType::Near;
+                self.instr.cycles += 20;
+            },
+            0xCA => {
+                self.instr.opcode = Opcode::RET;
+                let val = to_u16(self.fetch(bus), self.fetch(bus));
+                self.instr.ret_type = RetType::FarAdd(val);
+                self.instr.cycles += 34;
+            },
+            0xCB => {
+                self.instr.opcode = Opcode::RET;
+                self.instr.ret_type = RetType::Far;
+                self.instr.cycles += 33;
+            },
+            0x74 => {
+                self.instr.opcode = Opcode::JEJZ;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x7C => {
+                self.instr.opcode = Opcode::JLJNGE;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x7E => {
+                self.instr.opcode = Opcode::JLEJNG;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x72 => {
+                self.instr.opcode = Opcode::JBJNAE;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x76 => {
+                self.instr.opcode = Opcode::JBEJNA;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x7A => {
+                self.instr.opcode = Opcode::JPJPE;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x70 => {
+                self.instr.opcode = Opcode::JO;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x78 => {
+                self.instr.opcode = Opcode::JS;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x75 => {
+                self.instr.opcode = Opcode::JNEJNZ;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x7D => {
+                self.instr.opcode = Opcode::JNLJGE;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            }
+            0x7F => {
+                self.instr.opcode = Opcode::JNLEJG;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x73 => {
+                self.instr.opcode = Opcode::JNBJAE;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x77 => {
+                self.instr.opcode = Opcode::JNBEJA;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x7B => {
+                self.instr.opcode = Opcode::JNPJPO;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x71 => {
+                self.instr.opcode = Opcode::JNO;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0x79 => {
+                self.instr.opcode = Opcode::JNS;
+                let val = self.fetch(bus);
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+
             _ => {
                 writeln!(&mut self.file, "Instrucción sin hacer: {:02X}", op).unwrap();
 
@@ -968,14 +1148,15 @@ impl CPU {
                 self.set_reg8(Operand::AL, val);
             },
             Opcode::LEA => {
-                let val = self.get_val(bus, self.instr.operand2);
-                self.set_val(bus, self.instr.operand1, val);
+                self.set_val(bus, self.instr.operand1, self.instr.offset);
             }
             Opcode::LDS => {
-
+                self.set_val(bus, self.instr.operand1, self.instr.offset);
+                self.ds = bus.read_length(self, self.instr.segment, self.instr.offset.wrapping_add(2), self.instr.data_length);
             },
             Opcode::LES => {
-
+                self.set_val(bus, self.instr.operand1, self.instr.offset);
+                self.es = bus.read_length(self, self.instr.segment, self.instr.offset.wrapping_add(2), self.instr.data_length);
             },
             Opcode::LAHF => {
                 self.ax.high = self.flags.get_flags() as u8;
@@ -985,10 +1166,10 @@ impl CPU {
             },
             Opcode::PUSHF => {
                 let val = self.flags.get_flags();
-                self.push_stack(bus, val);
+                self.push_stack_16(bus, val);
             },
             Opcode::POPF => {
-                let val = self.pop_stack(bus);
+                let val = self.pop_stack_16(bus);
                 self.flags.set_flags(val);
             },
 
@@ -1527,13 +1708,87 @@ impl CPU {
                 }
             },
 
-            Opcode::JMP => {
+            Opcode::CALL => {
                 match self.instr.jump_type {
-                    // TODO JMP SHORT
-                    JumpType::Long(offset, segment) => {self.cs = segment; self.ip = offset},
+                    JumpType::DirWithinSegment(disp) => {
+                        self.push_stack_16(bus, self.ip);
+                        self.ip = self.ip.wrapping_add(disp);
+                    },
+                    JumpType::IndWithinSegment => {
+                        self.push_stack_16(bus, self.ip);
+                        let val = self.get_val(bus, self.instr.operand1);
+                        self.ip = val;
+                    },
+                    JumpType::DirIntersegment(offset, segment) => {
+                        self.push_stack_16(bus, self.cs);
+                        self.push_stack_16(bus, self.ip);
+                        self.ip = offset;
+                        self.cs = segment;
+                    },
+                    JumpType::IndIntersegment => {
+                        self.push_stack_16(bus, self.cs);
+                        self.push_stack_16(bus, self.ip);
+                        let ip = bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length);
+                        let cs = bus.read_length(self, self.instr.segment, self.instr.offset.wrapping_add(2), self.instr.data_length);
+                        self.ip = ip;
+                        self.cs = cs;
+                    },
                     _ => unreachable!(),
                 }
-            }
+            },
+            Opcode::JMP => {
+                match self.instr.jump_type {
+                    JumpType::DirWithinSegment(disp) => {self.ip = self.ip.wrapping_add(disp)},
+                    JumpType::DirWithinSegmentShort(disp) => {self.ip = self.ip.wrapping_add(disp as u16)},
+                    JumpType::IndWithinSegment => {self.ip = self.get_val(bus, self.instr.operand1);},
+                    JumpType::IndIntersegment => {
+                        let ip = bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length);
+                        let cs = bus.read_length(self, self.instr.segment, self.instr.offset.wrapping_add(2), self.instr.data_length);
+                        self.ip = ip;
+                        self.cs = cs;
+                    },
+                    JumpType::DirIntersegment(offset, segment) => {self.cs = segment; self.ip = offset},
+                    _ => unreachable!(),
+                }
+            },
+            Opcode::RET => {
+                match self.instr.ret_type {
+                    RetType::NearAdd(val) => {
+                        self.ip = self.pop_stack_16(bus);
+                        self.sp = self.sp.wrapping_add(val);
+                    },
+                    RetType::Near => {
+                        self.ip = self.pop_stack_16(bus);
+                    },
+                    RetType::FarAdd(val) => {
+                        self.ip = self.pop_stack_16(bus);
+                        self.cs = self.pop_stack_16(bus);
+                        self.sp = self.sp.wrapping_add(val);
+                    },
+                    RetType::Far => {
+                        self.ip = self.pop_stack_16(bus);
+                        self.cs = self.pop_stack_16(bus);
+                    },
+                    _ => unreachable!(),
+                }
+            },
+            Opcode::JEJZ => jump(self, self.flags.z),
+            Opcode::JLJNGE => jump(self, self.flags.s != self.flags.o),
+            Opcode::JLEJNG => jump(self, self.flags.z | (self.flags.s != self.flags.o)),
+            Opcode::JBJNAE => jump(self, self.flags.c),
+            Opcode::JBEJNA => jump(self, self.flags.c | self.flags.z),
+            Opcode::JPJPE => jump(self, self.flags.p),
+            Opcode::JO => jump(self, self.flags.o),
+            Opcode::JS => jump(self, self.flags.s),
+            Opcode::JNEJNZ => jump(self, !self.flags.z),
+            Opcode::JNLJGE => jump(self, self.flags.s == self.flags.o),
+            Opcode::JNLEJG => jump(self, !self.flags.z & (self.flags.s == self.flags.o)),
+            Opcode::JNBJAE => jump(self, !self.flags.c),
+            Opcode::JNBEJA => jump(self, !self.flags.c & !self.flags.z),
+            Opcode::JNPJPO => jump(self, !self.flags.p),
+            Opcode::JNO => jump(self, !self.flags.o),
+            Opcode::JNS => jump(self, !self.flags.s),
+
             _ => {}
             // _ => unreachable!(),
         }

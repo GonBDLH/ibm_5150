@@ -16,7 +16,7 @@ pub struct Instruction {
     // Offset de la direccion en caso de que se lea memoria
     pub segment: Operand,
     pub offset: u16,
-    pub ea_cycles: u8,
+    pub ea_cycles: u64,
 
     // Valor inmediato en caso de que lo haya
     pub imm: u16,
@@ -24,9 +24,12 @@ pub struct Instruction {
     // Tipo de JMP/CALL
     pub jump_type: JumpType,
 
+    // Tipo de RET
+    pub ret_type: RetType,
+
     pub repetition_prefix: RepetitionPrefix,
 
-    pub cycles: u8,
+    pub cycles: u64,
 }
 
 impl Default for Instruction {
@@ -47,6 +50,8 @@ impl Default for Instruction {
             imm: 0,
 
             jump_type: JumpType::None,
+
+            ret_type: RetType::None,
 
             repetition_prefix: RepetitionPrefix::None,
 
@@ -149,6 +154,23 @@ pub enum Opcode {
     STOSW,
     CALL,
     JMP,
+    RET,
+    JEJZ,
+    JLJNGE,
+    JLEJNG,
+    JBJNAE,
+    JBEJNA,
+    JPJPE,
+    JO,
+    JS,
+    JNEJNZ,
+    JNLJGE,
+    JNLEJG,
+    JNBJAE,
+    JNBEJA,
+    JNPJPO,
+    JNO,
+    JNS,
 }
 
 impl Display for Opcode {
@@ -190,7 +212,7 @@ impl Display for Opcode {
             Opcode::CBW => "CBW",
             Opcode::CWD => "CWD",
             Opcode::NOT => "NOT",
-            Opcode::SALSHL => "SALSHL",
+            Opcode::SALSHL => "SAL/SHL",
             Opcode::SHR => "SHR",
             Opcode::SAR => "SAR",
             Opcode::ROL => "ROL",
@@ -213,6 +235,23 @@ impl Display for Opcode {
             Opcode::STOSW => "STOSW",
             Opcode::CALL => "CALL",
             Opcode::JMP => "JMP",
+            Opcode::RET => "RET",
+            Opcode::JEJZ => "JE/JZ",
+            Opcode::JLJNGE => "JL/JNGE",
+            Opcode::JLEJNG => "JLE/JNG",
+            Opcode::JBJNAE => "JB/JNAE",
+            Opcode::JBEJNA => "JBE/JNA",
+            Opcode::JPJPE => "JP/JPE",
+            Opcode::JO => "JO",
+            Opcode::JS => "JS",
+            Opcode::JNEJNZ => "JNE/JNZ",
+            Opcode::JNLJGE => "JNL/JGE",
+            Opcode::JNLEJG => "JNLE/JG",
+            Opcode::JNBJAE => "JNB/JAE",
+            Opcode::JNBEJA => "JNBE/JA",
+            Opcode::JNPJPO => "JNP/JPO",
+            Opcode::JNO => "JNO",
+            Opcode::JNS => "JNS",
         };
         write!(f, "{}", val)
     }
@@ -336,9 +375,20 @@ impl Direction {
     }
 }
 
+pub enum RetType {
+    NearAdd(u16),
+    Near,
+    Far,
+    FarAdd(u16),
+    None
+}
+
 pub enum JumpType {
-    Long(u16, u16),
-    // Short(u16),
+    DirIntersegment(u16, u16),
+    DirWithinSegment(u16),
+    DirWithinSegmentShort(u8),
+    IndIntersegment,
+    IndWithinSegment,
     None,
 }
 

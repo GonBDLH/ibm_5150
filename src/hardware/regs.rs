@@ -119,16 +119,8 @@ fn check_z(res: u16) -> bool {
     res == 0
 }
 
-fn check_a_add(val1: u16, val2: u16) -> bool {
+fn check_a(val1: u16, val2: u16) -> bool {
     ((val1 as u8 & 0x0F) + (val2 as u8 & 0x0F)) & 0xF0 != 0
-}
-
-fn check_a_sub_16(val1: u16, val2: u16) -> bool {
-    ((val1 & 0xFFF0) - (val2 & 0xFFF0)) & 0x0FFF != 0
-}
-
-fn check_a_sub_8(val1: u16, val2: u16) -> bool {
-    (((val1 as u8) & 0xF0) - ((val2 as u8) & 0xF0)) & 0x0F != 0
 }
 
 fn check_c_add_16(val1: u16, val2: u16) -> bool {
@@ -158,7 +150,7 @@ impl Flags {
                 self.o = check_o_add_16(val1, val2, res);
                 self.s = check_s_16(res);
                 self.z = check_z(res);
-                self.a = check_a_add(val1, val2);
+                self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = check_c_add_16(val1, val2);
             },
@@ -166,7 +158,7 @@ impl Flags {
                 self.o = check_o_add_8(val1 as u8, val2 as u8, res as u8);
                 self.s = check_s_8(res as u8);
                 self.z = check_z(res);
-                self.a = check_a_add(val1, val2);
+                self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = check_c_add_8(val1 as u8, val2 as u8);
             },
@@ -180,7 +172,7 @@ impl Flags {
                 self.o = check_o_sub_16(val1, val2, res);
                 self.s = check_s_16(res);
                 self.z = check_z(res);
-                self.a = check_a_sub_16(val1, val2);
+                self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = check_c_sub_16(val1, val2);
             },
@@ -188,7 +180,7 @@ impl Flags {
                 self.o = check_o_sub_8(val1 as u8, val2 as u8, res as u8);
                 self.s = check_s_8(res as u8);
                 self.z = check_z(res);
-                self.a = check_a_sub_8(val1, val2);
+                self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = check_c_sub_8(val1 as u8, val2 as u8);
             },
@@ -202,7 +194,7 @@ impl Flags {
                 self.o = check_o_sub_16(val1, val2, res);
                 self.s = check_s_16(res);
                 self.z = check_z(res);
-                self.a = check_a_sub_16(val1, val2);
+                self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = val2 != 0;
             },
@@ -210,7 +202,7 @@ impl Flags {
                 self.o = check_o_sub_8(val1 as u8, val2 as u8, res as u8);
                 self.s = check_s_8(res as u8);
                 self.z = check_z(res);
-                self.a = check_a_sub_8(val1, val2);
+                self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = val2 as u8 != 0;
             },

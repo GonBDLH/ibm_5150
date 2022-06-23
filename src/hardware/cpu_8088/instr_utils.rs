@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-// use super::{cpu_8088::CPU, bus::Bus, cpu_utils::{to_u16, sign_extend}};
 use super::CPU;
 use super::Bus;
 use super::cpu_utils::*;
@@ -176,7 +175,9 @@ pub enum Opcode {
     LOOPZE,
     LOOPNZNE,
     JCXZ,
-
+    INT,
+    INTO,
+    IRET,
     CLC,
     CMC,
     STC,
@@ -269,6 +270,9 @@ impl Display for Opcode {
             Opcode::LOOPZE => "LOOPZ/LOOPE",
             Opcode::LOOPNZNE => "LOOPNZ/LOOPNE",
             Opcode::JCXZ => "JCXZ",
+            Opcode::INT => "INT",
+            Opcode::INTO => "INTO",
+            Opcode::IRET => "IRET",
             Opcode::CLC => "CLC",
             Opcode::CMC => "CMC",
             Opcode::STC => "STC",

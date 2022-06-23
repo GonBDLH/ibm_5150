@@ -4,8 +4,6 @@ use crate::hardware::cpu_8088::CPU;
 
 pub struct Bus {
     pub memory: [u8; 0x100000]
-    // TEMPORAL PARA HACER TESTS
-    // pub memory: [u8; 0x1000]
 }
 
 impl Bus {

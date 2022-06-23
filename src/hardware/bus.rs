@@ -1,4 +1,6 @@
-use super::{cpu_utils::to_u16, instr_utils::{Length, Operand}, cpu::CPU};
+use crate::hardware::cpu_8088::cpu_utils::*;
+use crate::hardware::cpu_8088::instr_utils::{Length, Operand};
+use crate::hardware::cpu_8088::CPU;
 
 pub struct Bus {
     pub memory: [u8; 0x100000]
@@ -21,7 +23,7 @@ impl Bus {
 
     pub fn read_16(self: &Self, segment: u16, offset: u16) -> u16 {
         to_u16(self.read_8(segment, offset), 
-              self.read_8(segment, offset + 1))
+              self.read_8(segment, offset.wrapping_add(1)))
     }
 
     pub fn write_8(self: &mut Self, segment: u16, offset: u16, val: u8) {
@@ -31,7 +33,7 @@ impl Bus {
 
     pub fn write_16(self: &mut Self, segment: u16, offset: u16, val: u16) {
         self.write_8(segment, offset, val as u8);
-        self.write_8(segment, offset + 1, (val >> 8) as u8);
+        self.write_8(segment, offset.wrapping_add(1), (val >> 8) as u8);
     }
 
     pub fn write_length(&mut self, cpu: &mut CPU, length: Length, segment: Operand, offset: u16, val: u16) {

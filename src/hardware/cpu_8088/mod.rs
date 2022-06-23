@@ -1,10 +1,14 @@
+pub mod instr_utils;
+pub mod cpu_utils;
+pub mod regs;
+
 use std::fs::File;
 use std::io::Write;
 
 use super::bus::Bus;
-use super::instr_utils::*;
-use super::regs::{GPReg, Flags};
-use super::cpu_utils::*;
+use instr_utils::*;
+use regs::{GPReg, Flags};
+use cpu_utils::*;
 
 pub struct CPU {
     // Registros de proposito general
@@ -186,6 +190,8 @@ impl CPU {
                     (OperandType::Register(_), OperandType::Memory(_)) => 12 + self.instr.ea_cycles,
                     (OperandType::Register(_), OperandType::SegmentRegister(_)) => 2,
                     (OperandType::Memory(_), OperandType::Register(_)) => 13 + self.instr.ea_cycles,
+                    (OperandType::Memory(_), OperandType::SegmentRegister(_)) => 13 + self.instr.ea_cycles,
+                    (OperandType::SegmentRegister(_), OperandType::Memory(_)) => 12 + self.instr.ea_cycles,
                     _ => unreachable!(),
                 }
             },
@@ -494,9 +500,8 @@ impl CPU {
             0xFE => {
                 let operand = self.fetch(bus);
 
-                self.instr.addr_mode = decode_mod(operand);
                 self.instr.data_length = Length::Byte;
-                self.instr.operand1 = decode_rm(self, bus, operand, 0);
+                decode_mod_n_rm(self, bus, operand);
 
                 self.instr.cycles += match self.instr.operand1 {
                     OperandType::Register(_) => 3,
@@ -577,6 +582,12 @@ impl CPU {
                 read_imm(self, bus);
 
                 self.instr.cycles += 4;
+            },
+            0x48..=0x4F => {
+                self.instr.opcode = Opcode::DEC;
+                self.instr.data_length = Length::Word;
+                self.instr.operand1 = decode_reg(op, 0, self.instr.data_length);
+                self.instr.cycles += 3;
             },
             // _ALU 2
             0xF6 | 0xF7 => {
@@ -1103,6 +1114,59 @@ impl CPU {
                 self.instr.opcode = Opcode::JNS;
                 let val = self.fetch(bus);
                 self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0xE2 => {
+                self.instr.opcode = Opcode::LOOP;
+                let val = self.fetch(bus);
+
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0xE1 => {
+                self.instr.opcode = Opcode::LOOPZE;
+                let val = self.fetch(bus);
+
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0xE0 => {
+                self.instr.opcode = Opcode::LOOPNZNE;
+                let val = self.fetch(bus);
+
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+            0xE3 => {
+                self.instr.opcode = Opcode::JCXZ;
+                let val = self.fetch(bus);
+
+                self.instr.jump_type = JumpType::DirWithinSegmentShort(val);
+            },
+
+            0xF8 => {
+                self.instr.opcode = Opcode::CLC;
+                self.instr.cycles += 2;
+            },
+            0xF5 => {
+                self.instr.opcode = Opcode::CMC;
+                self.instr.cycles += 2;
+            },
+            0xF9 => {
+                self.instr.opcode = Opcode::STC;
+                self.instr.cycles += 2;
+            },
+            0xFC => {
+                self.instr.opcode = Opcode::CLD;
+                self.instr.cycles += 2;
+            },
+            0xFD => {
+                self.instr.opcode = Opcode::STD;
+                self.instr.cycles += 2;
+            },
+            0xFA => {
+                self.instr.opcode = Opcode::CLI;
+                self.instr.cycles += 2;
+            },
+            0xFB => {
+                self.instr.opcode = Opcode::STI;
+                self.instr.cycles += 2;
             },
 
             _ => {
@@ -1788,6 +1852,54 @@ impl CPU {
             Opcode::JNPJPO => jump(self, !self.flags.p),
             Opcode::JNO => jump(self, !self.flags.o),
             Opcode::JNS => jump(self, !self.flags.s),
+            Opcode::LOOP => {
+                let cx = self.cx.get_x().wrapping_sub(1);
+                self.cx.set_x(cx);
+                jump(self, cx != 0);
+
+                self.instr.cycles += 1; // jump() ya suma lo demas
+            },
+            Opcode::LOOPZE => {
+                let cx = self.cx.get_x().wrapping_sub(1);
+                self.cx.set_x(cx);
+                jump(self, (cx != 0) & self.flags.z);
+
+                self.instr.cycles += 2; // jump() ya suma lo demas
+            },
+            Opcode::LOOPNZNE => {
+                let cx = self.cx.get_x().wrapping_sub(1);
+                self.cx.set_x(cx);
+                jump(self, (cx != 0) & !self.flags.z);
+
+                self.instr.cycles += 2; // jump() ya suma lo demas
+            },
+            Opcode::JCXZ => {
+                jump(self, self.cx.get_x() == 0);
+
+                self.instr.cycles += 2; // jump() ya suma lo demas
+            },
+
+            Opcode::CLC => {
+                self.flags.c = false;
+            },
+            Opcode::CMC => {
+                self.flags.c = !self.flags.c;
+            },
+            Opcode::STC => {
+                self.flags.c = true;
+            },
+            Opcode::CLD => {
+                self.flags.d = false;
+            },
+            Opcode::STD => {
+                self.flags.d = true;
+            },
+            Opcode::CLI => {
+                self.flags.i = false;
+            },
+            Opcode::STI => {
+                self.flags.i = true;
+            },
 
             _ => {}
             // _ => unreachable!(),

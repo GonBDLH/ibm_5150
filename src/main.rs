@@ -10,7 +10,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::hardware::{cpu::CPU, bus::Bus};
+    // use crate::hardware::{cpu_8088::CPU, bus::Bus};
+    use crate::hardware::{cpu_8088::CPU, bus::Bus};
 
     fn ini(cpu: &mut CPU) {
         cpu.cs = 0;

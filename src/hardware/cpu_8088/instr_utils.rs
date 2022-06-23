@@ -1,14 +1,15 @@
 use std::fmt::Display;
 
-use super::{cpu::CPU, bus::Bus, cpu_utils::{to_u16, sign_extend}};
+// use super::{cpu_8088::CPU, bus::Bus, cpu_utils::{to_u16, sign_extend}};
+use super::CPU;
+use super::Bus;
+use super::cpu_utils::*;
 
 pub struct Instruction {
     pub opcode: Opcode,
     pub operand1: OperandType,
     pub operand2: OperandType,
 
-    // True     R/M -> R
-    // False    R   -> R/M
     pub direction: Direction,
     pub data_length: Length,
     pub addr_mode: AddrMode,
@@ -171,6 +172,18 @@ pub enum Opcode {
     JNPJPO,
     JNO,
     JNS,
+    LOOP,
+    LOOPZE,
+    LOOPNZNE,
+    JCXZ,
+
+    CLC,
+    CMC,
+    STC,
+    CLD,
+    STD,
+    CLI,
+    STI,
 }
 
 impl Display for Opcode {
@@ -252,6 +265,17 @@ impl Display for Opcode {
             Opcode::JNPJPO => "JNP/JPO",
             Opcode::JNO => "JNO",
             Opcode::JNS => "JNS",
+            Opcode::LOOP => "LOOP",
+            Opcode::LOOPZE => "LOOPZ/LOOPE",
+            Opcode::LOOPNZNE => "LOOPNZ/LOOPNE",
+            Opcode::JCXZ => "JCXZ",
+            Opcode::CLC => "CLC",
+            Opcode::CMC => "CMC",
+            Opcode::STC => "STC",
+            Opcode::CLD => "CLD",
+            Opcode::STD => "STD",
+            Opcode::CLI => "CLI",
+            Opcode::STI => "STI",
         };
         write!(f, "{}", val)
     }

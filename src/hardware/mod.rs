@@ -1,8 +1,5 @@
 pub mod sys;
-pub mod cpu;
-pub mod instr_utils;
-pub mod cpu_utils;
-pub mod regs;
+pub mod cpu_8088;
 pub mod bus;
 
 pub mod debug;

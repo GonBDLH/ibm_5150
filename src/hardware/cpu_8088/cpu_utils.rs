@@ -1,4 +1,7 @@
-use super::{instr_utils::{Length, Operand, RepetitionPrefix, JumpType}, cpu::CPU, bus::Bus};
+// use super::{instr_utils::{Length, Operand, RepetitionPrefix, JumpType}, cpu_8088::CPU, bus::Bus};
+use super::instr_utils::*;
+use super::CPU;
+use super::Bus;
 
 pub fn sign_extend(value: u8) -> u16 {
     value as i8 as i16 as u16

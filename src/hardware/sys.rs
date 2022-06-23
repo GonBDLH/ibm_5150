@@ -5,7 +5,7 @@ use std::time::{Instant, Duration};
 use crossterm::execute;
 use crossterm::terminal::SetSize;
 
-use super::cpu::CPU;
+use super::cpu_8088::CPU;
 use super::bus::Bus;
 use super::debug::*;
 

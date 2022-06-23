@@ -1,39 +1,39 @@
 use std::io::{self, stdout};
 
-use crossterm::{execute, style::Print, cursor::MoveTo, terminal::{Clear, ClearType}};
+use crossterm::{execute, style::Print, cursor::MoveTo, terminal::{Clear, ClearType}, queue};
 
 use crate::System;
 
 pub fn display(sys: &System) {
     let ip = sys.cpu.ip as usize;
     let dir = ((sys.cpu.cs as usize) << 4) + ip as usize;
-    execute!(
+    queue!(
         stdout(),
         MoveTo(0,0),
-        // Esto es un shitpost total
-        Print(format!(
+        // Esto es un shitpost total. Ya no, pero este comentario es gracioso asi que se queda.
+        Print(
             "*===================================*=================================================*================================*\
              |                                   |                                                 |                                |\
              |               CPU                 |                  MEMORIA                        |          Instruccion           |\
              |                                   |                                                 |                                |\
              |   Registros         Flags         |   Segmentos           Direccion  Valor          |   Opcode:                      |\
              |                                   |                                                 |   Operand1:                    |\
-             |       H L           O {}           |   CS   {:04X}           ->  {:05X}     {:02X}          |   Operand2:                    |\
-             |   AX {:02X}{:02X}           D {}           |   DS   {:04X}               {:05X}     {:02X}          |                                |\
-             |       H L           I {}           |   ES   {:04X}               {:05X}     {:02X}          |                                |\
-             |   BX {:02X}{:02X}           T {}           |   SS   {:04X}               {:05X}     {:02X}          |                                |\
-             |       H L           S {}           |                           {:05X}     {:02X}          |                                |\
-             |   CX {:02X}{:02X}           Z {}           |                           {:05X}     {:02X}          |                                |\
-             |       H L           A {}           |                           {:05X}     {:02X}          |                                |\
-             |   DX {:02X}{:02X}           P {}           |                           {:05X}     {:02X}          |                                |\
-             |                     C {}           |                           {:05X}     {:02X}          |                                |\
-             |                                   |                           {:05X}     {:02X}          |                                |\
-             |   SI {:04X}                         |                           {:05X}     {:02X}          |                                |\
-             |   BP {:04X}                         |                           {:05X}     {:02X}          |                                |\
-             |   DI {:04X}                         |                           {:05X}     {:02X}          |                                |\
-             |   SP {:04X}                         |                           {:05X}     {:02X}          |                                |\
-             |                                   |                           {:05X}     {:02X}          |                                |\
-             |   IP {:04X}                         |                           {:05X}     {:02X}          |                                |\
+             |       H L           O             |   CS                  ->                        |   Operand2:                    |\
+             |   AX                D             |   DS                                            |                                |\
+             |       H L           I             |   ES                                            |                                |\
+             |   BX                T             |   SS                                            |                                |\
+             |       H L           S             |                                                 |                                |\
+             |   CX                Z             |                                                 |                                |\
+             |       H L           A             |                                                 |                                |\
+             |   DX                P             |                                                 |                                |\
+             |                     C             |                                                 |                                |\
+             |                                   |                                                 |                                |\
+             |   SI                              |                                                 |                                |\
+             |   BP                              |                                                 |                                |\
+             |   DI                              |                                                 |                                |\
+             |   SP                              |                                                 |                                |\
+             |                                   |                                                 |                                |\
+             |   IP                              |                                                 |                                |\
              |                                   |                                                 |                                |\
              |                                   |                                                 |                                |\
              |                                   |                                                 |                                |\
@@ -41,25 +41,105 @@ pub fn display(sys: &System) {
              |                                   |                                                 |                                |\
              *===================================*=================================================*================================*\
              |   >>                              |                                                                                  |\
-             *===================================*=================================================*================================*",
-                                                sys.cpu.flags.o as i32, sys.cpu.cs, dir % 0x100000, sys.bus.memory[dir % 0x100000],
-             sys.cpu.ax.high, sys.cpu.ax.low,   sys.cpu.flags.d as i32, sys.cpu.ds, (dir + 1) % 0x100000, sys.bus.memory[(dir + 1) % 0x100000],
-                                                sys.cpu.flags.i as i32, sys.cpu.es, (dir + 2) % 0x100000, sys.bus.memory[(dir + 2) % 0x100000],
-             sys.cpu.bx.high, sys.cpu.bx.low,   sys.cpu.flags.t as i32, sys.cpu.ss, (dir + 3) % 0x100000, sys.bus.memory[(dir + 3) % 0x100000],
-                                                sys.cpu.flags.s as i32,             (dir + 4) % 0x100000, sys.bus.memory[(dir + 4) % 0x100000],
-             sys.cpu.cx.high, sys.cpu.cx.low,   sys.cpu.flags.z as i32,             (dir + 5) % 0x100000, sys.bus.memory[(dir + 5) % 0x100000],
-                                                sys.cpu.flags.a as i32,             (dir + 6) % 0x100000, sys.bus.memory[(dir + 6) % 0x100000],
-             sys.cpu.dx.high, sys.cpu.dx.low,   sys.cpu.flags.p as i32,             (dir + 7) % 0x100000, sys.bus.memory[(dir + 7) % 0x100000],
-                                                sys.cpu.flags.c as i32,             (dir + 8) % 0x100000, sys.bus.memory[(dir + 8) % 0x100000],
-                                                                                    (dir + 9) % 0x100000, sys.bus.memory[(dir + 9) % 0x100000],
-             sys.cpu.si,                                                            (dir + 10) % 0x100000, sys.bus.memory[(dir + 10) % 0x100000],
-             sys.cpu.di,                                                            (dir + 11) % 0x100000, sys.bus.memory[(dir + 11) % 0x100000],
-             sys.cpu.bp,                                                            (dir + 12) % 0x100000, sys.bus.memory[(dir + 12) % 0x100000],
-             sys.cpu.sp,                                                            (dir + 13) % 0x100000, sys.bus.memory[(dir + 13) % 0x100000],
-                                                                                    (dir + 14) % 0x100000, sys.bus.memory[(dir + 14) % 0x100000],
-             sys.cpu.ip,                                                            (dir + 15) % 0x100000, sys.bus.memory[(dir + 15) % 0x100000],
-             
-        )),
+             *===================================*=================================================*================================*"
+        ),
+    ).unwrap();
+
+    queue!(
+        stdout(),
+        MoveTo(7,7),
+        Print(format!("{:02X}", sys.cpu.ax.high)),
+        Print(format!("{:02X}", sys.cpu.ax.low)),
+        MoveTo(7,9),
+        Print(format!("{:02X}", sys.cpu.bx.high)),
+        Print(format!("{:02X}", sys.cpu.bx.low)),
+        MoveTo(7,11),
+        Print(format!("{:02X}", sys.cpu.cx.high)),
+        Print(format!("{:02X}", sys.cpu.cx.low)),
+        MoveTo(7,13),
+        Print(format!("{:02X}", sys.cpu.dx.high)),
+        Print(format!("{:02X}", sys.cpu.dx.low)),
+
+        MoveTo(7,16),
+        Print(format!("{:04X}", sys.cpu.si)),
+        MoveTo(7,17),
+        Print(format!("{:04X}", sys.cpu.bp)),
+        MoveTo(7,18),
+        Print(format!("{:04X}", sys.cpu.di)),
+        MoveTo(7,19),
+        Print(format!("{:04X}", sys.cpu.sp)),
+        MoveTo(7,21),
+        Print(format!("{:04X}", sys.cpu.ip)),
+    ).unwrap();
+
+    queue!(
+        stdout(),
+        MoveTo(24,6),
+        Print(format!("{}", sys.cpu.flags.o as i32)),
+        MoveTo(24,7),
+        Print(format!("{}", sys.cpu.flags.d as i32)),
+        MoveTo(24,8),
+        Print(format!("{}", sys.cpu.flags.i as i32)),
+        MoveTo(24,9),
+        Print(format!("{}", sys.cpu.flags.t as i32)),
+        MoveTo(24,10),
+        Print(format!("{}", sys.cpu.flags.s as i32)),
+        MoveTo(24,11),
+        Print(format!("{}", sys.cpu.flags.z as i32)),
+        MoveTo(24,12),
+        Print(format!("{}", sys.cpu.flags.a as i32)),
+        MoveTo(24,13),
+        Print(format!("{}", sys.cpu.flags.p as i32)),
+        MoveTo(24,14),
+        Print(format!("{}", sys.cpu.flags.c as i32)),
+    ).unwrap();
+
+    queue!(
+        stdout(),
+        MoveTo(45,6),
+        Print(format!("{:04X}", sys.cpu.cs)),
+        MoveTo(45,7),
+        Print(format!("{:04X}", sys.cpu.ds)),
+        MoveTo(45,8),
+        Print(format!("{:04X}", sys.cpu.es)),
+        MoveTo(45,9),
+        Print(format!("{:04X}", sys.cpu.ss)),
+    ).unwrap();
+
+    queue!(
+        stdout(),
+        MoveTo(64,6),
+        Print(format!("{:05X}     {:02X}", dir % 0x100000, sys.bus.memory[dir % 0x100000])),
+        MoveTo(64,7),
+        Print(format!("{:05X}     {:02X}", (dir + 1) % 0x100000, sys.bus.memory[(dir + 1) % 0x100000])),
+        MoveTo(64,8),
+        Print(format!("{:05X}     {:02X}", (dir + 2) % 0x100000, sys.bus.memory[(dir + 2) % 0x100000])),
+        MoveTo(64,9),
+        Print(format!("{:05X}     {:02X}", (dir + 3) % 0x100000, sys.bus.memory[(dir + 3) % 0x100000])),
+        MoveTo(64,10),
+        Print(format!("{:05X}     {:02X}", (dir + 4) % 0x100000, sys.bus.memory[(dir + 4) % 0x100000])),
+        MoveTo(64,11),
+        Print(format!("{:05X}     {:02X}", (dir + 5) % 0x100000, sys.bus.memory[(dir + 5) % 0x100000])),
+        MoveTo(64,12),
+        Print(format!("{:05X}     {:02X}", (dir + 6) % 0x100000, sys.bus.memory[(dir + 6) % 0x100000])),
+        MoveTo(64,13),
+        Print(format!("{:05X}     {:02X}", (dir + 7) % 0x100000, sys.bus.memory[(dir + 7) % 0x100000])),
+        MoveTo(64,14),
+        Print(format!("{:05X}     {:02X}", (dir + 8) % 0x100000, sys.bus.memory[(dir + 8) % 0x100000])),
+        MoveTo(64,15),
+        Print(format!("{:05X}     {:02X}", (dir + 9) % 0x100000, sys.bus.memory[(dir + 9) % 0x100000])),
+        MoveTo(64,16),
+        Print(format!("{:05X}     {:02X}", (dir + 10) % 0x100000, sys.bus.memory[(dir + 10) % 0x100000])),
+        MoveTo(64,17),
+        Print(format!("{:05X}     {:02X}", (dir + 11) % 0x100000, sys.bus.memory[(dir + 11) % 0x100000])),
+        MoveTo(64,18),
+        Print(format!("{:05X}     {:02X}", (dir + 12) % 0x100000, sys.bus.memory[(dir + 12) % 0x100000])),
+        MoveTo(64,19),
+        Print(format!("{:05X}     {:02X}", (dir + 13) % 0x100000, sys.bus.memory[(dir + 13) % 0x100000])),
+        MoveTo(64,20),
+        Print(format!("{:05X}     {:02X}", (dir + 14) % 0x100000, sys.bus.memory[(dir + 14) % 0x100000])),
+        MoveTo(64,21),
+        Print(format!("{:05X}     {:02X}", (dir + 15) % 0x100000, sys.bus.memory[(dir + 15) % 0x100000])),
     ).unwrap();
 
     execute!(

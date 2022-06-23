@@ -2,7 +2,6 @@ use super::CPU;
 use super::Bus;
 use super::instr_utils::*;
 use super::cpu_utils::*;
-use super::int_handler::sw_interrupt;
 
 impl CPU {
    pub fn execute(&mut self, bus: &mut Bus) {
@@ -230,7 +229,7 @@ impl CPU {
                 let val2 = self.get_val(bus, self.instr.operand1);
 
                 if val2 == 0 {
-                    sw_interrupt(self, bus, 0);
+                    self.sw_interrupt(bus, 0);
                     return;
                 }
 
@@ -252,7 +251,7 @@ impl CPU {
                 let val2 = self.get_val(bus, self.instr.operand1) as i16;
 
                 if val2 == 0 {
-                    sw_interrupt(self, bus, 0);
+                    self.sw_interrupt(bus, 0);
                     return;
                 }
 
@@ -261,7 +260,7 @@ impl CPU {
                         let val1 = self.ax.low as i8 as i16;
                         let res = val1.wrapping_div(val2);
                         if res > 0x7F || -res > 0x80 {
-                            sw_interrupt(self, bus, 0);
+                            self.sw_interrupt(bus, 0);
                         } else {
                             self.set_reg(self.instr.data_length, Operand::AL, res as u16);
                             self.set_reg(self.instr.data_length, Operand::AH, val1.wrapping_rem(val2) as u16);
@@ -271,7 +270,7 @@ impl CPU {
                         let val1 = to_u32(self.ax.get_x(), self.dx.get_x()) as i32;
                         let res = val1.wrapping_div(val2 as i32);
                         if res > 0x7FFF || -res > 0x8000 {
-                            sw_interrupt(self, bus, 0);
+                            self.sw_interrupt(bus, 0);
                         } else {
                             self.set_reg(self.instr.data_length, Operand::AX, res as u16);
                             self.set_reg(self.instr.data_length, Operand::DX, val1.wrapping_rem(val2 as i32) as u16);
@@ -706,11 +705,11 @@ impl CPU {
                 self.instr.cycles += 2; // jump() ya suma lo demas
             },
             Opcode::INT => {
-                sw_interrupt(self, bus, self.sw_int_type);
+                self.sw_interrupt(bus, self.sw_int_type);
             },
             Opcode::INTO => {
                 if self.flags.o {
-                    sw_interrupt(self, bus, self.sw_int_type);
+                    self.sw_interrupt(bus, self.sw_int_type);
                     self.instr.cycles += 73;
                 } else {
                     self.instr.cycles += 4;

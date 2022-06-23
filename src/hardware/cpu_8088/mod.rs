@@ -7,8 +7,6 @@ mod execute;
 
 use std::fs::File;
 
-use self::int_handler::hw_interrup;
-
 use super::bus::Bus;
 use instr_utils::*;
 use regs::{GPReg, Flags};
@@ -90,7 +88,7 @@ impl CPU {
             
             self.instr.cycles -= 1;
 
-            hw_interrup(self, bus);
+            self.hw_interrup(bus);
         }
     }
 

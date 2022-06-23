@@ -394,8 +394,8 @@ impl CPU {
 
             Opcode::MOVSB => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    movs(self, bus);
-                    adjust_string(self);
+                    self.movs(bus);
+                    self.adjust_string();
                 } else {
                     let mut veces = 0;
                     while self.cx.get_x() != 0 {
@@ -403,8 +403,8 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        movs(self, bus);
-                        adjust_string(self);
+                        self.movs(bus);
+                        self.adjust_string();
 
                         veces += 1;
                     }
@@ -413,8 +413,8 @@ impl CPU {
             },
             Opcode::MOVSW => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    movs(self, bus);
-                    adjust_string(self);
+                    self.movs(bus);
+                    self.adjust_string();
                 } else {
                     let mut veces = 0;
                     while self.cx.get_x() != 0 {
@@ -422,8 +422,8 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        movs(self, bus);
-                        adjust_string(self);
+                        self.movs(bus);
+                        self.adjust_string();
 
                         veces += 1;
                     }
@@ -432,8 +432,8 @@ impl CPU {
             },
             Opcode::CMPSB => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    cmps(self, bus);
-                    adjust_string(self);
+                    self.cmps(bus);
+                    self.adjust_string();
                 } else {
                     let mut veces = 0;
                     let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
@@ -442,11 +442,11 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        cmps(self, bus);
+                        self.cmps(bus);
 
-                        adjust_string(self);
+                        self.adjust_string();
 
-                        z_bool = check_z_str(self);
+                        z_bool = self.check_z_str();
 
                         veces += 1;
                     }
@@ -455,8 +455,8 @@ impl CPU {
             },
             Opcode::CMPSW => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    cmps(self, bus);
-                    adjust_string(self);
+                    self.cmps(bus);
+                    self.adjust_string();
                 } else {
                     let mut veces = 0;
                     let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
@@ -465,11 +465,11 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        cmps(self, bus);
+                        self.cmps(bus);
 
-                        adjust_string(self);
+                        self.adjust_string();
 
-                        z_bool = check_z_str(self);
+                        z_bool = self.check_z_str();
 
                         veces += 1;
                     }
@@ -478,8 +478,8 @@ impl CPU {
             },
             Opcode::SCASB => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    scas(self, bus);
-                    adjust_string_di(self);
+                    self.scas(bus);
+                    self.adjust_string_di();
                 } else {
                     let mut veces = 0;
                     let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
@@ -488,11 +488,11 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        scas(self, bus);
+                        self.scas(bus);
 
-                        adjust_string_di(self);
+                        self.adjust_string_di();
 
-                        z_bool = check_z_str(self);
+                        z_bool = self.check_z_str();
 
                         veces += 1;
                     }
@@ -501,8 +501,8 @@ impl CPU {
             },
             Opcode::SCASW => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    scas(self, bus);
-                    adjust_string_di(self);
+                    self.scas(bus);
+                    self.adjust_string_di();
                 } else {
                     let mut veces = 0;
                     let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
@@ -511,11 +511,11 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        scas(self, bus);
+                        self.scas(bus);
 
-                        adjust_string_di(self);
+                        self.adjust_string_di();
 
-                        z_bool = check_z_str(self);
+                        z_bool = self.check_z_str();
 
                         veces += 1;
                     }
@@ -524,8 +524,8 @@ impl CPU {
             },
             Opcode::LODSB => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    lods(self, bus);
-                    adjust_string_si(self);
+                    self.lods(bus);
+                    self.adjust_string_si();
                 } else {
                     let mut veces = 0;
                     while self.cx.get_x() != 0 {
@@ -533,8 +533,8 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        lods(self, bus);
-                        adjust_string_si(self);
+                        self.lods(bus);
+                        self.adjust_string_si();
 
                         veces += 1;
                     }
@@ -543,8 +543,8 @@ impl CPU {
             },
             Opcode::LODSW => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    lods(self, bus);
-                    adjust_string_si(self);
+                    self.lods(bus);
+                    self.adjust_string_si();
                 } else {
                     let mut veces = 0;
                     while self.cx.get_x() != 0 {
@@ -552,8 +552,8 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        lods(self, bus);
-                        adjust_string_si(self);
+                        self.lods(bus);
+                        self.adjust_string_si();
 
                         veces += 1;
                     }
@@ -562,8 +562,8 @@ impl CPU {
             },
             Opcode::STOSB => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    stos(self, bus);
-                    adjust_string_di(self);
+                    self.stos(bus);
+                    self.adjust_string_di();
                 } else {
                     let mut veces = 0;
                     while self.cx.get_x() != 0 {
@@ -571,8 +571,8 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        stos(self, bus);
-                        adjust_string_di(self);
+                        self.stos(bus);
+                        self.adjust_string_di();
 
                         veces += 1;
                     }
@@ -581,8 +581,8 @@ impl CPU {
             },
             Opcode::STOSW => {
                 if self.instr.repetition_prefix != RepetitionPrefix::None {
-                    stos(self, bus);
-                    adjust_string_di(self);
+                    self.stos(bus);
+                    self.adjust_string_di();
                 } else {
                     let mut veces = 0;
                     while self.cx.get_x() != 0 {
@@ -590,8 +590,8 @@ impl CPU {
 
                         self.cx.set_x(self.cx.get_x() - 1);
                         // String op
-                        stos(self, bus);
-                        adjust_string_di(self);
+                        self.stos(bus);
+                        self.adjust_string_di();
 
                         veces += 1;
                     }
@@ -663,45 +663,45 @@ impl CPU {
                     _ => unreachable!(),
                 }
             },
-            Opcode::JEJZ => jump(self, self.flags.z),
-            Opcode::JLJNGE => jump(self, self.flags.s != self.flags.o),
-            Opcode::JLEJNG => jump(self, self.flags.z | (self.flags.s != self.flags.o)),
-            Opcode::JBJNAE => jump(self, self.flags.c),
-            Opcode::JBEJNA => jump(self, self.flags.c | self.flags.z),
-            Opcode::JPJPE => jump(self, self.flags.p),
-            Opcode::JO => jump(self, self.flags.o),
-            Opcode::JS => jump(self, self.flags.s),
-            Opcode::JNEJNZ => jump(self, !self.flags.z),
-            Opcode::JNLJGE => jump(self, self.flags.s == self.flags.o),
-            Opcode::JNLEJG => jump(self, !self.flags.z & (self.flags.s == self.flags.o)),
-            Opcode::JNBJAE => jump(self, !self.flags.c),
-            Opcode::JNBEJA => jump(self, !self.flags.c & !self.flags.z),
-            Opcode::JNPJPO => jump(self, !self.flags.p),
-            Opcode::JNO => jump(self, !self.flags.o),
-            Opcode::JNS => jump(self, !self.flags.s),
+            Opcode::JEJZ => self.jump(self.flags.z),
+            Opcode::JLJNGE => self.jump(self.flags.s != self.flags.o),
+            Opcode::JLEJNG => self.jump(self.flags.z | (self.flags.s != self.flags.o)),
+            Opcode::JBJNAE => self.jump(self.flags.c),
+            Opcode::JBEJNA => self.jump(self.flags.c | self.flags.z),
+            Opcode::JPJPE => self.jump(self.flags.p),
+            Opcode::JO => self.jump(self.flags.o),
+            Opcode::JS => self.jump(self.flags.s),
+            Opcode::JNEJNZ => self.jump(!self.flags.z),
+            Opcode::JNLJGE => self.jump(self.flags.s == self.flags.o),
+            Opcode::JNLEJG => self.jump(!self.flags.z & (self.flags.s == self.flags.o)),
+            Opcode::JNBJAE => self.jump(!self.flags.c),
+            Opcode::JNBEJA => self.jump(!self.flags.c & !self.flags.z),
+            Opcode::JNPJPO => self.jump(!self.flags.p),
+            Opcode::JNO => self.jump(!self.flags.o),
+            Opcode::JNS => self.jump(!self.flags.s),
             Opcode::LOOP => {
                 let cx = self.cx.get_x().wrapping_sub(1);
                 self.cx.set_x(cx);
-                jump(self, cx != 0);
+                self.jump(cx != 0);
 
                 self.instr.cycles += 1; // jump() ya suma lo demas
             },
             Opcode::LOOPZE => {
                 let cx = self.cx.get_x().wrapping_sub(1);
                 self.cx.set_x(cx);
-                jump(self, (cx != 0) & self.flags.z);
+                self.jump((cx != 0) & self.flags.z);
 
                 self.instr.cycles += 2; // jump() ya suma lo demas
             },
             Opcode::LOOPNZNE => {
                 let cx = self.cx.get_x().wrapping_sub(1);
                 self.cx.set_x(cx);
-                jump(self, (cx != 0) & !self.flags.z);
+                self.jump((cx != 0) & !self.flags.z);
 
                 self.instr.cycles += 2; // jump() ya suma lo demas
             },
             Opcode::JCXZ => {
-                jump(self, self.cx.get_x() == 0);
+                self.jump(self.cx.get_x() == 0);
 
                 self.instr.cycles += 2; // jump() ya suma lo demas
             },

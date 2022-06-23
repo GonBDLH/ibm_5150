@@ -260,4 +260,147 @@ impl CPU {
             _ => unreachable!(),
         }
     }
+
+    pub fn movs(&mut self, bus: &mut Bus) {
+        let offset_from = self.si;
+        let offset_to = self.di;
+    
+        let segment_from = if self.instr.segment == Operand::None {
+            Operand::DS
+        } else {
+            self.instr.segment
+        };
+        let segment_to = Operand::ES;
+    
+        let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
+        bus.write_length(self, self.instr.data_length, segment_to, offset_to, val);
+    }
+    
+    pub fn cmps(&mut self, bus: &mut Bus) {
+        let offset_from = self.si;
+        let offset_to = self.di;
+    
+        let segment_from = if self.instr.segment == Operand::None {
+            Operand::DS
+        } else {
+            self.instr.segment
+        };
+        let segment_to = Operand::ES;
+    
+        let val1 = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
+        let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
+        let res = val1.wrapping_sub(val2);
+        self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
+    }
+    
+    pub fn scas(&mut self, bus: &mut Bus) {
+        let offset_to = self.di;
+        let segment_to = Operand::ES;
+    
+        let val1 = match self.instr.data_length {
+            Length::Byte => self.ax.low as u16,
+            Length::Word => self.ax.get_x(),
+            _ => unreachable!()
+        };
+        let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
+        let res = val1.wrapping_sub(val2);
+        self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
+    }
+    
+    pub fn lods(&mut self, bus: &mut Bus) {
+        let offset_from = self.si;
+        let segment_from = if self.instr.segment == Operand::None {
+            Operand::DS
+        } else {
+            self.instr.segment
+        };
+    
+        let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
+    
+        match self.instr.data_length {
+            Length::Byte => self.ax.low = val as u8,
+            Length::Word => self.ax.set_x(val),
+            _ => unreachable!()
+        };
+    }
+    
+    pub fn stos(&mut self, bus: &mut Bus) {
+        let offset_to = self.di;
+        let segment_to = Operand::ES;
+    
+        let val = match self.instr.data_length {
+            Length::Byte => self.ax.low as u16,
+            Length::Word => self.ax.get_x(),
+            _ => unreachable!(),
+        };
+    
+        bus.write_length(self, self.instr.data_length, segment_to, offset_to, val);
+    }
+    
+    pub fn adjust_string(&mut self) {
+        let to_change = match self.instr.data_length {
+            Length::Byte => 1,
+            Length::Word => 2,
+            _ => unreachable!(),
+        };
+    
+        if !self.flags.d {
+            self.si = self.si.wrapping_add(to_change);
+            self.di = self.di.wrapping_add(to_change);
+        } else {
+            self.si = self.si.wrapping_sub(to_change);
+            self.di = self.di.wrapping_sub(to_change);
+        }
+    }
+    
+    pub fn adjust_string_di(&mut self) {
+        let to_change = match self.instr.data_length {
+            Length::Byte => 1,
+            Length::Word => 2,
+            _ => unreachable!(),
+        };
+    
+        if !self.flags.d {
+            self.di = self.di.wrapping_add(to_change);
+        } else {
+            self.di = self.di.wrapping_sub(to_change);
+        }
+    }
+    
+    pub fn adjust_string_si(&mut self) {
+        let to_change = match self.instr.data_length {
+            Length::Byte => 1,
+            Length::Word => 2,
+            _ => unreachable!(),
+        };
+    
+        if !self.flags.d {
+            self.di = self.si.wrapping_add(to_change);
+        } else {
+            self.di = self.si.wrapping_sub(to_change);
+        }
+    }
+    
+    pub fn check_z_str(&mut self) -> bool {
+        match self.instr.repetition_prefix {
+            RepetitionPrefix::REPEZ => {
+                self.flags.z
+            },
+            RepetitionPrefix::REPNEZ => {
+                !self.flags.z
+            },
+            _ => unreachable!()
+        }
+    }
+    
+    pub fn jump(&mut self, cond: bool) {
+        if cond {
+            if let JumpType::DirWithinSegmentShort(disp) = self.instr.jump_type {
+                self.ip = self.ip.wrapping_add(disp as u16)
+            }
+            self.instr.cycles += 16;
+        } else {
+            self.instr.cycles += 4;
+        }
+    }
 }

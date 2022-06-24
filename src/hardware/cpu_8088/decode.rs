@@ -248,23 +248,59 @@ impl CPU {
                 self.instr.operand2 = decode_reg(op, 0, self.instr.data_length);
                 self.instr.cycles += 3;
             },
-            // TODO IN
             0xE4 | 0xE5 => {
                 self.instr.opcode = Opcode::IN;
-                self.instr.cycles += 1;
+                self.instr.data_length = Length::new(op, 0);
+
+                self.instr.operand1 = match self.instr.data_length {
+                    Length::Byte => OperandType::Register(Operand::AL),
+                    Length::Word => OperandType::Register(Operand::AX),
+                    _ => unreachable!(),
+                };
+                self.instr.operand2 = OperandType::Memory(Operand::Disp);
+                self.instr.port = self.fetch(bus) as u16;
+
+                self.instr.cycles += 14;
             },
             0xEC | 0xED => {
-                self.instr.opcode = Opcode::IN;
-                self.instr.cycles += 1;
+                self.instr.opcode = Opcode::OUT;
+                self.instr.data_length = Length::new(op, 0);
+
+                self.instr.operand1 = match self.instr.data_length {
+                    Length::Byte => OperandType::Register(Operand::AL),
+                    Length::Word => OperandType::Register(Operand::AX),
+                    _ => unreachable!(),
+                };
+                self.instr.operand2 = OperandType::Memory(Operand::DX);
+                self.instr.port = self.dx.get_x();
+
+                self.instr.cycles += 12;
             },
-            // TODO OUT
             0xE6 | 0xE7 => {
                 self.instr.opcode = Opcode::OUT;
-                self.instr.cycles += 1;
+                self.instr.data_length = Length::new(op, 0);
+                self.instr.operand1 = OperandType::Memory(Operand::Disp);
+                self.instr.port = self.fetch(bus) as u16;
+
+                self.instr.operand2 = match self.instr.data_length {
+                    Length::Byte => OperandType::Register(Operand::AL),
+                    Length::Word => OperandType::Register(Operand::AX),
+                    _ => unreachable!(),
+                };
+                self.instr.cycles += 14;
             },
             0xEE | 0xEF => {
                 self.instr.opcode = Opcode::OUT;
-                self.instr.cycles += 1;
+                self.instr.data_length = Length::new(op, 0);
+                self.instr.operand1 = OperandType::Memory(Operand::DX);
+                self.instr.port = self.dx.get_x();
+
+                self.instr.operand2 = match self.instr.data_length {
+                    Length::Byte => OperandType::Register(Operand::AL),
+                    Length::Word => OperandType::Register(Operand::AX),
+                    _ => unreachable!(),
+                };
+                self.instr.cycles += 12;
             },
             0xD7 => {
                 self.instr.opcode = Opcode::XLAT;

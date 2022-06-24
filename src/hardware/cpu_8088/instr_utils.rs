@@ -21,6 +21,9 @@ pub struct Instruction {
     // Valor inmediato en caso de que lo haya
     pub imm: u16,
 
+    // En caso de que sea una instr I/O
+    pub port: u16,
+
     // Tipo de JMP/CALL
     pub jump_type: JumpType,
 
@@ -48,6 +51,8 @@ impl Default for Instruction {
             ea_cycles: 0x00,
 
             imm: 0,
+
+            port: 0,
 
             jump_type: JumpType::None,
 

@@ -18,7 +18,7 @@ impl CPU {
     
     }
     
-    pub fn sw_interrupt(&mut self, bus: &mut Bus, int_type: u8) {
+    pub fn interrupt(&mut self, bus: &mut Bus, int_type: u8) {
         self.push_stack_16(bus, self.flags.get_flags());
         self.flags.i = false;
         self.flags.t = false;

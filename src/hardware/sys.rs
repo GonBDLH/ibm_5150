@@ -8,6 +8,7 @@ use crossterm::terminal::SetSize;
 use super::cpu_8088::CPU;
 use super::bus::Bus;
 use super::debug::*;
+use super::pic_8259::PIC8259;
 
 pub struct System {
     pub cpu: CPU,
@@ -19,12 +20,16 @@ pub struct System {
 impl System {
     pub fn new() -> Self {
         execute!(stdout(), SetSize(120, 30)).unwrap();
-        System { 
+        let mut sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
 
             running: true,
-        }
+        };
+
+        sys.cpu.peripherals.push(Box::new(PIC8259::new()));
+        
+        sys
     }
 }
 

@@ -5,9 +5,11 @@ pub mod int_handler;
 mod decode;
 mod execute;
 
+pub mod dissasemble;
+
 use std::fs::File;
 
-use super::bus::Bus;
+use super::{bus::Bus, peripheral::Peripheral};
 use instr_utils::*;
 use regs::{GPReg, Flags};
 use cpu_utils::*;
@@ -43,6 +45,8 @@ pub struct CPU {
     // Controla de que tipo es la SW INT si existe
     pub sw_int_type: u8,
 
+    pub peripherals: Vec<Box<dyn Peripheral>>,
+
     // Archivo de logs (Igual hay que quitarlo de aqui)
     pub file: File,
 }
@@ -72,6 +76,8 @@ impl CPU {
             instr: Instruction::default(),
 
             sw_int_type: 0,
+
+            peripherals: Vec::new(),
 
             file: File::create("logs/log.txt").unwrap()
         }
@@ -187,7 +193,8 @@ impl CPU {
             Operand::CS => self.cs,
             Operand::SS => self.ss,
             Operand::DS => self.ds,
-            _ => unreachable!("Aqui no deberia entrar nunca")
+            Operand::None => 0,
+            _ => unreachable!(),
         }
     }
 

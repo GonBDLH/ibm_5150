@@ -1,5 +1,6 @@
 use super::instr_utils::*;
 
+
 pub fn sign_extend(value: u8) -> u16 {
     value as i8 as i16 as u16
 }

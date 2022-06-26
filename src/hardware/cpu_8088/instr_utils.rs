@@ -4,6 +4,7 @@ use super::CPU;
 use super::Bus;
 use super::cpu_utils::*;
 
+#[derive(Copy, Clone)]
 pub struct Instruction {
     pub opcode: Opcode,
     pub operand1: OperandType,
@@ -19,7 +20,7 @@ pub struct Instruction {
     pub ea_cycles: u64,
 
     // Valor inmediato en caso de que lo haya
-    pub imm: u16,
+    // pub imm: u16,
 
     // En caso de que sea una instr I/O
     pub port: u16,
@@ -31,8 +32,6 @@ pub struct Instruction {
     pub ret_type: RetType,
 
     pub repetition_prefix: RepetitionPrefix,
-
-    pub cycles: u64,
 }
 
 impl Default for Instruction {
@@ -50,7 +49,7 @@ impl Default for Instruction {
             offset: 0x0000,
             ea_cycles: 0x00,
 
-            imm: 0,
+            //imm: 0,
 
             port: 0,
 
@@ -59,13 +58,17 @@ impl Default for Instruction {
             ret_type: RetType::None,
 
             repetition_prefix: RepetitionPrefix::None,
-
-            cycles: 0 
         }
     }
 }
 
-#[derive(PartialEq)]
+impl Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {},{}", self.opcode, self.operand1, self.operand2)
+    }
+}
+
+#[derive(PartialEq, Clone, Copy)]
 pub enum RepetitionPrefix {
     None,
     REPNEZ,
@@ -99,6 +102,7 @@ impl Length {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum Opcode {
     None,
     MOV,
@@ -190,6 +194,7 @@ pub enum Opcode {
     STD,
     CLI,
     STI,
+    HLT,
 }
 
 impl Display for Opcode {
@@ -285,6 +290,7 @@ impl Display for Opcode {
             Opcode::STD => "STD",
             Opcode::CLI => "CLI",
             Opcode::STI => "STI",
+            Opcode::HLT => "HLT",
         };
         write!(f, "{}", val)
     }
@@ -375,7 +381,7 @@ pub enum OperandType {
     Register(Operand),
     SegmentRegister(Operand),
     Memory(Operand),
-    Immediate,
+    Immediate(u16),
     None,
 }
 
@@ -384,14 +390,14 @@ impl Display for OperandType {
         match self {
             OperandType::Register(r) => write!(f, "{}", r),
             OperandType::SegmentRegister(r) => write!(f, "{}", r),
-            OperandType::Memory(r) => write!(f, "{}", r),
-            OperandType::Immediate => write!(f, "Imm"),
+            OperandType::Memory(r) => write!(f, "[{}]", r),
+            OperandType::Immediate(r) => write!(f, "{:X}", r),
             OperandType::None => write!(f, "None"),
         }
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum Direction {
     ToReg,
     FromReg,
@@ -408,6 +414,7 @@ impl Direction {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum RetType {
     NearAdd(u16),
     Near,
@@ -416,6 +423,7 @@ pub enum RetType {
     None
 }
 
+#[derive(Copy, Clone)]
 pub enum JumpType {
     DirIntersegment(u16, u16),
     DirWithinSegment(u16),
@@ -684,10 +692,10 @@ pub fn decode_mod_n_rm(cpu: &mut CPU, bus: &mut Bus, operand: u8) {
     cpu.instr.operand1 = decode_rm(cpu, bus, operand, 0)
 }
 
-pub fn read_imm(cpu: &mut CPU, bus: &mut Bus) {
+pub fn read_imm(cpu: &mut CPU, bus: &mut Bus) -> u16 {
     match cpu.instr.data_length {
-        Length::Byte => cpu.instr.imm = cpu.fetch(bus) as u16,
-        Length::Word => cpu.instr.imm = to_u16(cpu.fetch(bus), cpu.fetch(bus)),
+        Length::Byte => cpu.fetch(bus) as u16,
+        Length::Word => to_u16(cpu.fetch(bus), cpu.fetch(bus)),
         _ => unreachable!(),
     }
 }

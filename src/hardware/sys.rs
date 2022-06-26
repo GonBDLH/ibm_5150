@@ -7,7 +7,7 @@ use crossterm::terminal::SetSize;
 
 use super::cpu_8088::CPU;
 use super::bus::Bus;
-use super::debug::*;
+use crate::util::debug::*;
 use super::pic_8259::PIC8259;
 
 pub struct System {
@@ -54,6 +54,11 @@ impl System {
             // }
             self.cpu.step(&mut self.bus);
 
+            if self.cpu.halted {
+                // TODO esto seguramente haya que cambiarlo
+                return;
+            }
+
             let t = Duration::new(0, 20_000_000).checked_sub(Duration::from(Instant::now() - start)).unwrap_or_default();
             // println!("{}", t.as_micros());
             display(self);
@@ -62,19 +67,19 @@ impl System {
     }
 
     pub fn run(self: &mut Self) {
-        self.bus.memory[0xFFFF0] = 0xEA;
-        self.bus.memory[0xFFFF1] = 0x00;
-        self.bus.memory[0xFFFF2] = 0x00;
-        self.bus.memory[0xFFFF3] = 0x00;
-        self.bus.memory[0xFFFF4] = 0x00;
+        // self.bus.memory[0xFFFF0] = 0xEA;
+        // self.bus.memory[0xFFFF1] = 0x00;
+        // self.bus.memory[0xFFFF2] = 0x00;
+        // self.bus.memory[0xFFFF3] = 0x00;
+        // self.bus.memory[0xFFFF4] = 0x00;
 
-        self.cpu.ax.set_x(0xC56D);
-        self.cpu.bx.set_x(0x1234);
+        // self.cpu.ax.set_x(0xC56D);
+        // self.cpu.bx.set_x(0x1234);
 
-        self.bus.memory[0x00000] = 0xF7;
-        self.bus.memory[0x00001] = 0xFB;
-        self.bus.memory[0x00002] = 0xD4;
-        self.bus.memory[0x00003] = 0x0A;
+        // self.bus.memory[0x00000] = 0xF7;
+        // self.bus.memory[0x00001] = 0xFB;
+        // self.bus.memory[0x00002] = 0xD4;
+        // self.bus.memory[0x00003] = 0x0A;
 
         while self.running {
             display(self);

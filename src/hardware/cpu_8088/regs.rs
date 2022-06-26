@@ -1,6 +1,7 @@
 use super::{cpu_utils::*, instr_utils::{Length, OperandType}};
 
 // Registro de proposito general (AX, BX, CX, DX)
+#[derive(Copy, Clone)]
 pub struct GPReg {
     pub high: u8,
     pub low: u8,
@@ -21,6 +22,7 @@ impl GPReg {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Flags {
     pub o: bool,
     pub d: bool,
@@ -51,15 +53,17 @@ impl Flags {
     }
 
     pub fn get_flags(self: &Self) -> u16 {
-        self.o as u16 & 0b0000100000000000 +
-        self.d as u16 & 0b0000010000000000 +
-        self.i as u16 & 0b0000001000000000 +
-        self.t as u16 & 0b0000000100000000 +
-        self.s as u16 & 0b0000000010000000 +
-        self.z as u16 & 0b0000000001000000 +
-        self.a as u16 & 0b0000000000010000 +
-        self.p as u16 & 0b0000000000000100 +
-        self.c as u16 & 0b0000000000000001
+        let o = ((self.o as u16) << 11) & 0b0000100000000000;
+        let d = ((self.d as u16) << 10) & 0b0000010000000000;
+        let i = ((self.i as u16) <<  9) & 0b0000001000000000;
+        let t = ((self.t as u16) <<  8) & 0b0000000100000000;
+        let s = ((self.s as u16) <<  7) & 0b0000000010000000;
+        let z = ((self.z as u16) <<  6) & 0b0000000001000000;
+        let a = ((self.a as u16) <<  4) & 0b0000000000010000;
+        let p = ((self.p as u16) <<  2) & 0b0000000000000100;
+        let c = ((self.c as u16) <<  0) & 0b0000000000000001;
+        let val = o + d + i + t + s + z + a + p + c;
+        val
     }
 }
 
@@ -241,23 +245,27 @@ impl Flags {
                 if count < 8 {
                     let mask = 1u8 << count;
                     self.c = val as u8 & mask == mask;
-                };
-                check_s_8(res as u8);
+                } else {
+                    self.c = false;
+                }
+                self.s = check_s_8(res as u8);
             },
             Length::Word => {
                 if count < 16 {
                     let mask = 1u16 << count;
                     self.c = val & mask == mask;
+                } else {
+                    self.c = false;
                 };
-                check_s_16(res);
+                self.s = check_s_16(res);
             },
             _ => unreachable!(),
         };
         match operand {
-            OperandType::Immediate => self.o = get_msb(res, length) ^ self.c,
+            OperandType::Immediate(_) => self.o = get_msb(res, length) ^ self.c,
             _ => {},
         }
-        check_z(res);
+        self.z = check_z(res);
         self.p = check_p(res);
     }
 
@@ -265,29 +273,34 @@ impl Flags {
         if count == 0 {
             return;
         }
+
         match length {
             Length::Byte => {
                 if count < 8 {
-                    let mask = 1u8 >> count;
+                    let mask = 1u8 << (count - 1);
                     self.c = val as u8 & mask == mask;
-                };
-                check_s_8(res as u8);
+                } else {
+                    self.c = false;
+                }
+                self.s = check_s_8(res as u8);
             },
             Length::Word => {
                 if count < 16 {
-                    let mask = 1u16 >> count;
+                    let mask = 1u16 << (count - 1);
                     self.c = val & mask == mask;
-                };
-                check_s_16(res);
+                } else {
+                    self.c = false;
+                }
+                self.s = check_s_16(res);
             },
             _ => unreachable!(),
         };
-        match operand {
-            OperandType::Immediate => self.o = get_msb(val, length) != get_msb(res, length),
-            _ => {},
-        }
-        check_z(res);
+        self.z = check_z(res);
         self.p = check_p(res);
+        match operand {
+            OperandType::Immediate(_) => self.o = get_msb(val, length) != get_msb(res, length),
+            _ => {},
+        };
     }
 
     pub fn set_sar_flags(&mut self, length: Length, operand: OperandType, count: u32, val: u16, res: u16) {
@@ -299,23 +312,27 @@ impl Flags {
                 if count < 8 {
                     let mask = 1u8 >> count;
                     self.c = val as u8 & mask == mask;
-                };
+                } else {
+                    self.c = false;
+                }
                 check_s_8(res as u8);
             },
             Length::Word => {
                 if count < 16 {
                     let mask = 1u16 >> count;
                     self.c = val & mask == mask;
-                };
+                } else {
+                    self.c = false;
+                }
                 check_s_16(res);
             },
             _ => unreachable!(),
         };
         match operand {
-            OperandType::Immediate => self.o = get_msb(val, length) != get_msb(res, length),
+            OperandType::Immediate(_) => self.o = get_msb(val, length) != get_msb(res, length),
             _ => {},
         }
-        check_z(res);
+        self.z = check_z(res);
         self.p = check_p(res);
     }
 

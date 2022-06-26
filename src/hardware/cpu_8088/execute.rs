@@ -233,8 +233,9 @@ impl CPU {
             },
             Opcode::AAM => {
                 let temp_al = self.ax.low;
-                self.ax.high = temp_al / self.instr.imm as u8;
-                self.ax.low = temp_al % self.instr.imm as u8;
+                let val = self.get_val(bus, self.instr.operand1);
+                self.ax.high = temp_al / val as u8;
+                self.ax.low = temp_al % val as u8;
 
                 self.flags.set_aam_flags(self.ax.low);
             },
@@ -296,7 +297,8 @@ impl CPU {
                 let temp_al = self.ax.low;
                 let temp_ah = self.ax.high;
                 self.ax.high = 0;
-                self.ax.low = (temp_al + (temp_ah.wrapping_add(self.instr.imm as u8))) & 0xFF;
+                let val = self.get_val(bus, self.instr.operand1);
+                self.ax.low = (temp_al + (temp_ah.wrapping_add(val as u8))) & 0xFF;
 
                 self.flags.set_aam_flags(self.ax.low);
             },
@@ -420,7 +422,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 17;
+                    self.cycles += veces * 17;
                 }
             },
             Opcode::MOVSW => {
@@ -439,7 +441,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 25;
+                    self.cycles += veces * 25;
                 }
             },
             Opcode::CMPSB => {
@@ -462,7 +464,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 22;
+                    self.cycles += veces * 22;
                 }
             },
             Opcode::CMPSW => {
@@ -485,7 +487,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 30;
+                    self.cycles += veces * 30;
                 }
             },
             Opcode::SCASB => {
@@ -508,7 +510,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 15;
+                    self.cycles += veces * 15;
                 }
             },
             Opcode::SCASW => {
@@ -531,7 +533,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 19;
+                    self.cycles += veces * 19;
                 }
             },
             Opcode::LODSB => {
@@ -550,7 +552,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 13;
+                    self.cycles += veces * 13;
                 }
             },
             Opcode::LODSW => {
@@ -569,7 +571,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 17;
+                    self.cycles += veces * 17;
                 }
             },
             Opcode::STOSB => {
@@ -588,7 +590,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 13;
+                    self.cycles += veces * 13;
                 }
             },
             Opcode::STOSW => {
@@ -607,7 +609,7 @@ impl CPU {
 
                         veces += 1;
                     }
-                    self.instr.cycles += veces * 17;
+                    self.cycles += veces * 17;
                 }
             },
 
@@ -696,26 +698,26 @@ impl CPU {
                 self.cx.set_x(cx);
                 self.jump(cx != 0);
 
-                self.instr.cycles += 1; // jump() ya suma lo demas
+                self.cycles += 1; // jump() ya suma lo demas
             },
             Opcode::LOOPZE => {
                 let cx = self.cx.get_x().wrapping_sub(1);
                 self.cx.set_x(cx);
                 self.jump((cx != 0) & self.flags.z);
 
-                self.instr.cycles += 2; // jump() ya suma lo demas
+                self.cycles += 2; // jump() ya suma lo demas
             },
             Opcode::LOOPNZNE => {
                 let cx = self.cx.get_x().wrapping_sub(1);
                 self.cx.set_x(cx);
                 self.jump((cx != 0) & !self.flags.z);
 
-                self.instr.cycles += 2; // jump() ya suma lo demas
+                self.cycles += 2; // jump() ya suma lo demas
             },
             Opcode::JCXZ => {
                 self.jump(self.cx.get_x() == 0);
 
-                self.instr.cycles += 2; // jump() ya suma lo demas
+                self.cycles += 2; // jump() ya suma lo demas
             },
             Opcode::INT => {
                 self.interrupt(bus, self.sw_int_type);
@@ -723,9 +725,9 @@ impl CPU {
             Opcode::INTO => {
                 if self.flags.o {
                     self.interrupt(bus, self.sw_int_type);
-                    self.instr.cycles += 73;
+                    self.cycles += 73;
                 } else {
-                    self.instr.cycles += 4;
+                    self.cycles += 4;
                 }
             },
             Opcode::IRET => {
@@ -755,6 +757,10 @@ impl CPU {
             },
             Opcode::STI => {
                 self.flags.i = true;
+            },
+
+            Opcode::HLT => {
+                self.halted = true;
             },
 
             _ => {}

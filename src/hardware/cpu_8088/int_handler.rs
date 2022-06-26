@@ -9,6 +9,7 @@ impl CPU {
             return
         }
     
+        self.halted = false;
         self.push_stack_16(bus, self.flags.get_flags());
         self.flags.i = false;
         self.flags.t = false;

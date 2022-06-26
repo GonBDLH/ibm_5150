@@ -42,10 +42,15 @@ pub struct CPU {
     // Utilizado para guardar info de la operacion que se esta decodificando
     pub instr: Instruction,
 
+    // Ciclos que se ha ejecutado una instr.
+    pub cycles: u64,
+
     // Controla de que tipo es la SW INT si existe
     pub sw_int_type: u8,
 
     pub peripherals: Vec<Box<dyn Peripheral>>,
+
+    pub halted: bool,
 
     // Archivo de logs (Igual hay que quitarlo de aqui)
     pub file: File,
@@ -75,9 +80,13 @@ impl CPU {
 
             instr: Instruction::default(),
 
+            cycles: 0,
+
             sw_int_type: 0,
 
             peripherals: Vec::new(),
+
+            halted: false,
 
             file: File::create("logs/log.txt").unwrap()
         }
@@ -88,11 +97,14 @@ impl CPU {
     pub fn step(self: &mut Self, bus: &mut Bus) {
         // 14,31818 MHz * 1/50 Hz / 3 ~= 95454 => Nº ciclos que hace la CPU en un frame 
         for _i in 0..95454 {
-            if self.instr.cycles == 0 {
+            if self.cycles == 0 {
+                if self.halted {
+                    return; // TODO
+                }
                 self.fetch_decode_execute(bus)
             }
             
-            self.instr.cycles -= 1;
+            self.cycles -= 1;
 
             self.hw_interrup(bus);
         }
@@ -105,6 +117,10 @@ impl CPU {
     }
 
     pub fn fetch_decode_execute(&mut self, bus: &mut Bus) {
+        if self.ip == 0xE0A9 {
+            let _a = 0;
+        }
+
         self.instr = Instruction::default();
         let op = self.fetch(bus);
         self.decode(bus, op);
@@ -212,7 +228,7 @@ impl CPU {
         match operand {
             OperandType::Register(operand) => self.get_reg(self.instr.data_length, operand),
             OperandType::SegmentRegister(operand) => self.get_segment(operand),
-            OperandType::Immediate => self.instr.imm,
+            OperandType::Immediate(imm) => imm,
             OperandType::Memory(_operand) => bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length),
             _ => unreachable!(),
         }
@@ -228,8 +244,8 @@ impl CPU {
     }
 
     fn push_stack_8(self: &mut Self, bus: &mut Bus, val: u8) {
+        self.sp = self.sp.wrapping_sub(1);
         bus.write_8(self.ss, self.sp, val);
-        self.sp = self.sp.wrapping_add(1);
     }
 
     fn push_stack_16(self: &mut Self, bus: &mut Bus, val: u16) {
@@ -248,13 +264,13 @@ impl CPU {
 
     fn pop_stack_8(self: &mut Self, bus: &mut Bus) -> u8 {
         let val = bus.read_8(self.ss, self.sp);
-        self.sp = self.sp.wrapping_sub(1);
+        self.sp = self.sp.wrapping_add(1);
         val
     }
 
     fn pop_stack_16(self: &mut Self, bus: &mut Bus) -> u16 {
-        let val_high = self.pop_stack_8(bus);
         let val_low = self.pop_stack_8(bus);
+        let val_high = self.pop_stack_8(bus);
         to_u16(val_low, val_high)
     }
 
@@ -401,11 +417,11 @@ impl CPU {
     pub fn jump(&mut self, cond: bool) {
         if cond {
             if let JumpType::DirWithinSegmentShort(disp) = self.instr.jump_type {
-                self.ip = self.ip.wrapping_add(disp as u16)
+                self.ip = self.ip.wrapping_add(sign_extend(disp))
             }
-            self.instr.cycles += 16;
+            self.cycles += 16;
         } else {
-            self.instr.cycles += 4;
+            self.cycles += 4;
         }
     }
 }

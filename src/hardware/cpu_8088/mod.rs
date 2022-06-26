@@ -9,7 +9,7 @@ pub mod dissasemble;
 
 use std::fs::File;
 
-use super::{bus::Bus, peripheral::Peripheral};
+use super::{bus::Bus, pic_8259::PIC8259, timer_8253::TIM8253};
 use instr_utils::*;
 use regs::{GPReg, Flags};
 use cpu_utils::*;
@@ -48,7 +48,7 @@ pub struct CPU {
     // Controla de que tipo es la SW INT si existe
     pub sw_int_type: u8,
 
-    pub peripherals: Vec<Box<dyn Peripheral>>,
+    // pub peripherals: Vec<Box<dyn Peripheral>>,
 
     pub halted: bool,
 
@@ -84,7 +84,7 @@ impl CPU {
 
             sw_int_type: 0,
 
-            peripherals: Vec::new(),
+            // peripherals: Vec::new(),
 
             halted: false,
 
@@ -94,14 +94,14 @@ impl CPU {
 }
 
 impl CPU {
-    pub fn step(self: &mut Self, bus: &mut Bus) {
+    pub fn step(self: &mut Self, bus: &mut Bus, pic: &mut PIC8259, timer: &mut TIM8253) {
         // 14,31818 MHz * 1/50 Hz / 3 ~= 95454 => Nº ciclos que hace la CPU en un frame 
         for _i in 0..95454 {
             if self.cycles == 0 {
                 if self.halted {
                     return; // TODO
                 }
-                self.fetch_decode_execute(bus)
+                self.fetch_decode_execute(bus, pic, timer)
             }
             
             self.cycles -= 1;
@@ -116,7 +116,7 @@ impl CPU {
         bus.read_dir(dir)
     }
 
-    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) {
+    pub fn fetch_decode_execute(&mut self, bus: &mut Bus, pic: &mut PIC8259, timer: &mut TIM8253) {
         if self.ip == 0xE0A9 {
             let _a = 0;
         }
@@ -124,7 +124,7 @@ impl CPU {
         self.instr = Instruction::default();
         let op = self.fetch(bus);
         self.decode(bus, op);
-        self.execute(bus);
+        self.execute(bus, pic, timer);
     }
 }
 

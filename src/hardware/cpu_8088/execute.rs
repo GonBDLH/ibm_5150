@@ -1,10 +1,14 @@
+use crate::hardware::peripheral::Peripheral;
+use crate::hardware::pic_8259::PIC8259;
+use crate::hardware::timer_8253::TIM8253;
+
 use super::CPU;
 use super::Bus;
 use super::instr_utils::*;
 use super::cpu_utils::*;
 
 impl CPU {
-   pub fn execute(&mut self, bus: &mut Bus) {
+   pub fn execute(&mut self, bus: &mut Bus, pic: &mut PIC8259, timer: &mut TIM8253) {
         match self.instr.opcode {
             Opcode::MOV => {
                 let val = self.get_val(bus, self.instr.operand2);
@@ -28,23 +32,45 @@ impl CPU {
                 self.set_val(bus, self.instr.operand2, val1);
             },
             Opcode::IN => {
-                let mut val = (false, 0);
-                for per in &self.peripherals {
-                    if per.is_connected(self.instr.port) {
-                        val = (true, per.port_in(self.instr.port) as u16);
-                    }
-                }
+                // let mut val = (false, 0);
+                // for per in &mut self.peripherals {
+                //     if per.is_connected(self.instr.port) {
+                //         val = (true, per.port_in(self.instr.port));
+                //     }
+                // }
                 
-                if val.0 {self.set_val(bus, self.instr.operand1, val.1)}
+                // if val.0 {self.set_val(bus, self.instr.operand1, val.1)}
+                let val = match self.instr.port {
+                    0x00..=0x0F => {/* TODO DMA  8237 */ 0},
+                    0x20..=0x21 => pic.port_in(self.instr.port),
+                    0x40..=0x43 => timer.port_in(self.instr.port),
+                    0x60..=0x63 => {/* TODO 8255 */ 0},
+                    0x80..=0x83 => {/* TODO Reg pagina DMA */ 0},
+                    0xA0..=0xAF => {/* TODO NMI */ 0},
+
+                    _ => unreachable!(),
+                };
+                self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::OUT => {
+                // let val = self.get_val(bus, self.instr.operand2);
+                // for per in &mut self.peripherals {
+                //     if per.is_connected(self.instr.port) {
+                //         // TODO
+                //         per.port_out(val, self.instr.port);
+                //     }
+                // }
                 let val = self.get_val(bus, self.instr.operand2);
-                for per in &mut self.peripherals {
-                    if per.is_connected(self.instr.port) {
-                        // TODO
-                        per.port_out(val, self.instr.port);
-                    }
-                }
+                match self.instr.port {
+                    0x00..=0x0F => {/* TODO DMA  8237 */ },
+                    0x20..=0x21 => pic.port_out(val, self.instr.port),
+                    0x40..=0x43 => timer.port_out(val, self.instr.port),
+                    0x60..=0x63 => {/* TODO 8255 */ },
+                    0x80..=0x83 => {/* TODO Reg pagina DMA */ },
+                    0xA0..=0xAF => {/* TODO NMI */ },
+
+                    _ => unreachable!(),
+                };
             },
             Opcode::XLAT => {
                 let val = bus.read_8(self.get_segment(Operand::DS), self.get_reg16(Operand::BX) + self.get_reg8(Operand::AL));

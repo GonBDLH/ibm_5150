@@ -165,7 +165,7 @@ pub fn get_command(sys: &mut System) {
     io::stdin().read_line(&mut command).expect("Failed");
 
     match command.trim_end() {
-        "step" | "s" | "" => {sys.cpu.cycles = 0; sys.cpu.fetch_decode_execute(&mut sys.bus)},
+        "step" | "s" | "" => {sys.cpu.cycles = 0; sys.cpu.fetch_decode_execute(&mut sys.bus, &mut sys.pic, &mut sys.timer)},
         "quit" | "q" => {execute!(stdout(), Clear(ClearType::All), MoveTo(0,0)).unwrap(); sys.running = false},
         "run" | "r" => {sys.cpu.halted = false; sys.cpu.cycles = 0; sys.clock()},
         "reset" | "rst" => {sys.cpu = CPU::new(); sys.bus = Bus::new()}
@@ -174,7 +174,7 @@ pub fn get_command(sys: &mut System) {
             let mut a = 0x1000;
             while a > 0 {
                 sys.cpu.cycles = 0;
-                sys.cpu.fetch_decode_execute(&mut sys.bus);
+                sys.cpu.fetch_decode_execute(&mut sys.bus, &mut sys.pic, &mut sys.timer);
                 a -= 1;
             }
         }

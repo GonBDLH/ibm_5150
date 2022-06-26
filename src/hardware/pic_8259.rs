@@ -42,8 +42,8 @@ impl PIC8259 {
 }
 
 impl Peripheral for PIC8259 {
-    fn port_in(&self, port: u16) -> u8 {
-        if port == 0x20 {self.irr} else {self.imr}
+    fn port_in(&mut self, port: u16) -> u16 {
+        if port == 0x20 {self.irr as u16} else {self.imr as u16}
     }
 
     // TODO No se si estara bien. Copiado de: https://github.com/NeatMonster/Intel8086/blob/master/src/fr/neatmonster/ibmpc/Intel8259.java
@@ -75,9 +75,5 @@ impl Peripheral for PIC8259 {
                 self.imr = val as u8;                               // OCW1
             }
         }
-    }
-
-    fn is_connected(&self, port: u16) -> bool {
-        port == 0x20 || port == 0x21
     }
 }

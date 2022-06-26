@@ -7,12 +7,15 @@ use crossterm::terminal::SetSize;
 
 use super::cpu_8088::CPU;
 use super::bus::Bus;
+use super::timer_8253::TIM8253;
 use crate::util::debug::*;
 use super::pic_8259::PIC8259;
 
 pub struct System {
     pub cpu: CPU,
     pub bus: Bus,
+    pub pic: PIC8259,
+    pub timer: TIM8253,
 
     pub running: bool,
 }
@@ -20,14 +23,14 @@ pub struct System {
 impl System {
     pub fn new() -> Self {
         execute!(stdout(), SetSize(120, 30)).unwrap();
-        let mut sys = System { 
+        let sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
+            pic: PIC8259::new(),
+            timer: TIM8253::new(),
 
             running: true,
         };
-
-        sys.cpu.peripherals.push(Box::new(PIC8259::new()));
         
         sys
     }
@@ -52,7 +55,7 @@ impl System {
                 
             //     self.clock_cycles += 1;
             // }
-            self.cpu.step(&mut self.bus);
+            self.cpu.step(&mut self.bus, &mut self.pic, &mut self.timer);
 
             if self.cpu.halted {
                 // TODO esto seguramente haya que cambiarlo

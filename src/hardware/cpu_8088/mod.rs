@@ -9,7 +9,7 @@ pub mod dissasemble;
 
 use std::fs::File;
 
-use super::{bus::Bus, pic_8259::PIC8259, timer_8253::TIM8253};
+use super::bus::Bus;
 use instr_utils::*;
 use regs::{GPReg, Flags};
 use cpu_utils::*;
@@ -48,7 +48,7 @@ pub struct CPU {
     // Controla de que tipo es la SW INT si existe
     pub sw_int_type: u8,
 
-    // pub peripherals: Vec<Box<dyn Peripheral>>,
+    timer_cycles: u8,
 
     pub halted: bool,
 
@@ -84,26 +84,32 @@ impl CPU {
 
             sw_int_type: 0,
 
-            // peripherals: Vec::new(),
+            timer_cycles: 3,
 
             halted: false,
 
-            file: File::create("logs/log.txt").unwrap()
+            file: File::create("logs/log.txt").unwrap(),
         }
     }
 }
 
 impl CPU {
-    pub fn step(self: &mut Self, bus: &mut Bus, pic: &mut PIC8259, timer: &mut TIM8253) {
+    pub fn step(self: &mut Self, bus: &mut Bus) {
         // 14,31818 MHz * 1/50 Hz / 3 ~= 95454 => Nº ciclos que hace la CPU en un frame 
         for _i in 0..95454 {
+            if self.ip == 0xE0EA {
+                let _a = 0;
+            }
             if self.cycles == 0 {
                 if self.halted {
                     return; // TODO
                 }
-                self.fetch_decode_execute(bus, pic, timer)
+                self.fetch_decode_execute(bus);
+                let _a = 0;
             }
-            
+
+
+            self.timer_cycles -= 1;
             self.cycles -= 1;
 
             self.hw_interrup(bus);
@@ -112,19 +118,21 @@ impl CPU {
 
     pub fn fetch(self: &mut Self, bus: &mut Bus) -> u8 {
         let dir = ((self.cs as usize) << 4) + self.ip as usize;
-        self.ip = self.ip.wrapping_add(1);
+        self.ip = (self.ip as u32 + 1) as u16;
         bus.read_dir(dir)
     }
 
-    pub fn fetch_decode_execute(&mut self, bus: &mut Bus, pic: &mut PIC8259, timer: &mut TIM8253) {
-        if self.ip == 0xE0A9 {
-            let _a = 0;
-        }
+    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> u64 {
+        // if self.ip == 0xE0A9 {
+        //     let _a = 0;
+        // }
 
-        self.instr = Instruction::default();
+        self.cycles = 0;
+        // self.instr = Instruction::default();
         let op = self.fetch(bus);
         self.decode(bus, op);
-        self.execute(bus, pic, timer);
+        self.execute(bus);
+        self.cycles
     }
 }
 

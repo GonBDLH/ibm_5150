@@ -1,14 +1,10 @@
-use crate::hardware::peripheral::Peripheral;
-use crate::hardware::pic_8259::PIC8259;
-use crate::hardware::timer_8253::TIM8253;
-
 use super::CPU;
 use super::Bus;
 use super::instr_utils::*;
 use super::cpu_utils::*;
 
 impl CPU {
-   pub fn execute(&mut self, bus: &mut Bus, pic: &mut PIC8259, timer: &mut TIM8253) {
+   pub fn execute(&mut self, bus: &mut Bus) {
         match self.instr.opcode {
             Opcode::MOV => {
                 let val = self.get_val(bus, self.instr.operand2);
@@ -40,16 +36,7 @@ impl CPU {
                 // }
                 
                 // if val.0 {self.set_val(bus, self.instr.operand1, val.1)}
-                let val = match self.instr.port {
-                    0x00..=0x0F => {/* TODO DMA  8237 */ 0},
-                    0x20..=0x21 => pic.port_in(self.instr.port),
-                    0x40..=0x43 => timer.port_in(self.instr.port),
-                    0x60..=0x63 => {/* TODO 8255 */ 0},
-                    0x80..=0x83 => {/* TODO Reg pagina DMA */ 0},
-                    0xA0..=0xAF => {/* TODO NMI */ 0},
-
-                    _ => unreachable!(),
-                };
+                let val = bus.port_in(self.instr.port);
                 self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::OUT => {
@@ -61,16 +48,7 @@ impl CPU {
                 //     }
                 // }
                 let val = self.get_val(bus, self.instr.operand2);
-                match self.instr.port {
-                    0x00..=0x0F => {/* TODO DMA  8237 */ },
-                    0x20..=0x21 => pic.port_out(val, self.instr.port),
-                    0x40..=0x43 => timer.port_out(val, self.instr.port),
-                    0x60..=0x63 => {/* TODO 8255 */ },
-                    0x80..=0x83 => {/* TODO Reg pagina DMA */ },
-                    0xA0..=0xAF => {/* TODO NMI */ },
-
-                    _ => unreachable!(),
-                };
+                bus.port_out(val, self.instr.port);
             },
             Opcode::XLAT => {
                 let val = bus.read_8(self.get_segment(Operand::DS), self.get_reg16(Operand::BX) + self.get_reg8(Operand::AL));
@@ -670,7 +648,7 @@ impl CPU {
             Opcode::JMP => {
                 match self.instr.jump_type {
                     JumpType::DirWithinSegment(disp) => {self.ip = self.ip.wrapping_add(disp)},
-                    JumpType::DirWithinSegmentShort(disp) => {self.ip = self.ip.wrapping_add(disp as u16)},
+                    JumpType::DirWithinSegmentShort(disp) => {self.ip = self.ip.wrapping_add(sign_extend(disp))},
                     JumpType::IndWithinSegment => {self.ip = self.get_val(bus, self.instr.operand1);},
                     JumpType::IndIntersegment => {
                         let ip = bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length);

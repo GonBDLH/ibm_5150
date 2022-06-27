@@ -1,4 +1,5 @@
-use std::io::stdout;
+use std::fs::File;
+use std::io::{stdout, Write};
 use std::thread::sleep;
 use std::time::{Instant, Duration};
 
@@ -7,17 +8,15 @@ use crossterm::terminal::SetSize;
 
 use super::cpu_8088::CPU;
 use super::bus::Bus;
-use super::timer_8253::TIM8253;
 use crate::util::debug::*;
-use super::pic_8259::PIC8259;
 
 pub struct System {
     pub cpu: CPU,
     pub bus: Bus,
-    pub pic: PIC8259,
-    pub timer: TIM8253,
 
     pub running: bool,
+
+    pub not_sleeped: u64,
 }
 
 impl System {
@@ -26,10 +25,10 @@ impl System {
         let sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
-            pic: PIC8259::new(),
-            timer: TIM8253::new(),
 
             running: true,
+
+            not_sleeped: 0,
         };
         
         sys
@@ -37,6 +36,32 @@ impl System {
 }
 
 impl System {
+    pub fn clock_alt(self: &mut Self) {
+        let mut i = 0u16;
+        let mut cycles = 0;
+        let mut file = File::create("logs/clock.txt").unwrap();
+
+        let mut start = Instant::now();
+        loop {
+            cycles += self.cpu.fetch_decode_execute(&mut self.bus) as u32;
+            
+            let sum = i.overflowing_add(1);
+            i = sum.0;
+            if sum.1 {
+                let t = Duration::from(Instant::now() - start);
+                let to_sleep = Duration::new(0, cycles * 209).checked_sub(t).unwrap_or_default();
+                sleep(to_sleep);
+        
+                writeln!(file, "T. Dormido: {} - T. total ejecucion: {} - T. ejecución {}. Ips: {}", to_sleep.as_secs_f32(), Duration::new(0, cycles * 209).as_secs_f32(), t.as_secs_f32(), u16::MAX as f32 / t.as_secs_f32()).unwrap();
+
+                display(self);
+
+                start = Instant::now();
+                cycles = 0;
+            }
+        }
+    }
+
     pub fn clock(self: &mut Self) {
         loop {
             let start = Instant::now();
@@ -55,7 +80,7 @@ impl System {
                 
             //     self.clock_cycles += 1;
             // }
-            self.cpu.step(&mut self.bus, &mut self.pic, &mut self.timer);
+            self.cpu.step(&mut self.bus);
 
             if self.cpu.halted {
                 // TODO esto seguramente haya que cambiarlo

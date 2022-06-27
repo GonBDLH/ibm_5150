@@ -1,0 +1,15 @@
+T. Dormido: 0.13581035 - T. total ejecucion: 0.14179543 - T. ejecución 0.005985078. Ips: 10949732
+T. Dormido: 0.112505816 - T. total ejecucion: 0.11740387 - T. ejecución 0.004898053. Ips: 13379806
+T. Dormido: 0.11242321 - T. total ejecucion: 0.117405325 - T. ejecución 0.004982123. Ips: 13154031
+T. Dormido: 0.11237654 - T. total ejecucion: 0.117400944 - T. ejecución 0.005024402. Ips: 13043343
+T. Dormido: 0.11246589 - T. total ejecucion: 0.11740387 - T. ejecución 0.004937982. Ips: 13271615
+T. Dormido: 0.11238011 - T. total ejecucion: 0.11740324 - T. ejecución 0.005023132. Ips: 13046641
+T. Dormido: 0.112405464 - T. total ejecucion: 0.11740303 - T. ejecución 0.004997572. Ips: 13113368
+T. Dormido: 0.13589028 - T. total ejecucion: 0.14184871 - T. ejecución 0.005958449. Ips: 10998667
+T. Dormido: 0.11236176 - T. total ejecucion: 0.11740303 - T. ejecución 0.005041272. Ips: 12999696
+T. Dormido: 0.11218005 - T. total ejecucion: 0.11740115 - T. ejecución 0.005221102. Ips: 12551948
+T. Dormido: 0.11249224 - T. total ejecucion: 0.11740387 - T. ejecución 0.004911633. Ips: 13342812
+T. Dormido: 0.11248102 - T. total ejecucion: 0.117405325 - T. ejecución 0.004924312. Ips: 13308459
+T. Dormido: 0.11253352 - T. total ejecucion: 0.117400944 - T. ejecución 0.004867422. Ips: 13464006
+T. Dormido: 0.11242747 - T. total ejecucion: 0.11740387 - T. ejecución 0.004976397. Ips: 13169167
+T. Dormido: 0.12793632 - T. total ejecucion: 0.13355727 - T. ejecución 0.005620953. Ips: 11659055

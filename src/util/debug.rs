@@ -165,16 +165,16 @@ pub fn get_command(sys: &mut System) {
     io::stdin().read_line(&mut command).expect("Failed");
 
     match command.trim_end() {
-        "step" | "s" | "" => {sys.cpu.cycles = 0; sys.cpu.fetch_decode_execute(&mut sys.bus, &mut sys.pic, &mut sys.timer)},
+        "step" | "s" | "" => {sys.cpu.cycles = 0; sys.cpu.fetch_decode_execute(&mut sys.bus);},
         "quit" | "q" => {execute!(stdout(), Clear(ClearType::All), MoveTo(0,0)).unwrap(); sys.running = false},
-        "run" | "r" => {sys.cpu.halted = false; sys.cpu.cycles = 0; sys.clock()},
+        "run" | "r" => {sys.cpu.halted = false; sys.cpu.cycles = 0; sys.clock_alt()},
         "reset" | "rst" => {sys.cpu = CPU::new(); sys.bus = Bus::new()}
         "load_bios" | "lb" => {sys.load_bios()},
         "s100" => {
             let mut a = 0x1000;
             while a > 0 {
                 sys.cpu.cycles = 0;
-                sys.cpu.fetch_decode_execute(&mut sys.bus, &mut sys.pic, &mut sys.timer);
+                sys.cpu.fetch_decode_execute(&mut sys.bus);
                 a -= 1;
             }
         }

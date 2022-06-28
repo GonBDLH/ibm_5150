@@ -48,22 +48,22 @@ impl CPU {
                 self.instr.opcode = Opcode::MOV;
                 self.instr.direction = if 0x02 & op == 0 {Direction::ToReg} else {Direction::FromReg};
                 self.instr.data_length = Length::new(op, 0);
+                read_imm_addres(self, bus);
                 if self.instr.direction == Direction::ToReg {
                     if self.instr.data_length == Length::Byte {
                         self.instr.operand1 = OperandType::Register(Operand::AL);
                     } else {
                         self.instr.operand1 = OperandType::Register(Operand::AX);
                     }
-                    self.instr.operand2 = OperandType::Memory(Operand::Disp);
+                    self.instr.operand2 = OperandType::Memory(Operand::Disp(self.instr.offset));
                 } else {
-                    self.instr.operand1 = OperandType::Memory(Operand::Disp);
+                    self.instr.operand1 = OperandType::Memory(Operand::Disp(self.instr.offset));
                     if self.instr.data_length == Length::Byte {
                         self.instr.operand2 = OperandType::Register(Operand::AL);
                     } else {
                         self.instr.operand2 = OperandType::Register(Operand::AX);
                     }
                 }
-                read_imm_addres(self, bus);
                 self.cycles += 14;
             },
             0x8E | 0x8C => {
@@ -255,8 +255,8 @@ impl CPU {
                     Length::Word => OperandType::Register(Operand::AX),
                     _ => unreachable!(),
                 };
-                self.instr.operand2 = OperandType::Memory(Operand::Disp);
                 self.instr.port = self.fetch(bus) as u16;
+                self.instr.operand2 = OperandType::Memory(Operand::Disp(self.instr.port));
 
                 self.cycles += 14;
             },
@@ -277,8 +277,8 @@ impl CPU {
             0xE6 | 0xE7 => {
                 self.instr.opcode = Opcode::OUT;
                 self.instr.data_length = Length::new(op, 0);
-                self.instr.operand1 = OperandType::Memory(Operand::Disp);
                 self.instr.port = self.fetch(bus) as u16;
+                self.instr.operand1 = OperandType::Memory(Operand::Disp(self.instr.port));
 
                 self.instr.operand2 = match self.instr.data_length {
                     Length::Byte => OperandType::Register(Operand::AL),

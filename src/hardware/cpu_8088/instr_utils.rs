@@ -298,79 +298,79 @@ impl Display for Opcode {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Operand {
-    None = 0,
-    AL = 1,
-    BL = 2,
-    CL = 3,
-    DL = 4,
-    AH = 5,
-    BH = 6,
-    CH = 7,
-    DH = 8,
-    AX = 9,
-    BX = 10,
-    CX = 11,
-    DX = 12,
-    SI = 13,
-    DI = 14,
-    BP = 15,
-    SP = 16,
-    CS = 17,
-    DS = 18,
-    ES = 19,
-    SS = 20,
-    BXSI = 21,
-    BXDI = 22,
-    BPSI = 23,
-    BPDI = 24,
-    DispBXSI = 25,
-    DispBXDI = 26,
-    DispBPSI = 27,
-    DispBPDI = 28,
-    DispSI = 29,
-    DispDI = 30,
-    DispBP = 31,
-    DispBX = 32,
-    Disp = 33,
+    None,
+    AL,
+    BL,
+    CL,
+    DL,
+    AH,
+    BH,
+    CH,
+    DH,
+    AX,
+    BX,
+    CX,
+    DX,
+    SI,
+    DI,
+    BP,
+    SP,
+    CS,
+    DS,
+    ES,
+    SS,
+    BXSI,
+    BXDI,
+    BPSI,
+    BPDI,
+    DispBXSI(u16),
+    DispBXDI(u16),
+    DispBPSI(u16),
+    DispBPDI(u16),
+    DispSI(u16),
+    DispDI(u16),
+    DispBP(u16),
+    DispBX(u16),
+    Disp(u16),
 }
 
 impl Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let val = match self {
-            Operand::None => "None",
-            Operand::AL => "AL",
-            Operand::BL => "BL",
-            Operand::CL => "CL",
-            Operand::DL => "DL",
-            Operand::AH => "AH",
-            Operand::BH => "BH",
-            Operand::CH => "CH",
-            Operand::DH => "DH",
-            Operand::AX => "AX",
-            Operand::BX => "BX",
-            Operand::CX => "CX",
-            Operand::DX => "DX",
-            Operand::SI => "SI",
-            Operand::DI => "DI",
-            Operand::BP => "BP",
-            Operand::SP => "SP",
-            Operand::CS => "CS",
-            Operand::DS => "DS",
-            Operand::ES => "ES",
-            Operand::SS => "SS",
-            Operand::BXSI => "BXSI",
-            Operand::BXDI => "BXDI",
-            Operand::BPSI => "BPSI",
-            Operand::BPDI => "BPDI",
-            Operand::DispBXSI => "DispBXSI",
-            Operand::DispBXDI => "DispBXDI",
-            Operand::DispBPSI => "DispBPSI",
-            Operand::DispBPDI => "DispBPDI",
-            Operand::DispSI => "DispSI",
-            Operand::DispDI => "DispDI",
-            Operand::DispBP => "DispBP",
-            Operand::DispBX => "DispBX",
-            Operand::Disp => "Disp",
+            Operand::None => String::from("None"),
+            Operand::AL => String::from("AL"),
+            Operand::BL => String::from("BL"),
+            Operand::CL => String::from("CL"),
+            Operand::DL => String::from("DL"),
+            Operand::AH => String::from("AH"),
+            Operand::BH => String::from("BH"),
+            Operand::CH => String::from("CH"),
+            Operand::DH => String::from("DH"),
+            Operand::AX => String::from("AX"),
+            Operand::BX => String::from("BX"),
+            Operand::CX => String::from("CX"),
+            Operand::DX => String::from("DX"),
+            Operand::SI => String::from("SI"),
+            Operand::DI => String::from("DI"),
+            Operand::BP => String::from("BP"),
+            Operand::SP => String::from("SP"),
+            Operand::CS => String::from("CS"),
+            Operand::DS => String::from("DS"),
+            Operand::ES => String::from("ES"),
+            Operand::SS => String::from("SS"),
+            Operand::BXSI => String::from("BX+SI"),
+            Operand::BXDI => String::from("BX+DI"),
+            Operand::BPSI => String::from("BP+SI"),
+            Operand::BPDI => String::from("BP+DI"),
+            Operand::DispBXSI(d) => format!("{:04X}+BX+SI", d),
+            Operand::DispBXDI(d) => format!("{:04X}+BX+DI", d),
+            Operand::DispBPSI(d) => format!("{:04X}+BP+SI", d),
+            Operand::DispBPDI(d) => format!("{:04X}+BP+DI", d),
+            Operand::DispSI(d) => format!("{:04X}+SI", d),
+            Operand::DispDI(d) => format!("{:04X}+DI", d),
+            Operand::DispBP(d) => format!("{:04X}+BP", d),
+            Operand::DispBX(d) => format!("{:04X}+BX", d),
+            Operand::Disp(d) => format!("{:04X}", d),
         };
         write!(f, "{}", val)
     }
@@ -565,7 +565,7 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = to_u16(disp_low, disp_high);
                     cpu.instr.ea_cycles = 6;
-                    OperandType::Memory(Operand::Disp)
+                    OperandType::Memory(Operand::Disp(to_u16(disp_low, disp_high)))
                 },
                 0b111 => {
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
@@ -595,49 +595,49 @@ pub fn decode_mem(cpu: &mut CPU, bus: &mut Bus, operand: u8, pos: u8, mode: Addr
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
-                    OperandType::Memory(Operand::DispBXSI)
+                    OperandType::Memory(Operand::DispBXSI(disp))
                 },
                 0b001 => {
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
-                    OperandType::Memory(Operand::DispBXDI)
+                    OperandType::Memory(Operand::DispBXDI(disp))
                 },
                 0b010 => {
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::SS};
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
-                    OperandType::Memory(Operand::DispBPSI)
+                    OperandType::Memory(Operand::DispBPSI(disp))
                 },
                 0b011 => {
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::SS};
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
-                    OperandType::Memory(Operand::DispBPDI)
+                    OperandType::Memory(Operand::DispBPDI(disp))
                 },
                 0b100 => {
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.si.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
-                    OperandType::Memory(Operand::DispSI)
+                    OperandType::Memory(Operand::DispSI(disp))
                 },
                 0b101 => {
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.di.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
-                    OperandType::Memory(Operand::DispDI)
+                    OperandType::Memory(Operand::DispDI(disp))
                 },
                 0b110 => {
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::SS};
                     cpu.instr.offset = cpu.bp.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
-                    OperandType::Memory(Operand::DispBP)
+                    OperandType::Memory(Operand::DispBP(disp))
                 },
                 0b111 => {
                     if cpu.instr.segment == Operand::None {cpu.instr.segment = Operand::DS};
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
-                    OperandType::Memory(Operand::DispBX)
+                    OperandType::Memory(Operand::DispBX(disp))
                 },
                 _ => unreachable!("Aqui no deberia entrar nunca")
             }

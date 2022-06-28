@@ -36,8 +36,25 @@ impl System {
 }
 
 impl System {
+    fn sleep_time(&mut self, i: &mut u8, start: &mut Instant, cycles: &mut u32, file: &mut File) {
+        let sum = i.overflowing_add(1);
+        *i = sum.0;
+        if sum.1 {
+            let t = Duration::from(Instant::now() - *start);
+            let to_sleep = Duration::new(0, *cycles * 209).checked_sub(t).unwrap_or_default();
+            sleep(to_sleep);
+    
+            writeln!(file, "T. Dormido: {} - T. total ejecucion: {} - T. ejecución {}. Ips: {}", to_sleep.as_secs_f32(), Duration::new(0, *cycles * 209).as_secs_f32(), t.as_secs_f32(), u8::MAX as f32 / t.as_secs_f32()).unwrap();
+
+            display(self);
+
+            *start = Instant::now();
+            *cycles = 0;
+        }
+    }
+
     pub fn clock_alt(self: &mut Self) {
-        let mut i = 0u16;
+        let mut i = 0u8;
         let mut cycles = 0;
         let mut file = File::create("logs/clock.txt").unwrap();
 
@@ -45,54 +62,42 @@ impl System {
         loop {
             cycles += self.cpu.fetch_decode_execute(&mut self.bus) as u32;
             
-            let sum = i.overflowing_add(1);
-            i = sum.0;
-            if sum.1 {
-                let t = Duration::from(Instant::now() - start);
-                let to_sleep = Duration::new(0, cycles * 209).checked_sub(t).unwrap_or_default();
-                sleep(to_sleep);
-        
-                writeln!(file, "T. Dormido: {} - T. total ejecucion: {} - T. ejecución {}. Ips: {}", to_sleep.as_secs_f32(), Duration::new(0, cycles * 209).as_secs_f32(), t.as_secs_f32(), u16::MAX as f32 / t.as_secs_f32()).unwrap();
 
-                display(self);
-
-                start = Instant::now();
-                cycles = 0;
-            }
+            self.sleep_time(&mut i, &mut start, &mut cycles, &mut file);
         }
     }
 
-    pub fn clock(self: &mut Self) {
-        loop {
-            let start = Instant::now();
-            // for _i in 0..286364 {
-            //     if self.clock_cycles % 3 == 0 {
-            //         self.cpu.step();
-            //     }
+    // pub fn clock(self: &mut Self) {
+    //     loop {
+    //         let start = Instant::now();
+    //         // for _i in 0..286364 {
+    //         //     if self.clock_cycles % 3 == 0 {
+    //         //         self.cpu.step();
+    //         //     }
 
-            //     if self.clock_cycles % 4 == 0 {
-            //         // Aqui CGA
-            //     }
+    //         //     if self.clock_cycles % 4 == 0 {
+    //         //         // Aqui CGA
+    //         //     }
 
-            //     if self.clock_cycles % 12 == 0 {
-            //         // Aqui timers 8253
-            //     }
+    //         //     if self.clock_cycles % 12 == 0 {
+    //         //         // Aqui timers 8253
+    //         //     }
                 
-            //     self.clock_cycles += 1;
-            // }
-            self.cpu.step(&mut self.bus);
+    //         //     self.clock_cycles += 1;
+    //         // }
+    //         self.cpu.step(&mut self.bus);
 
-            if self.cpu.halted {
-                // TODO esto seguramente haya que cambiarlo
-                return;
-            }
+    //         if self.cpu.halted {
+    //             // TODO esto seguramente haya que cambiarlo
+    //             return;
+    //         }
 
-            let t = Duration::new(0, 20_000_000).checked_sub(Duration::from(Instant::now() - start)).unwrap_or_default();
-            // println!("{}", t.as_micros());
-            display(self);
-            sleep(t);
-        }
-    }
+    //         let t = Duration::new(0, 20_000_000).checked_sub(Duration::from(Instant::now() - start)).unwrap_or_default();
+    //         // println!("{}", t.as_micros());
+    //         display(self);
+    //         sleep(t);
+    //     }
+    // }
 
     pub fn run(self: &mut Self) {
         // self.bus.memory[0xFFFF0] = 0xEA;

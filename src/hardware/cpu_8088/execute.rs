@@ -28,25 +28,10 @@ impl CPU {
                 self.set_val(bus, self.instr.operand2, val1);
             },
             Opcode::IN => {
-                // let mut val = (false, 0);
-                // for per in &mut self.peripherals {
-                //     if per.is_connected(self.instr.port) {
-                //         val = (true, per.port_in(self.instr.port));
-                //     }
-                // }
-                
-                // if val.0 {self.set_val(bus, self.instr.operand1, val.1)}
                 let val = bus.port_in(self.instr.port);
                 self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::OUT => {
-                // let val = self.get_val(bus, self.instr.operand2);
-                // for per in &mut self.peripherals {
-                //     if per.is_connected(self.instr.port) {
-                //         // TODO
-                //         per.port_out(val, self.instr.port);
-                //     }
-                // }
                 let val = self.get_val(bus, self.instr.operand2);
                 bus.port_out(val, self.instr.port);
             },

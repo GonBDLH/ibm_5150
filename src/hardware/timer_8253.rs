@@ -2,9 +2,9 @@ use super::peripheral::Peripheral;
 
 #[derive(Clone, Copy)]
 struct Channel {
-    current_count: u16,
-    reload_value: u16,
-    latch_val: u16,
+    current_count: u32,
+    reload_value: u32,
+    latch_val: u32,
     mode: u8,
 
     toggle: bool,
@@ -57,16 +57,16 @@ impl Peripheral for TIM8253 {
                 let access_mode = (self.channels[channel].mode & 0b00110000) >> 4;
 
                 match access_mode {
-                    0b00 => self.channels[channel].latch_val,
-                    0b01 => self.channels[channel].current_count as u8 as u16,
-                    0b10 => self.channels[channel].current_count >> 8,
+                    0b00 => (self.channels[channel].latch_val >> 2) as u16,
+                    0b01 => (self.channels[channel].current_count >> 2) as u8 as u16,
+                    0b10 => ((self.channels[channel].current_count >> 2) >> 8) as u16,
                     0b11 => {
                         if self.channels[channel].toggle {
                             self.channels[channel].toggle = false;
-                            self.channels[channel].current_count as u8 as u16
+                            (self.channels[channel].current_count >> 2) as u8 as u16
                         } else {
                             self.channels[channel].toggle = true;
-                            self.channels[channel].current_count >> 8
+                            ((self.channels[channel].current_count >> 2) >> 8) as u16
                         }
                     }
                     _ => unreachable!()
@@ -82,14 +82,14 @@ impl Peripheral for TIM8253 {
                 let channel = (port & 0b11) as usize;
                 let access_mode = (self.channels[channel].mode & 0b00110000) >> 4;
                 match access_mode {
-                    0b01 => self.channels[channel].current_count = (self.channels[channel].current_count & 0xFF00) | (val & 0x00FF),
-                    0b10 => self.channels[channel].current_count = (self.channels[channel].current_count & 0x00FF) | ((val & 0x00FF) << 8),
+                    0b01 => self.channels[channel].current_count = (((self.channels[channel].current_count as u16 & 0xFF00) | (val & 0x00FF)) as u32) << 2,
+                    0b10 => self.channels[channel].current_count = (((self.channels[channel].current_count as u16 & 0x00FF) | ((val & 0x00FF) << 8)) as u32) << 2,
                     0b11 => self.channels[channel].current_count = if self.channels[channel].toggle {
                         self.channels[channel].toggle = false;
-                        (self.channels[channel].current_count & 0xFF00) | (val & 0x00FF)
+                        (((self.channels[channel].current_count as u16 & 0xFF00) | (val & 0x00FF)) as u32) << 2
                     } else {
                         self.channels[channel].toggle = true;
-                        (self.channels[channel].current_count & 0x00FF) | ((val & 0x00FF) << 8)
+                        (((self.channels[channel].current_count as u16 & 0x00FF) | ((val & 0x00FF) << 8)) as u32) << 2
                     },
                     _ => unreachable!()
                 }

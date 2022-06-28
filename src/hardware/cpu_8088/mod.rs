@@ -48,8 +48,6 @@ pub struct CPU {
     // Controla de que tipo es la SW INT si existe
     pub sw_int_type: u8,
 
-    timer_cycles: u8,
-
     pub halted: bool,
 
     // Archivo de logs (Igual hay que quitarlo de aqui)
@@ -84,8 +82,6 @@ impl CPU {
 
             sw_int_type: 0,
 
-            timer_cycles: 3,
-
             halted: false,
 
             file: File::create("logs/log.txt").unwrap(),
@@ -94,27 +90,26 @@ impl CPU {
 }
 
 impl CPU {
-    pub fn step(self: &mut Self, bus: &mut Bus) {
-        // 14,31818 MHz * 1/50 Hz / 3 ~= 95454 => Nº ciclos que hace la CPU en un frame 
-        for _i in 0..95454 {
-            if self.ip == 0xE0EA {
-                let _a = 0;
-            }
-            if self.cycles == 0 {
-                if self.halted {
-                    return; // TODO
-                }
-                self.fetch_decode_execute(bus);
-                let _a = 0;
-            }
+    // pub fn step(self: &mut Self, bus: &mut Bus) {
+    //     // 14,31818 MHz * 1/50 Hz / 3 ~= 95454 => Nº ciclos que hace la CPU en un frame 
+    //     for _i in 0..95454 {
+    //         if self.ip == 0xE0EA {
+    //             let _a = 0;
+    //         }
+    //         if self.cycles == 0 {
+    //             if self.halted {
+    //                 return; // TODO
+    //             }
+    //             self.fetch_decode_execute(bus);
+    //             let _a = 0;
+    //         }
 
 
-            self.timer_cycles -= 1;
-            self.cycles -= 1;
+    //         self.cycles -= 1;
 
-            self.hw_interrup(bus);
-        }
-    }
+    //         self.hw_interrup(bus);
+    //     }
+    // }
 
     pub fn fetch(self: &mut Self, bus: &mut Bus) -> u8 {
         let dir = ((self.cs as usize) << 4) + self.ip as usize;

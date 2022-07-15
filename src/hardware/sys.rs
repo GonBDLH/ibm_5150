@@ -36,7 +36,7 @@ impl System {
 }
 
 impl System {
-    fn sleep_time(&mut self, i: &mut u8, start: &mut Instant, cycles: &mut u32, file: &mut File) {
+    fn throtle(&mut self, i: &mut u8, start: &mut Instant, cycles: &mut u32, file: &mut File) {
         let sum = i.overflowing_add(1);
         *i = sum.0;
         if sum.1 {
@@ -63,7 +63,7 @@ impl System {
             cycles += self.cpu.fetch_decode_execute(&mut self.bus) as u32;
             
 
-            self.sleep_time(&mut i, &mut start, &mut cycles, &mut file);
+            self.throtle(&mut i, &mut start, &mut cycles, &mut file);
         }
     }
 

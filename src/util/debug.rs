@@ -1,4 +1,5 @@
-use std::io::{self, stdout};
+use std::{io::{self, stdout}, time::{Instant, Duration}};
+use std::thread;
 
 use crossterm::{execute, style::Print, cursor::MoveTo, terminal::{Clear, ClearType}, queue};
 
@@ -167,7 +168,19 @@ pub fn get_command(sys: &mut System) {
     match command.trim_end() {
         "step" | "s" | "" => {sys.cpu.cycles = 0; sys.cpu.fetch_decode_execute(&mut sys.bus);},
         "quit" | "q" => {execute!(stdout(), Clear(ClearType::All), MoveTo(0,0)).unwrap(); sys.running = false},
-        "run" | "r" => {sys.cpu.halted = false; sys.cpu.cycles = 0; sys.clock_alt()},
+        "run" | "r" => {
+            sys.cpu.halted = false; 
+            sys.cpu.cycles = 0; 
+
+            loop {
+                let start = Instant::now();
+                sys.update();
+                let t = Instant::now().duration_since(start);
+                let to_sleep = Duration::from_millis(20).saturating_sub(t);
+                thread::sleep(to_sleep);
+                if sys.cpu.halted { break; }
+            }
+        },
         "reset" | "rst" => {sys.cpu = CPU::new(); sys.bus = Bus::new()}
         "load_bios" | "lb" => {sys.load_bios()},
         "s100" => {

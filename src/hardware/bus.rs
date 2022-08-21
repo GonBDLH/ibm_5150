@@ -9,8 +9,8 @@ use super::timer_8253::TIM8253;
 #[derive(Copy, Clone)]
 pub struct Bus {
     pub memory: [u8; 0x100000],
-    pic: PIC8259,
-    pit: TIM8253,
+    pub pic: PIC8259,
+    pub pit: TIM8253,
 }
 
 impl Bus {
@@ -21,6 +21,10 @@ impl Bus {
             pic: PIC8259::new(),
             pit: TIM8253::new(),
         }
+    }
+
+    pub fn update_timers(cycles: u64) {
+
     }
 
     pub fn port_in(&mut self, port: u16) -> u16 {

@@ -3,7 +3,7 @@ use super::Bus;
 use super::instr_utils::*;
 use super::cpu_utils::*;
 
-use std::io::Write;
+// use std::io::Write;
 
 impl CPU {
     pub fn decode(&mut self, bus: &mut Bus,op: u8) {
@@ -1123,7 +1123,7 @@ impl CPU {
             }
 
             _ => {
-                writeln!(&mut self.file, "Instrucción sin hacer: {:02X}", op).unwrap();
+                // writeln!(&mut self.file, "Instrucción sin hacer: {:02X}", op).unwrap();
 
                 self.cycles += 3
             }

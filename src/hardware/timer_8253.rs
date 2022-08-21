@@ -2,12 +2,14 @@ use super::peripheral::Peripheral;
 
 #[derive(Clone, Copy)]
 struct Channel {
-    current_count: u32,
-    reload_value: u32,
-    latch_val: u32,
+    current_count: u16,
+    reload_value: u16,
+    latch_val: u16,
     mode: u8,
 
     toggle: bool,
+
+    timer_cycles: u64,
 }
 
 impl Channel {
@@ -19,6 +21,8 @@ impl Channel {
             mode: 0,
 
             toggle: true,
+
+            timer_cycles: 0
         }
     }
 }
@@ -38,14 +42,16 @@ impl TIM8253 {
     }
 
     // TODO FUNCIONAMIENTO
-    pub fn tick(&mut self) {
-        // TODO Temporal (Esto hay que pensarlo mejor)
-        self.channels[0].current_count = self.channels[0].current_count.wrapping_sub(1);
+    pub fn tick(&mut self, cycles: u64) {
+        self.channels[0].timer_cycles += cycles;
+        if self.channels[0].timer_cycles >= 0x1FFFF {
+            self.channels[0].current_count = self.channels[0].current_count.wrapping_sub(1);
+            self.channels[0].timer_cycles >>= 18;
+        }
         if self.channels[0].current_count == 0 {
             // TODO INT
+            
         }
-
-        self.channels[1].current_count = self.channels[1].current_count.wrapping_sub(1);
     }
 }
 
@@ -57,16 +63,16 @@ impl Peripheral for TIM8253 {
                 let access_mode = (self.channels[channel].mode & 0b00110000) >> 4;
 
                 match access_mode {
-                    0b00 => (self.channels[channel].latch_val >> 2) as u16,
-                    0b01 => (self.channels[channel].current_count >> 2) as u8 as u16,
-                    0b10 => ((self.channels[channel].current_count >> 2) >> 8) as u16,
+                    0b00 => self.channels[channel].latch_val,
+                    0b01 => self.channels[channel].current_count as u8 as u16,
+                    0b10 => self.channels[channel].current_count >> 8,
                     0b11 => {
                         if self.channels[channel].toggle {
                             self.channels[channel].toggle = false;
-                            (self.channels[channel].current_count >> 2) as u8 as u16
+                            self.channels[channel].current_count as u8 as u16
                         } else {
                             self.channels[channel].toggle = true;
-                            ((self.channels[channel].current_count >> 2) >> 8) as u16
+                            self.channels[channel].current_count >> 8
                         }
                     }
                     _ => unreachable!()
@@ -82,14 +88,14 @@ impl Peripheral for TIM8253 {
                 let channel = (port & 0b11) as usize;
                 let access_mode = (self.channels[channel].mode & 0b00110000) >> 4;
                 match access_mode {
-                    0b01 => self.channels[channel].current_count = (((self.channels[channel].current_count as u16 & 0xFF00) | (val & 0x00FF)) as u32) << 2,
-                    0b10 => self.channels[channel].current_count = (((self.channels[channel].current_count as u16 & 0x00FF) | ((val & 0x00FF) << 8)) as u32) << 2,
+                    0b01 => self.channels[channel].current_count = (self.channels[channel].current_count as u16 & 0xFF00) | (val & 0x00FF),
+                    0b10 => self.channels[channel].current_count = (self.channels[channel].current_count as u16 & 0x00FF) | ((val & 0x00FF) << 8),
                     0b11 => self.channels[channel].current_count = if self.channels[channel].toggle {
                         self.channels[channel].toggle = false;
-                        (((self.channels[channel].current_count as u16 & 0xFF00) | (val & 0x00FF)) as u32) << 2
+                        (self.channels[channel].current_count as u16 & 0xFF00) | (val & 0x00FF)
                     } else {
                         self.channels[channel].toggle = true;
-                        (((self.channels[channel].current_count as u16 & 0x00FF) | ((val & 0x00FF) << 8)) as u32) << 2
+                        (self.channels[channel].current_count as u16 & 0x00FF) | ((val & 0x00FF) << 8)
                     },
                     _ => unreachable!()
                 }

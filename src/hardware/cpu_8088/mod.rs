@@ -1,13 +1,12 @@
 pub mod instr_utils;
 pub mod cpu_utils;
 pub mod regs;
-pub mod int_handler;
 mod decode;
 mod execute;
 
 pub mod dissasemble;
 
-use std::fs::File;
+// use std::fs::File;
 
 use super::bus::Bus;
 use instr_utils::*;
@@ -45,13 +44,18 @@ pub struct CPU {
     // Ciclos que se ha ejecutado una instr.
     pub cycles: u64,
 
+    // Interrupciones
+    pub intr: bool,
+    pub intr_type: u8,
+    pub nmi: bool,
     // Controla de que tipo es la SW INT si existe
+    pub sw_int: bool,
     pub sw_int_type: u8,
 
     pub halted: bool,
 
     // Archivo de logs (Igual hay que quitarlo de aqui)
-    pub file: File,
+    // pub file: File,
 }
 
 impl CPU {
@@ -80,11 +84,15 @@ impl CPU {
 
             cycles: 0,
 
+            intr: false,
+            intr_type: 0,
+            nmi: false,
+            sw_int: false,
             sw_int_type: 0,
 
             halted: false,
 
-            file: File::create("logs/log.txt").unwrap(),
+            // file: File::create("logs/log.txt").unwrap(),
         }
     }
 }
@@ -128,6 +136,32 @@ impl CPU {
         self.decode(bus, op);
         self.execute(bus);
         self.cycles
+    }
+
+    pub fn handle_interrupts(&mut self, bus: &mut Bus) {
+        if self.flags.i && self.sw_int {
+            self.interrupt(bus, (self.sw_int_type * 0x04) as u16);
+            self.sw_int = false;
+        } else if self.nmi {
+            // Si hay una NON-MASKABLE INTERRUPT
+            self.interrupt(bus, 0x0008);
+            self.nmi = false;
+        } else if self.flags.i && self.intr {
+            self.interrupt(bus, (self.intr_type * 0x04) as u16);
+            self.intr = false;
+        } 
+    }
+
+    pub fn interrupt(&mut self, bus: &mut Bus, ip_location: u16) {
+        self.push_stack_16(bus, self.flags.get_flags());
+        self.push_stack_16(bus, self.cs);
+        self.push_stack_16(bus, self.ip);
+
+        self.ip = bus.read_16(0, ip_location);
+        self.cs = bus.read_16(0, ip_location + 2);
+        
+        self.flags.i = false;
+        self.flags.t = false;
     }
 }
 

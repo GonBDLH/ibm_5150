@@ -1,7 +1,7 @@
-use std::fs::File;
+// use std::fs::File;
 use std::io::{stdout, Write};
-use std::thread::sleep;
-use std::time::{Instant, Duration};
+// use std::thread::sleep;
+// use std::time::{Instant, Duration};
 
 use crossterm::execute;
 use crossterm::terminal::SetSize;
@@ -9,6 +9,8 @@ use crossterm::terminal::SetSize;
 use super::cpu_8088::CPU;
 use super::bus::Bus;
 use crate::util::debug::*;
+
+const FPS: f32 = 50.0;
 
 pub struct System {
     pub cpu: CPU,
@@ -36,35 +38,24 @@ impl System {
 }
 
 impl System {
-    fn throtle(&mut self, i: &mut u8, start: &mut Instant, cycles: &mut u32, file: &mut File) {
-        let sum = i.overflowing_add(1);
-        *i = sum.0;
-        if sum.1 {
-            let t = Duration::from(Instant::now() - *start);
-            let to_sleep = Duration::new(0, *cycles * 209).checked_sub(t).unwrap_or_default();
-            sleep(to_sleep);
-    
-            writeln!(file, "T. Dormido: {} - T. total ejecucion: {} - T. ejecución {}. Ips: {}", to_sleep.as_secs_f32(), Duration::new(0, *cycles * 209).as_secs_f32(), t.as_secs_f32(), u8::MAX as f32 / t.as_secs_f32()).unwrap();
+    // Llamar 60 veces por segundo
+    pub fn update(self: &mut Self) {
+        let max_cycles = (4_772_726.7 / FPS) as u64;
+        let mut cycles_ran = 0;
 
-            display(self);
+        while cycles_ran < max_cycles {
+            let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
+            cycles_ran += cycles;
 
-            *start = Instant::now();
-            *cycles = 0;
+            // RESTO DE UPDATES (TIMERS, ETC)
+            self.bus.pit.tick(cycles);
+
+            self.cpu.handle_interrupts(&mut self.bus);
+
+            if self.cpu.halted { break; }
         }
-    }
 
-    pub fn clock_alt(self: &mut Self) {
-        let mut i = 0u8;
-        let mut cycles = 0;
-        let mut file = File::create("logs/clock.txt").unwrap();
-
-        let mut start = Instant::now();
-        loop {
-            cycles += self.cpu.fetch_decode_execute(&mut self.bus) as u32;
-            
-
-            self.throtle(&mut i, &mut start, &mut cycles, &mut file);
-        }
+        display(self);
     }
 
     // pub fn clock(self: &mut Self) {

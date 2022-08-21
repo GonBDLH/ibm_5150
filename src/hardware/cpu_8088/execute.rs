@@ -28,7 +28,8 @@ impl CPU {
                 self.set_val(bus, self.instr.operand2, val1);
             },
             Opcode::IN => {
-                let val = bus.port_in(self.instr.port);
+                // TODO ES UNA PRUEBA let val = bus.port_in(self.instr.port);
+                let val: u16 = rand::random(); 
                 self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::OUT => {
@@ -232,7 +233,9 @@ impl CPU {
                 let val2 = self.get_val(bus, self.instr.operand1);
 
                 if val2 == 0 {
-                    self.interrupt(bus, 0);
+                    // self.interrupt(bus, 0);
+                    self.sw_int = true;
+                    self.sw_int_type = 0;
                     return;
                 }
 
@@ -254,7 +257,9 @@ impl CPU {
                 let val2 = self.get_val(bus, self.instr.operand1) as i16;
 
                 if val2 == 0 {
-                    self.interrupt(bus, 0);
+                    // self.interrupt(bus, 0);
+                    self.sw_int = true;
+                    self.sw_int_type = 0;
                     return;
                 }
 
@@ -263,7 +268,9 @@ impl CPU {
                         let val1 = self.ax.low as i8 as i16;
                         let res = val1.wrapping_div(val2);
                         if res > 0x7F || -res > 0x80 {
-                            self.interrupt(bus, 0);
+                            // self.interrupt(bus, 0);
+                            self.sw_int = true;
+                            self.sw_int_type = 0;
                         } else {
                             self.set_reg(self.instr.data_length, Operand::AL, res as u16);
                             self.set_reg(self.instr.data_length, Operand::AH, val1.wrapping_rem(val2) as u16);
@@ -273,7 +280,9 @@ impl CPU {
                         let val1 = to_u32(self.ax.get_x(), self.dx.get_x()) as i32;
                         let res = val1.wrapping_div(val2 as i32);
                         if res > 0x7FFF || -res > 0x8000 {
-                            self.interrupt(bus, 0);
+                            // self.interrupt(bus, 0);
+                            self.sw_int = true;
+                            self.sw_int_type = 0;
                         } else {
                             self.set_reg(self.instr.data_length, Operand::AX, res as u16);
                             self.set_reg(self.instr.data_length, Operand::DX, val1.wrapping_rem(val2 as i32) as u16);
@@ -709,11 +718,13 @@ impl CPU {
                 self.cycles += 2; // jump() ya suma lo demas
             },
             Opcode::INT => {
-                self.interrupt(bus, self.sw_int_type);
+                // self.interrupt(bus, self.sw_int_type);
+                self.sw_int = true;
             },
             Opcode::INTO => {
                 if self.flags.o {
-                    self.interrupt(bus, self.sw_int_type);
+                    // self.interrupt(bus, self.sw_int_type);
+                    self.sw_int = true;
                     self.cycles += 73;
                 } else {
                     self.cycles += 4;

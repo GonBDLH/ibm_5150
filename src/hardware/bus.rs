@@ -6,9 +6,10 @@ use super::peripheral::Peripheral;
 use super::pic_8259::PIC8259;
 use super::timer_8253::TIM8253;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Bus {
-    pub memory: [u8; 0x100000],
+    // pub memory: [u8; 0x100000],
+    pub memory: Vec<u8>,
     pub pic: PIC8259,
     pub pit: TIM8253,
 }
@@ -16,7 +17,8 @@ pub struct Bus {
 impl Bus {
     pub fn new() -> Self {
         Bus {
-            memory: [0x00; 0x100000],
+            // memory: [0x00; 0x100000],
+            memory: vec![0x00; 0x100000],
             // memory: [0x00; 0x1000]
             pic: PIC8259::new(),
             pit: TIM8253::new(),

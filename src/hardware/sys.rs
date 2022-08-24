@@ -1,5 +1,8 @@
 // use std::fs::File;
 use std::io::{stdout, Write};
+use std::sync::Mutex;
+use std::sync::mpsc::Receiver;
+use std::time::{Instant, Duration};
 // use std::thread::sleep;
 // use std::time::{Instant, Duration};
 
@@ -18,19 +21,19 @@ pub struct System {
 
     pub running: bool,
 
-    pub not_sleeped: u64,
+    pub rx: Mutex<Receiver<bool>>,
 }
 
 impl System {
-    pub fn new() -> Self {
+    pub fn new(rx: Receiver<bool>) -> Self {
         execute!(stdout(), SetSize(120, 30)).unwrap();
         let sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
 
-            running: true,
+            running: false,
 
-            not_sleeped: 0,
+            rx: Mutex::new(rx),
         };
         
         sys
@@ -38,6 +41,13 @@ impl System {
 }
 
 impl System {
+    pub fn rst(&mut self) {
+        self.cpu = CPU::new();
+        self.bus = Bus::new();
+
+        self.running = false;
+    }
+
     // Llamar 60 veces por segundo
     pub fn update(self: &mut Self) {
         let max_cycles = (4_772_726.7 / FPS) as u64;
@@ -58,56 +68,39 @@ impl System {
         display(self);
     }
 
-    // pub fn clock(self: &mut Self) {
-    //     loop {
-    //         let start = Instant::now();
-    //         // for _i in 0..286364 {
-    //         //     if self.clock_cycles % 3 == 0 {
-    //         //         self.cpu.step();
-    //         //     }
+    pub fn step(self: &mut Self) {
+        let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
 
-    //         //     if self.clock_cycles % 4 == 0 {
-    //         //         // Aqui CGA
-    //         //     }
+        // RESTO DE UPDATES (TIMERS, ETC)
+        self.bus.pit.tick(cycles);
 
-    //         //     if self.clock_cycles % 12 == 0 {
-    //         //         // Aqui timers 8253
-    //         //     }
-                
-    //         //     self.clock_cycles += 1;
-    //         // }
-    //         self.cpu.step(&mut self.bus);
+        self.cpu.handle_interrupts(&mut self.bus);
 
-    //         if self.cpu.halted {
-    //             // TODO esto seguramente haya que cambiarlo
-    //             return;
-    //         }
+        display(self);
+    }
 
-    //         let t = Duration::new(0, 20_000_000).checked_sub(Duration::from(Instant::now() - start)).unwrap_or_default();
-    //         // println!("{}", t.as_micros());
-    //         display(self);
-    //         sleep(t);
-    //     }
-    // }
-
-    pub fn run(self: &mut Self) {
-        // self.bus.memory[0xFFFF0] = 0xEA;
-        // self.bus.memory[0xFFFF1] = 0x00;
-        // self.bus.memory[0xFFFF2] = 0x00;
-        // self.bus.memory[0xFFFF3] = 0x00;
-        // self.bus.memory[0xFFFF4] = 0x00;
-
-        // self.cpu.ax.set_x(0xC56D);
-        // self.cpu.bx.set_x(0x1234);
-
-        // self.bus.memory[0x00000] = 0xF7;
-        // self.bus.memory[0x00001] = 0xFB;
-        // self.bus.memory[0x00002] = 0xD4;
-        // self.bus.memory[0x00003] = 0x0A;
+    pub fn run(&mut self) {
+        self.running = self.rx.lock().unwrap().recv().unwrap();
 
         while self.running {
-            display(self);
-            get_command(self);
+            let start = Instant::now();
+
+            self.update();
+
+            let end = Instant::now();
+
+            let t = end.duration_since(start).as_millis();
+            let millis = ((1. / FPS) * 1000.) as u128;
+            std::thread::sleep(Duration::from_millis((millis - t) as u64));
+
+            self.running = match self.rx.lock().unwrap().try_recv() {
+                Ok(v) => v,
+                Err(_v) => self.running,
+            };
+
+            if self.cpu.halted {
+                self.running = false;
+            }
         }
     }
 

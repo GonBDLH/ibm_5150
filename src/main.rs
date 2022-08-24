@@ -5,6 +5,7 @@ use std::{sync::{Arc, mpsc::{Sender, Receiver, self}, RwLock}, thread::JoinHandl
 
 use eframe::{run_native, NativeOptions, App};
 use hardware::sys::System;
+use util::debug::display;
 
 struct IbmPc {
     system: Arc<RwLock<System>>,
@@ -64,6 +65,8 @@ impl App for IbmPc {
                 }
             }
         });
+
+        display(&self.system.read().unwrap());
     }
 }
 
@@ -77,6 +80,4 @@ fn main() {
     let app = IbmPc::new(sys.clone(), tx);
 
     run_native("IBM PC", NativeOptions::default(), Box::new(|_cc| Box::new(app)));
-
-    // sys.run();
 }

@@ -1,4 +1,4 @@
-// use std::fs::File;
+use std::fs::File;
 use std::io::{stdout, Write};
 // use std::thread::sleep;
 // use std::time::{Instant, Duration};
@@ -19,6 +19,8 @@ pub struct System {
     pub running: bool,
 
     pub not_sleeped: u64,
+
+    log: File,
 }
 
 impl System {
@@ -31,6 +33,8 @@ impl System {
             running: true,
 
             not_sleeped: 0,
+
+            log: File::create("logs/dirs.txt").unwrap(),
         };
         
         sys
@@ -51,6 +55,12 @@ impl System {
             self.bus.pit.tick(cycles);
 
             self.cpu.handle_interrupts(&mut self.bus);
+
+            // write!(self.log, "{:04X}\n", self.cpu.ip).unwrap();
+
+            if self.cpu.ip == 0xE0F0 {
+                let a = 0;
+            }
 
             if self.cpu.halted { break; }
         }

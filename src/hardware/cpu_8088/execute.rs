@@ -29,7 +29,8 @@ impl CPU {
             },
             Opcode::IN => {
                 // TODO ES UNA PRUEBA let val = bus.port_in(self.instr.port);
-                let val: u16 = rand::random(); 
+                let val = 0x00;
+                // let val: u16 = rand::random(); 
                 self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::OUT => {

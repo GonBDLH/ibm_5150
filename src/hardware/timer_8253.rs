@@ -1,4 +1,4 @@
-use super::peripheral::Peripheral;
+use super::{peripheral::Peripheral, pic_8259::PIC8259};
 
 #[derive(Clone, Copy)]
 struct Channel {
@@ -42,16 +42,10 @@ impl TIM8253 {
     }
 
     // TODO FUNCIONAMIENTO
-    pub fn tick(&mut self, cycles: u64) {
-        self.channels[0].timer_cycles += cycles;
-        if self.channels[0].timer_cycles >= 0x1FFFF {
-            self.channels[0].current_count = self.channels[0].current_count.wrapping_sub(1);
-            self.channels[0].timer_cycles >>= 18;
-        }
-        if self.channels[0].current_count == 0 {
-            // TODO INT
-            
-        }
+    pub fn tick(&mut self, cycles: u64,) {
+        // self.channels[0].timer_cycles += cycles;
+        // if self.channels[0].timer_cycles << 18
+        // self.channels[0].current_count = (self.channels[0].timer_cycles << 18) as u16;
     }
 }
 

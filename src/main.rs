@@ -77,6 +77,4 @@ fn main() {
     let app = IbmPc::new(sys.clone(), tx);
 
     run_native("IBM PC", NativeOptions::default(), Box::new(|_cc| Box::new(app)));
-
-    // sys.run();
 }

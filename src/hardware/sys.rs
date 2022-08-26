@@ -1,7 +1,9 @@
 // use std::fs::File;
-use std::io::{stdout, Write};
+use std::io::stdout;
 use std::sync::Mutex;
 use std::sync::mpsc::Receiver;
+
+#[cfg(not(debug_assertions))]
 use std::time::{Instant, Duration};
 // use std::thread::sleep;
 // use std::time::{Instant, Duration};
@@ -50,7 +52,7 @@ impl System {
 
     // Llamar 60 veces por segundo
     pub fn update(self: &mut Self) {
-        let max_cycles = (4_772_726.7 / FPS) as u64;
+        let max_cycles = (4_772_726.7 * FPS) as u64;
         let mut cycles_ran = 0;
 
         while cycles_ran < max_cycles {
@@ -83,15 +85,18 @@ impl System {
         self.running = self.rx.lock().unwrap().recv().unwrap();
 
         while self.running {
+            #[cfg(not(debug_assertions))]
             let start = Instant::now();
 
             self.update();
 
-            let end = Instant::now();
+            #[cfg(not(debug_assertions))] {
+                let end = Instant::now();
 
-            let t = end.duration_since(start).as_millis();
-            let millis = ((1. / FPS) * 1000.) as u128;
-            std::thread::sleep(Duration::from_millis((millis - t) as u64));
+                let t = end.duration_since(start).as_millis();
+                let millis = ((1. / FPS) * 1000.) as u128;
+                std::thread::sleep(Duration::from_millis((millis - t) as u64));
+            }
 
             self.running = match self.rx.lock().unwrap().try_recv() {
                 Ok(v) => v,

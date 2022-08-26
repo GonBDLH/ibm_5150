@@ -63,7 +63,11 @@ impl Peripheral for TIM8253 {
                 let access_mode = (self.channels[channel].mode & 0b00110000) >> 4;
 
                 match access_mode {
-                    0b00 => self.channels[channel].latch_val,
+                    0b00 => {
+                        let val = self.channels[channel].latch_val;
+
+                        val
+                    },
                     0b01 => self.channels[channel].current_count as u8 as u16,
                     0b10 => self.channels[channel].current_count >> 8,
                     0b11 => {
@@ -88,6 +92,7 @@ impl Peripheral for TIM8253 {
                 let channel = (port & 0b11) as usize;
                 let access_mode = (self.channels[channel].mode & 0b00110000) >> 4;
                 match access_mode {
+                    0b00 => {},
                     0b01 => self.channels[channel].current_count = (self.channels[channel].current_count as u16 & 0xFF00) | (val & 0x00FF),
                     0b10 => self.channels[channel].current_count = (self.channels[channel].current_count as u16 & 0x00FF) | ((val & 0x00FF) << 8),
                     0b11 => self.channels[channel].current_count = if self.channels[channel].toggle {

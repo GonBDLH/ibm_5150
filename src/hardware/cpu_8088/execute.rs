@@ -29,7 +29,8 @@ impl CPU {
             },
             Opcode::IN => {
                 // TODO ES UNA PRUEBA let val = bus.port_in(self.instr.port);
-                let val: u16 = rand::random(); 
+                // let val: u16 = rand::random(); 
+                let val = 0xFF;
                 self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::OUT => {
@@ -126,6 +127,7 @@ impl CPU {
                 self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
             },
             Opcode::SBB => {
+                // TODO ESTO ESTA MAL CASI SEGURO
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
                 let res = val1.wrapping_sub(val2);
@@ -146,7 +148,7 @@ impl CPU {
             },
             Opcode::CMP => {
                 let val1 = self.get_val(bus, self.instr.operand1);
-                let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
+                let val2 = self.get_val(bus, self.instr.operand2);
                 let res = val1.wrapping_sub(val2);
                 self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
             },

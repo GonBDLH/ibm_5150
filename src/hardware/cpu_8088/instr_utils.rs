@@ -17,7 +17,7 @@ pub struct Instruction {
     // Offset de la direccion en caso de que se lea memoria
     pub segment: Operand,
     pub offset: u16,
-    pub ea_cycles: u64,
+    pub ea_cycles: u32,
 
     // Valor inmediato en caso de que lo haya
     // pub imm: u16,
@@ -102,7 +102,7 @@ impl Length {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Opcode {
     None,
     MOV,
@@ -703,4 +703,9 @@ pub fn read_imm(cpu: &mut CPU, bus: &mut Bus) -> u16 {
 pub fn read_imm_addres(cpu: &mut CPU, bus: &mut Bus) {
     cpu.instr.offset = to_u16(cpu.fetch(bus), cpu.fetch(bus));
     cpu.instr.segment = Operand::DS;
+}
+
+pub fn decode_jmp(cpu: &mut CPU, opcode: Opcode, jump_type: JumpType) {
+    cpu.instr.opcode = opcode;
+    cpu.instr.jump_type = jump_type;
 }

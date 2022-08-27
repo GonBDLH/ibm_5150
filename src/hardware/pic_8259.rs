@@ -39,6 +39,10 @@ impl PIC8259 {
         self.handled_int = 0b1111000;
         return;
     }
+
+    pub fn update(&mut self) -> (bool, u8) {
+        (true, 0)
+    }
 }
 
 impl Peripheral for PIC8259 {

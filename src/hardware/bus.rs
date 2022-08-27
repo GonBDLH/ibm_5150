@@ -12,6 +12,10 @@ pub struct Bus {
     pub memory: Vec<u8>,
     pub pic: PIC8259,
     pub pit: TIM8253,
+
+    // Interrupciones
+    pub intr: bool,
+    pub intr_type: u8,
 }
 
 impl Bus {
@@ -22,11 +26,15 @@ impl Bus {
             // memory: [0x00; 0x1000]
             pic: PIC8259::new(),
             pit: TIM8253::new(),
+
+            intr: false,
+            intr_type: 0,
         }
     }
 
-    pub fn update_timers(cycles: u64) {
-
+    pub fn update_peripherals(&mut self, cycles: u32) {
+        self.pit.update(cycles, &mut self.pic);
+        (self.intr, self.intr_type) = self.pic.update();
     }
 
     pub fn port_in(&mut self, port: u16) -> u16 {

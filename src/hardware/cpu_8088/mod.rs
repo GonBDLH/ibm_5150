@@ -6,7 +6,8 @@ mod execute;
 
 pub mod dissasemble;
 
-// use std::fs::File;
+use std::{io::Write, fs::OpenOptions};
+use std::fs::File;
 
 use super::bus::Bus;
 use instr_utils::*;
@@ -42,11 +43,8 @@ pub struct CPU {
     pub instr: Instruction,
 
     // Ciclos que se ha ejecutado una instr.
-    pub cycles: u64,
+    pub cycles: u32,
 
-    // Interrupciones
-    pub intr: bool,
-    pub intr_type: u8,
     pub nmi: bool,
     // Controla de que tipo es la SW INT si existe
     pub sw_int: bool,
@@ -55,7 +53,7 @@ pub struct CPU {
     pub halted: bool,
 
     // Archivo de logs (Igual hay que quitarlo de aqui)
-    // pub file: File,
+     pub file: File,
 }
 
 impl CPU {
@@ -84,51 +82,27 @@ impl CPU {
 
             cycles: 0,
 
-            intr: false,
-            intr_type: 0,
             nmi: false,
             sw_int: false,
             sw_int_type: 0,
 
             halted: false,
 
-            // file: File::create("logs/log.txt").unwrap(),
+            file: OpenOptions::new().create(true).write(true).open("logs/logs.txt").unwrap(),
         }
     }
 }
 
 impl CPU {
-    // pub fn step(self: &mut Self, bus: &mut Bus) {
-    //     // 14,31818 MHz * 1/50 Hz / 3 ~= 95454 => Nº ciclos que hace la CPU en un frame 
-    //     for _i in 0..95454 {
-    //         if self.ip == 0xE0EA {
-    //             let _a = 0;
-    //         }
-    //         if self.cycles == 0 {
-    //             if self.halted {
-    //                 return; // TODO
-    //             }
-    //             self.fetch_decode_execute(bus);
-    //             let _a = 0;
-    //         }
-
-
-    //         self.cycles -= 1;
-
-    //         self.hw_interrup(bus);
-    //     }
-    // }
-
     pub fn fetch(self: &mut Self, bus: &mut Bus) -> u8 {
         let dir = ((self.cs as usize) << 4) + self.ip as usize;
         self.ip = (self.ip as u32 + 1) as u16;
         bus.read_dir(dir)
     }
 
-    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> u64 {
-        // if self.ip == 0xE0A9 {
-        //     let _a = 0;
-        // }
+    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> u32 {
+        writeln!(&mut self.file, "{:04X}", self.ip).unwrap();
+        self.file.flush().unwrap();
 
         self.cycles = 0;
         // self.instr = Instruction::default();
@@ -146,9 +120,9 @@ impl CPU {
             // Si hay una NON-MASKABLE INTERRUPT
             self.interrupt(bus, 0x0008);
             self.nmi = false;
-        } else if self.flags.i && self.intr {
-            self.interrupt(bus, (self.intr_type * 0x04) as u16);
-            self.intr = false;
+        } else if self.flags.i && bus.intr {
+            self.interrupt(bus, (bus.intr_type * 0x04) as u16);
+            bus.intr = false;
         } 
     }
 

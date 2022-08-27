@@ -64,6 +64,8 @@ impl App for IbmPc {
                     self.system.write().unwrap().load_bios();
                 }
             }
+
+            ui.label(format!("{:032b}", self.system.read().unwrap().bus.pit.channels[0].current_count))
         });
 
         display(&self.system.read().unwrap());

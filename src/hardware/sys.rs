@@ -2,7 +2,6 @@
 use std::io::stdout;
 use std::sync::Mutex;
 use std::sync::mpsc::Receiver;
-
 #[cfg(not(debug_assertions))]
 use std::time::{Instant, Duration};
 // use std::thread::sleep;
@@ -52,19 +51,22 @@ impl System {
 
     // Llamar 60 veces por segundo
     pub fn update(self: &mut Self) {
-        let max_cycles = (4_772_726.7 * FPS) as u64;
+        let max_cycles = (4_772_726.7 / FPS) as u32;
         let mut cycles_ran = 0;
 
-        while cycles_ran < max_cycles {
+        while cycles_ran <= max_cycles {
             let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
             cycles_ran += cycles;
 
             // RESTO DE UPDATES (TIMERS, ETC)
-            self.bus.pit.tick(cycles);
+            self.bus.update_peripherals(cycles);
 
             self.cpu.handle_interrupts(&mut self.bus);
 
-            if self.cpu.halted { break; }
+            if self.cpu.halted { 
+                let _a = 0;
+                break; 
+            }
         }
 
         display(self);
@@ -74,7 +76,7 @@ impl System {
         let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
 
         // RESTO DE UPDATES (TIMERS, ETC)
-        self.bus.pit.tick(cycles);
+        self.bus.update_peripherals(cycles);
 
         self.cpu.handle_interrupts(&mut self.bus);
 

@@ -112,8 +112,12 @@ impl System {
     }
 
     pub fn load_bios(&mut self) {
-        for (idx, element) in std::fs::read("roms/bios.BIN").unwrap().into_iter().enumerate() {
-            unsafe {
+        unsafe {
+            for (idx, element) in std::fs::read("roms/bios.bin").unwrap().into_iter().enumerate() {
+                std::ptr::write(&mut self.bus.memory[0xF6000 + idx], element);
+            }
+    
+            for (idx, element) in std::fs::read("roms/bios.BIN").unwrap().into_iter().enumerate() {
                 std::ptr::write(&mut self.bus.memory[0xFE000 + idx], element);
             }
         }

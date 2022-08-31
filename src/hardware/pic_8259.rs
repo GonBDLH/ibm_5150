@@ -8,18 +8,49 @@ pub struct PIC8259 {
 
     handled_int: u8,
 
+    max_prio: IRQs,
+
     icw: [u8; 4],
     icw_step: usize,
+}
+
+#[derive(Clone, Copy)]
+pub enum IRQs {
+    Irq0 = 0b00000001,
+    Irq1 = 0b00000010,
+    Irq2 = 0b00000100,
+    Irq3 = 0b00001000,
+    Irq4 = 0b00010000,
+    Irq5 = 0b00100000,
+    Irq6 = 0b01000000,
+    Irq7 = 0b10000000,
+}
+
+pub fn decode_irq_u8(irq: u8) -> u8 {
+    match irq {
+        0b00000001 => 0,
+        0b00000010 => 1,
+        0b00000100 => 2,
+        0b00001000 => 3,
+        0b00010000 => 4,
+        0b00100000 => 5,
+        0b01000000 => 6,
+        0b10000000 => 7,
+
+        _ => unreachable!(),
+    }
 }
 
 impl PIC8259 {
     pub fn new() -> Self {
         Self { 
-            isr: 0,
-            imr: 0,
-            irr: 0,
+            isr: 0,                 // In-Service Register
+            imr: 0,                 // Interrupt Mask Register
+            irr: 0,                 // Interrupt Request Register
 
             handled_int: 0b1111000, // Solo interesan los 3 ultimos bits
+
+            max_prio: IRQs::Irq0,
 
             icw: [0; 4],
             icw_step: 0,
@@ -41,7 +72,26 @@ impl PIC8259 {
     }
 
     pub fn update(&mut self) -> (bool, u8) {
-        (true, 0)
+        self.priority_resolver()
+    }
+
+    fn priority_resolver(&mut self) -> (bool, u8) {
+        for i in 0..7 {
+            let int = (self.max_prio as u8).rotate_left(i);
+
+            if int & self.irr & self.imr != 0 {
+                self.isr |= int;
+                self.irr ^= int;
+
+                return (true, decode_irq_u8(int));
+            }
+        }
+
+        (false, 0)
+    }
+
+    pub fn irq(&mut self, irq: IRQs) {
+        self.irr |= irq as u8;
     }
 }
 

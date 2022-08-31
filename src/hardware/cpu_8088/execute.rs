@@ -28,9 +28,7 @@ impl CPU {
                 self.set_val(bus, self.instr.operand2, val1);
             },
             Opcode::IN => {
-                // TODO ES UNA PRUEBA let val = bus.port_in(self.instr.port);
-                // let val: u16 = rand::random(); 
-                let val = 0xFF;
+                let val = bus.port_in(self.instr.port);
                 self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::OUT => {
@@ -652,7 +650,11 @@ impl CPU {
                         self.ip = ip;
                         self.cs = cs;
                     },
-                    JumpType::DirIntersegment(offset, segment) => {self.cs = segment; self.ip = offset},
+                    JumpType::DirIntersegment(offset, segment) => {
+                        self.cs = segment; 
+                        self.ip = offset;
+                        let _a = 0;
+                    },
                     _ => unreachable!(),
                 }
             },

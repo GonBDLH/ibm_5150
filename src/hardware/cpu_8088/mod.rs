@@ -178,21 +178,7 @@ impl CPU {
         }
     }
 
-    fn get_reg8(self: &Self, reg: Operand) -> u16 {
-        match reg {
-            Operand::AL => self.ax.low as u16,
-            Operand::CL => self.cx.low as u16,
-            Operand::DL => self.dx.low as u16,
-            Operand::BL => self.bx.low as u16,
-            Operand::AH => self.ax.high as u16,
-            Operand::CH => self.cx.high as u16,
-            Operand::DH => self.dx.high as u16,
-            Operand::BH => self.bx.high as u16,
-            _ => unreachable!("Aqui no deberia entrar nunca")
-        }
-    }
-
-    fn get_reg16(self: &Self, reg: Operand) -> u16 {
+    pub fn get_reg(&mut self, reg: Operand) -> u16 {
         match reg {
             Operand::AX => self.ax.get_x(),
             Operand::CX => self.cx.get_x(),
@@ -202,14 +188,14 @@ impl CPU {
             Operand::BP => self.bp,
             Operand::SI => self.si,
             Operand::DI => self.di,
-            _ => unreachable!("Aqui no deberia entrar nunca")
-        }
-    }
-
-    pub fn get_reg(&mut self, length: Length, reg: Operand) -> u16 {
-        match length {
-            Length::Byte => self.get_reg8(reg),
-            Length::Word => self.get_reg16(reg),
+            Operand::AL => self.ax.low as u16,
+            Operand::CL => self.cx.low as u16,
+            Operand::DL => self.dx.low as u16,
+            Operand::BL => self.bx.low as u16,
+            Operand::AH => self.ax.high as u16,
+            Operand::CH => self.cx.high as u16,
+            Operand::DH => self.dx.high as u16,
+            Operand::BH => self.bx.high as u16,
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
@@ -237,7 +223,7 @@ impl CPU {
 
     fn get_val(&mut self, bus: &mut Bus, operand: OperandType) -> u16 {
         match operand {
-            OperandType::Register(operand) => self.get_reg(self.instr.data_length, operand),
+            OperandType::Register(operand) => self.get_reg(operand),
             OperandType::SegmentRegister(operand) => self.get_segment(operand),
             OperandType::Immediate(imm) => imm,
             OperandType::Memory(_operand) => bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length),

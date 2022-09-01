@@ -53,7 +53,7 @@ impl TIM8253 {
         }
     }
 
-    // TODO FUNCIONAMIENTO
+    // TODO TERMINAR FUNCIONAMIENTO
     pub fn update(&mut self, cycles: u32, pic: &mut PIC8259) {
         for channel in 0..3 {
             match self.channels[channel].mode {
@@ -62,7 +62,6 @@ impl TIM8253 {
                     self.channels[channel].current_count = (self.channels[channel].current_count & 0x3FFFF).wrapping_sub(cycles);
                     let after = self.get_current_count(channel);
 
-                    // TODO LA INTERRUPCION ES CUANDO PASA A SER 0, NO CUANDO HACE OVERFLOW
                     let dif = before.wrapping_sub(1).overflowing_sub(after.wrapping_sub(1));
 
                     let _a = self.get_current_count(1);
@@ -104,7 +103,7 @@ impl Peripheral for TIM8253 {
                     }
                     _ => unreachable!()
                 }
-            }, // TODO
+            },
             _ => 0
         }
     }

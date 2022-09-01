@@ -36,7 +36,7 @@ impl CPU {
                 bus.port_out(val, self.instr.port);
             },
             Opcode::XLAT => {
-                let val = bus.read_8(self.get_segment(Operand::DS), self.get_reg16(Operand::BX) + self.get_reg8(Operand::AL));
+                let val = bus.read_8(self.get_segment(Operand::DS), self.get_reg(Operand::BX) + self.get_reg(Operand::AL));
                 self.set_reg8(Operand::AL, val);
             },
             Opcode::LEA => {

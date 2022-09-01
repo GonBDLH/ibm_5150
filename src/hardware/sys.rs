@@ -92,14 +92,6 @@ impl System {
 
             self.update();
 
-            #[cfg(not(debug_assertions))] {
-                let end = Instant::now();
-
-                let t = end.duration_since(start).as_millis();
-                let millis = ((1. / FPS) * 1000.) as u128;
-                std::thread::sleep(Duration::from_millis((millis - t) as u64));
-            }
-
             self.running = match self.rx.lock().unwrap().try_recv() {
                 Ok(v) => v,
                 Err(_v) => self.running,
@@ -107,6 +99,14 @@ impl System {
 
             if self.cpu.halted {
                 self.running = false;
+            };
+
+            #[cfg(not(debug_assertions))] {
+                let end = Instant::now();
+
+                let t = end.duration_since(start).as_millis();
+                let millis = ((1. / FPS) * 1000.) as u128;
+                std::thread::sleep(Duration::from_millis((millis - t) as u64));
             }
         }
     }

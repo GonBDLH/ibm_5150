@@ -261,7 +261,7 @@ impl CPU {
                 self.cycles += 14;
             },
             0xEC | 0xED => {
-                self.instr.opcode = Opcode::OUT;
+                self.instr.opcode = Opcode::IN;
                 self.instr.data_length = Length::new(op, 0);
 
                 self.instr.operand1 = match self.instr.data_length {
@@ -663,6 +663,12 @@ impl CPU {
 
             // _ROT 1
             0xD0..=0xD3 => {
+                // TODO CREO QUE ESTE DECODE ESTA MAL
+
+                if self.ip == 0xE173 {
+                    let _a = 0;
+                }
+
                 let operand = self.fetch(bus);
 
                 self.instr.data_length = Length::new(op, 0);

@@ -100,8 +100,8 @@ impl Peripheral for PIC8259 {
         if port == 0x20 {self.irr as u16} else {self.imr as u16}
     }
 
-    // TODO No se si estara bien. Copiado de: https://github.com/NeatMonster/Intel8086/blob/master/src/fr/neatmonster/ibmpc/Intel8259.java
-    //                                  y de: https://github.com/Lichtso/DOS-Emulator/blob/master/src/pic.rs
+    // Copiado de: https://github.com/NeatMonster/Intel8086/blob/master/src/fr/neatmonster/ibmpc/Intel8259.java
+    //       y de: https://github.com/Lichtso/DOS-Emulator/blob/master/src/pic.rs
     fn port_out(&mut self, val: u16, port: u16) {
         if port == 0x20 {
             if val & 0x10 == 1 {                                    // ICW1

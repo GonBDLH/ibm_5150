@@ -8,6 +8,7 @@ struct Channel {
     toggle: bool,
 }
 
+#[derive(Clone)]
 pub struct DMA8237 {
     channels: [Channel; 4],
 }
@@ -30,7 +31,7 @@ impl DMA8237 {
             }
         } else {
             if opt == 0 {
-                let addr = (self.channels[channel].addr & 0x00FF) | (val & 0xFF00);
+                let addr = (self.channels[channel].addr & 0x00FF) | (val << 8);
                 self.channels[channel].addr = addr;
             } else {
                 let length = (self.channels[channel].length & 0x00FF) | (val & 0xFF00);

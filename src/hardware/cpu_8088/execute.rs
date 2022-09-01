@@ -406,100 +406,10 @@ impl CPU {
 
             Opcode::MOVSB => self.string_op(bus, CPU::movs, 17),
             Opcode::MOVSW => self.string_op(bus, CPU::movs, 25),
-
-            // TODO CAMBIAR ESTO
-            Opcode::CMPSB => {
-                if self.instr.repetition_prefix == RepetitionPrefix::None {
-                    self.cmps(bus);
-                    self.adjust_string();
-                } else {
-                    let mut veces = 0;
-                    let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
-                    while self.cx.get_x() != 0 && z_bool {
-                        // TODO Test interrupts
-
-                        self.cx.set_x(self.cx.get_x() - 1);
-                        // String op
-                        self.cmps(bus);
-
-                        self.adjust_string();
-
-                        z_bool = self.check_z_str();
-
-                        veces += 1;
-                    }
-                    self.cycles += veces * 22;
-                }
-            },
-            Opcode::CMPSW => {
-                if self.instr.repetition_prefix == RepetitionPrefix::None {
-                    self.cmps(bus);
-                    self.adjust_string();
-                } else {
-                    let mut veces = 0;
-                    let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
-                    while self.cx.get_x() != 0 && z_bool {
-                        // TODO Test interrupts
-
-                        self.cx.set_x(self.cx.get_x() - 1);
-                        // String op
-                        self.cmps(bus);
-
-                        self.adjust_string();
-
-                        z_bool = self.check_z_str();
-
-                        veces += 1;
-                    }
-                    self.cycles += veces * 30;
-                }
-            },
-            Opcode::SCASB => {
-                if self.instr.repetition_prefix == RepetitionPrefix::None {
-                    self.scas(bus);
-                    self.adjust_string_di();
-                } else {
-                    let mut veces = 0;
-                    let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
-                    while self.cx.get_x() != 0 && z_bool {
-                        // TODO Test interrupts
-
-                        self.cx.set_x(self.cx.get_x() - 1);
-                        // String op
-                        self.scas(bus);
-
-                        self.adjust_string_di();
-
-                        z_bool = self.check_z_str();
-
-                        veces += 1;
-                    }
-                    self.cycles += veces * 15;
-                }
-            },
-            Opcode::SCASW => {
-                if self.instr.repetition_prefix == RepetitionPrefix::None {
-                    self.scas(bus);
-                    self.adjust_string_di();
-                } else {
-                    let mut veces = 0;
-                    let mut z_bool = true; // El bucle tiene que ejecutarse una vez minimo
-                    while self.cx.get_x() != 0 && z_bool {
-                        // TODO Test interrupts
-
-                        self.cx.set_x(self.cx.get_x() - 1);
-                        // String op
-                        self.scas(bus);
-
-                        self.adjust_string_di();
-
-                        z_bool = self.check_z_str();
-
-                        veces += 1;
-                    }
-                    self.cycles += veces * 19;
-                }
-            },
+            Opcode::CMPSB => self.string_op_z(bus, CPU::cmps, 22),
+            Opcode::CMPSW => self.string_op_z(bus, CPU::cmps, 30),
+            Opcode::SCASB => self.string_op_z(bus, CPU::scas, 15),
+            Opcode::SCASW => self.string_op_z(bus, CPU::scas, 19),
             Opcode::LODSB => self.string_op(bus, CPU::lods, 13),
             Opcode::LODSW => self.string_op(bus, CPU::lods, 17),
             Opcode::STOSB => self.string_op(bus, CPU::lods, 13),

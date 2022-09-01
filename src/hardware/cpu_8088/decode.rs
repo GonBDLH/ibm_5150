@@ -663,12 +663,6 @@ impl CPU {
 
             // _ROT 1
             0xD0..=0xD3 => {
-                // TODO CREO QUE ESTE DECODE ESTA MAL
-
-                if self.ip == 0xE173 {
-                    let _a = 0;
-                }
-
                 let operand = self.fetch(bus);
 
                 self.instr.data_length = Length::new(op, 0);

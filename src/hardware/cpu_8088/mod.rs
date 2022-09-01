@@ -451,4 +451,26 @@ impl CPU {
             }
         }
     }
+
+    pub fn string_op_z(&mut self, bus: &mut Bus, f: fn(&mut CPU, &mut Bus), cycles: u32) {
+        if self.instr.repetition_prefix == RepetitionPrefix::None {
+            f(self, bus);
+            self.adjust_string_di();
+        } else {
+            if self.cx.get_x() == 0 {
+                self.to_decode = true;
+            } else {
+                self.to_decode = false;
+
+                self.cx.set_x(self.cx.get_x() - 1);
+                f(self, bus);
+                self.adjust_string_di();
+                self.cycles = cycles;
+
+                if !self.check_z_str() {
+                    self.to_decode = true;
+                }
+            }
+        }
+    }
 }

@@ -40,8 +40,18 @@ impl App for IbmPc {
                 }
             }
 
-            ui.label(format!("{}", self.system.read().unwrap().cpu.ip));
-            ui.label(format!("{}", self.system.read().unwrap().cpu.halted));
+            let ip = match self.system.try_read() {
+                Ok(v) => v.cpu.ip,
+                Err(_) => 0,
+            };
+
+            let halted = match self.system.try_read() {
+                Ok(v) => v.cpu.halted,
+                Err(_) => false,
+            };
+
+            ui.label(format!("{}", ip));
+            ui.label(format!("{}", halted));
 
             if ui.button("Run").clicked() {
                 let sys_thread = self.system.clone();

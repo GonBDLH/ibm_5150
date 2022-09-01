@@ -52,8 +52,12 @@ pub struct CPU {
 
     pub halted: bool,
 
+    // Usado en instrucciones de Strings cuando tengan que repetirse
+    pub to_decode: bool,
+
     // Archivo de logs (Igual hay que quitarlo de aqui)
-     pub file: File,
+    #[cfg(debug_assertions)]
+    pub file: File,
 }
 
 impl CPU {
@@ -88,6 +92,9 @@ impl CPU {
 
             halted: false,
 
+            to_decode: true,
+
+            #[cfg(debug_assertions)]
             file: OpenOptions::new().create(true).write(true).open("logs/logs.txt").unwrap(),
         }
     }
@@ -101,13 +108,18 @@ impl CPU {
     }
 
     pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> u32 {
-        writeln!(&mut self.file, "{:04X}", self.ip).unwrap();
-        self.file.flush().unwrap();
+        #[cfg(debug_assertions)] {
+            writeln!(&mut self.file, "{:04X}", self.ip).unwrap();
+            self.file.flush().unwrap();
+        }
 
         self.cycles = 0;
-        // self.instr = Instruction::default();
-        let op = self.fetch(bus);
-        self.decode(bus, op);
+
+        if self.to_decode {
+            let op = self.fetch(bus);
+            self.decode(bus, op);
+        }
+
         self.execute(bus);
         self.cycles
     }
@@ -419,6 +431,24 @@ impl CPU {
             self.cycles += 16;
         } else {
             self.cycles += 4;
+        }
+    }
+
+    pub fn string_op(&mut self, bus: &mut Bus, f: fn(&mut CPU, &mut Bus), cycles: u32) {
+        if self.instr.repetition_prefix == RepetitionPrefix::None {
+            f(self, bus);
+            self.adjust_string_di();
+        } else {
+            if self.cx.get_x() == 0 {
+                self.to_decode = true;
+            } else {
+                self.to_decode = false;
+
+                self.cx.set_x(self.cx.get_x() - 1);
+                f(self, bus);
+                self.adjust_string_di();
+                self.cycles = cycles;
+            }
         }
     }
 }

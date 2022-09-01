@@ -106,7 +106,7 @@ impl System {
 
                 let t = end.duration_since(start).as_millis();
                 let millis = ((1. / FPS) * 1000.) as u128;
-                std::thread::sleep(Duration::from_millis((millis - t) as u64));
+                std::thread::sleep(Duration::from_millis(millis.saturating_sub(t) as u64));
             }
         }
     }

@@ -405,7 +405,7 @@ impl CPU {
             },
 
             Opcode::MOVSB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.movs(bus);
                     self.adjust_string();
                 } else {
@@ -424,7 +424,7 @@ impl CPU {
                 }
             },
             Opcode::MOVSW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.movs(bus);
                     self.adjust_string();
                 } else {
@@ -443,7 +443,7 @@ impl CPU {
                 }
             },
             Opcode::CMPSB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.cmps(bus);
                     self.adjust_string();
                 } else {
@@ -466,7 +466,7 @@ impl CPU {
                 }
             },
             Opcode::CMPSW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.cmps(bus);
                     self.adjust_string();
                 } else {
@@ -489,7 +489,7 @@ impl CPU {
                 }
             },
             Opcode::SCASB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.scas(bus);
                     self.adjust_string_di();
                 } else {
@@ -512,7 +512,7 @@ impl CPU {
                 }
             },
             Opcode::SCASW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.scas(bus);
                     self.adjust_string_di();
                 } else {
@@ -534,8 +534,14 @@ impl CPU {
                     self.cycles += veces * 19;
                 }
             },
+            Opcode::LODSB => self.string_op(bus, CPU::lods, 13),
+            Opcode::LODSW => self.string_op(bus, CPU::lods, 17),
+            Opcode::STOSB => self.string_op(bus, CPU::lods, 13),
+            Opcode::STOSW => self.string_op(bus, CPU::lods, 17),
+        
+            /*
             Opcode::LODSB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.lods(bus);
                     self.adjust_string_si();
                 } else {
@@ -554,7 +560,7 @@ impl CPU {
                 }
             },
             Opcode::LODSW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.lods(bus);
                     self.adjust_string_si();
                 } else {
@@ -573,43 +579,64 @@ impl CPU {
                 }
             },
             Opcode::STOSB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.stos(bus);
                     self.adjust_string_di();
                 } else {
-                    let mut veces = 0;
-                    while self.cx.get_x() != 0 {
-                        // TODO Test interrupts
+                    // let mut veces = 0;
+                    // while self.cx.get_x() != 0 {
+                    //     // TODO Test interrupts
+
+                    //     self.cx.set_x(self.cx.get_x() - 1);
+                    //     // String op
+                    //     self.stos(bus);
+                    //     self.adjust_string_di();
+
+                    //     veces += 1;
+                    // }
+                    // self.cycles += veces * 13;
+                    if self.cx.get_x() == 0 {
+                        self.to_decode = true;
+                    } else {
+                        self.to_decode = false;
 
                         self.cx.set_x(self.cx.get_x() - 1);
-                        // String op
                         self.stos(bus);
                         self.adjust_string_di();
-
-                        veces += 1;
+                        self.cycles = 13;
                     }
-                    self.cycles += veces * 13;
                 }
             },
             Opcode::STOSW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.stos(bus);
                     self.adjust_string_di();
                 } else {
-                    let mut veces = 0;
-                    while self.cx.get_x() != 0 {
-                        // TODO Test interrupts
+                    // let mut veces = 0;
+                    // while self.cx.get_x() != 0 {
+                    //     // TODO Test interrupts
+
+                    //     self.cx.set_x(self.cx.get_x() - 1);
+                    //     // String op
+                    //     self.stos(bus);
+                    //     self.adjust_string_di();
+
+                    //     veces += 1;
+                    // }
+                    // self.cycles += veces * 17;
+                    if self.cx.get_x() == 0 {
+                        self.to_decode = true;
+                    } else {
+                        self.to_decode = false;
 
                         self.cx.set_x(self.cx.get_x() - 1);
-                        // String op
                         self.stos(bus);
                         self.adjust_string_di();
-
-                        veces += 1;
+                        self.cycles = 17;
                     }
-                    self.cycles += veces * 17;
                 }
             },
+            */
 
             Opcode::CALL => {
                 match self.instr.jump_type {

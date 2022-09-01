@@ -66,7 +66,7 @@ impl App for IbmPc {
             }
         });
 
-        display(&self.system.read().unwrap());
+        // display(&self.system.read().unwrap());
     }
 }
 

@@ -28,9 +28,7 @@ impl CPU {
                 self.set_val(bus, self.instr.operand2, val1);
             },
             Opcode::IN => {
-                // TODO ES UNA PRUEBA let val = bus.port_in(self.instr.port);
-                let val = 0x00;
-                // let val: u16 = rand::random(); 
+                let val = bus.port_in(self.instr.port);
                 self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::OUT => {
@@ -38,7 +36,7 @@ impl CPU {
                 bus.port_out(val, self.instr.port);
             },
             Opcode::XLAT => {
-                let val = bus.read_8(self.get_segment(Operand::DS), self.get_reg16(Operand::BX) + self.get_reg8(Operand::AL));
+                let val = bus.read_8(self.get_segment(Operand::DS), self.get_reg(Operand::BX) + self.get_reg(Operand::AL));
                 self.set_reg8(Operand::AL, val);
             },
             Opcode::LEA => {
@@ -127,6 +125,7 @@ impl CPU {
                 self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
             },
             Opcode::SBB => {
+                // TODO ESTO ESTA MAL CASI SEGURO
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
                 let res = val1.wrapping_sub(val2);
@@ -147,7 +146,7 @@ impl CPU {
             },
             Opcode::CMP => {
                 let val1 = self.get_val(bus, self.instr.operand1);
-                let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
+                let val2 = self.get_val(bus, self.instr.operand2);
                 let res = val1.wrapping_sub(val2);
                 self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
             },
@@ -406,7 +405,7 @@ impl CPU {
             },
 
             Opcode::MOVSB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.movs(bus);
                     self.adjust_string();
                 } else {
@@ -425,7 +424,7 @@ impl CPU {
                 }
             },
             Opcode::MOVSW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.movs(bus);
                     self.adjust_string();
                 } else {
@@ -444,7 +443,7 @@ impl CPU {
                 }
             },
             Opcode::CMPSB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.cmps(bus);
                     self.adjust_string();
                 } else {
@@ -467,7 +466,7 @@ impl CPU {
                 }
             },
             Opcode::CMPSW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.cmps(bus);
                     self.adjust_string();
                 } else {
@@ -490,7 +489,7 @@ impl CPU {
                 }
             },
             Opcode::SCASB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.scas(bus);
                     self.adjust_string_di();
                 } else {
@@ -513,7 +512,7 @@ impl CPU {
                 }
             },
             Opcode::SCASW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.scas(bus);
                     self.adjust_string_di();
                 } else {
@@ -535,8 +534,14 @@ impl CPU {
                     self.cycles += veces * 19;
                 }
             },
+            Opcode::LODSB => self.string_op(bus, CPU::lods, 13),
+            Opcode::LODSW => self.string_op(bus, CPU::lods, 17),
+            Opcode::STOSB => self.string_op(bus, CPU::lods, 13),
+            Opcode::STOSW => self.string_op(bus, CPU::lods, 17),
+        
+            /*
             Opcode::LODSB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.lods(bus);
                     self.adjust_string_si();
                 } else {
@@ -555,7 +560,7 @@ impl CPU {
                 }
             },
             Opcode::LODSW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.lods(bus);
                     self.adjust_string_si();
                 } else {
@@ -574,43 +579,64 @@ impl CPU {
                 }
             },
             Opcode::STOSB => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.stos(bus);
                     self.adjust_string_di();
                 } else {
-                    let mut veces = 0;
-                    while self.cx.get_x() != 0 {
-                        // TODO Test interrupts
+                    // let mut veces = 0;
+                    // while self.cx.get_x() != 0 {
+                    //     // TODO Test interrupts
+
+                    //     self.cx.set_x(self.cx.get_x() - 1);
+                    //     // String op
+                    //     self.stos(bus);
+                    //     self.adjust_string_di();
+
+                    //     veces += 1;
+                    // }
+                    // self.cycles += veces * 13;
+                    if self.cx.get_x() == 0 {
+                        self.to_decode = true;
+                    } else {
+                        self.to_decode = false;
 
                         self.cx.set_x(self.cx.get_x() - 1);
-                        // String op
                         self.stos(bus);
                         self.adjust_string_di();
-
-                        veces += 1;
+                        self.cycles = 13;
                     }
-                    self.cycles += veces * 13;
                 }
             },
             Opcode::STOSW => {
-                if self.instr.repetition_prefix != RepetitionPrefix::None {
+                if self.instr.repetition_prefix == RepetitionPrefix::None {
                     self.stos(bus);
                     self.adjust_string_di();
                 } else {
-                    let mut veces = 0;
-                    while self.cx.get_x() != 0 {
-                        // TODO Test interrupts
+                    // let mut veces = 0;
+                    // while self.cx.get_x() != 0 {
+                    //     // TODO Test interrupts
+
+                    //     self.cx.set_x(self.cx.get_x() - 1);
+                    //     // String op
+                    //     self.stos(bus);
+                    //     self.adjust_string_di();
+
+                    //     veces += 1;
+                    // }
+                    // self.cycles += veces * 17;
+                    if self.cx.get_x() == 0 {
+                        self.to_decode = true;
+                    } else {
+                        self.to_decode = false;
 
                         self.cx.set_x(self.cx.get_x() - 1);
-                        // String op
                         self.stos(bus);
                         self.adjust_string_di();
-
-                        veces += 1;
+                        self.cycles = 17;
                     }
-                    self.cycles += veces * 17;
                 }
             },
+            */
 
             Opcode::CALL => {
                 match self.instr.jump_type {
@@ -651,7 +677,11 @@ impl CPU {
                         self.ip = ip;
                         self.cs = cs;
                     },
-                    JumpType::DirIntersegment(offset, segment) => {self.cs = segment; self.ip = offset},
+                    JumpType::DirIntersegment(offset, segment) => {
+                        self.cs = segment; 
+                        self.ip = offset;
+                        let _a = 0;
+                    },
                     _ => unreachable!(),
                 }
             },

@@ -1,3 +1,0 @@
-T. Dormido: 0 - T. total ejecucion: 0.000575795 - T. ejecución 4.8596835. Ips: 52.472553
-T. Dormido: 0.000665493 - T. total ejecucion: 0.000714153 - T. ejecución 0.00004866. Ips: 5240444
-T. Dormido: 0.00067173 - T. total ejecucion: 0.00071478 - T. ejecución 0.00004305. Ips: 5923345

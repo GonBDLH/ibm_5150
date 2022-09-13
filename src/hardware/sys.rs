@@ -113,7 +113,7 @@ impl System {
 
     pub fn load_bios(&mut self) {
         unsafe {
-            for (idx, element) in std::fs::read("roms/bios.bin").unwrap().into_iter().enumerate() {
+            for (idx, element) in std::fs::read("roms/basic.bin").unwrap().into_iter().enumerate() {
                 std::ptr::write(&mut self.bus.memory[0xF6000 + idx], element);
             }
     

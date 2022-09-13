@@ -1,5 +1,5 @@
 // use std::fs::File;
-use std::io::stdout;
+use std::{io::stdout, fs::File};
 use std::sync::Mutex;
 use std::sync::mpsc::Receiver;
 #[cfg(not(debug_assertions))]
@@ -14,12 +14,15 @@ use super::cpu_8088::CPU;
 use super::bus::Bus;
 // use crate::util::debug::*;
 
+use std::{io::Write, fs::OpenOptions};
+
 pub struct System {
     pub cpu: CPU,
     pub bus: Bus,
 
     pub running: bool,
 
+    pub file: File,
     // pub rx: Mutex<Receiver<bool>>,
 }
 
@@ -32,6 +35,7 @@ impl System {
 
             running: false,
 
+            file: OpenOptions::new().create(true).write(true).open("logs/logs.txt").unwrap(),
             // rx: Mutex::new(rx),
         };
         
@@ -63,12 +67,19 @@ impl System {
 
             self.cpu.handle_interrupts(&mut self.bus);
 
+            writeln!(&mut self.file, "{:04X}", self.cpu.ip).unwrap();
+
             if self.cpu.halted { 
                 let _a = 0;
-                break; 
+                todo!("Halted") 
+            }
+
+            if self.cpu.ip == 0xF600 {
+                panic!("JUJEUEJUEJ")
             }
         }
 
+        self.file.flush().unwrap();
         // display(self);
     }
 
@@ -83,33 +94,33 @@ impl System {
         // display(self);
     }
 
-    pub fn run(&mut self) {
-        // self.running = self.rx.lock().unwrap().recv().unwrap();
+    // pub fn run(&mut self) {
+    //     self.running = self.rx.lock().unwrap().recv().unwrap();
 
-        while self.running {
-            #[cfg(not(debug_assertions))]
-            let start = Instant::now();
+    //     while self.running {
+    //         #[cfg(not(debug_assertions))]
+    //         let start = Instant::now();
 
-            self.update();
+    //         self.update();
 
-            // self.running = match self.rx.lock().unwrap().try_recv() {
-            //     Ok(v) => v,
-            //     Err(_v) => self.running,
-            // };
+    //          self.running = match self.rx.lock().unwrap().try_recv() {
+    //              Ok(v) => v,
+    //              Err(_v) => self.running,
+    //          };
 
-            if self.cpu.halted {
-                self.running = false;
-            };
+    //         if self.cpu.halted {
+    //             self.running = false;
+    //         };
 
-            #[cfg(not(debug_assertions))] {
-                let end = Instant::now();
+    //         #[cfg(not(debug_assertions))] {
+    //             let end = Instant::now();
 
-                let t = end.duration_since(start).as_millis();
-                let millis = ((1. / FPS) * 1000.) as u128;
-                std::thread::sleep(Duration::from_millis(millis.saturating_sub(t) as u64));
-            }
-        }
-    }
+    //             let t = end.duration_since(start).as_millis();
+    //             let millis = ((1. / FPS) * 1000.) as u128;
+    //             std::thread::sleep(Duration::from_millis(millis.saturating_sub(t) as u64));
+    //         }
+    //     }
+    // }
 
     pub fn load_bios(&mut self) {
         unsafe {

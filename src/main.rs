@@ -3,6 +3,9 @@ mod util;
 
 // use std::{sync::{Arc, mpsc::{Sender, Receiver, self}, RwLock}, thread::JoinHandle};
 
+use std::time::Duration;
+
+use ggez::conf::WindowMode;
 // use eframe::{run_native, NativeOptions, App};
 use hardware::sys::System;
 // use util::debug::display;
@@ -97,7 +100,7 @@ const DESIRED_FPS: f32 = 50.;
 use ggez::{GameError, GameResult};
 use ggez::event::{self, EventHandler};
 use ggez::graphics::{self, Color};
-use ggez::timer::check_update_time;
+use ggez::timer::{check_update_time, remaining_update_time, sleep};
 
 struct IbmPc {
     sys: System,
@@ -113,27 +116,54 @@ impl IbmPc {
 
 impl EventHandler for IbmPc {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
+        let mut veces = 0;
 
         while check_update_time(ctx, DESIRED_FPS as u32) {
             self.sys.update();
+            veces += 1;
         }
+
+        println!("{veces} - {}", ggez::timer::fps(ctx));
 
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
         graphics::clear(ctx, Color::WHITE);
-
         // TODO
 
         graphics::present(ctx)
     }
 }
 
-fn main() -> GameResult {
-    let app = IbmPc::new();
-    let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo");
-    let (ctx, event_loop) = cb.build()?;
+// fn main() -> GameResult {
+//     let mut app = IbmPc::new();
+//     let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo");
+    
+//     let win_mode = WindowMode {
+//         width: 720.,
+//         height: 350.,
+//         resizable: false,
+//         ..Default::default()
+//     };
+    
+//     let (mut ctx, event_loop) = cb.build()?;
 
-    event::run(ctx, event_loop, app);
+//     graphics::set_mode(&mut ctx, win_mode)?;
+
+//     app.sys.rst();
+//     app.sys.load_bios();
+
+//     event::run(ctx, event_loop, app);
+// }
+
+fn main() {
+    let mut app = IbmPc::new();
+
+    app.sys.rst();
+    app.sys.load_bios();
+
+    loop {
+        app.sys.update();
+    }
 }

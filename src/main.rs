@@ -136,28 +136,28 @@ impl EventHandler for IbmPc {
     }
 }
 
-// fn main() -> GameResult {
-//     let mut app = IbmPc::new();
-//     let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo");
-    
-//     let win_mode = WindowMode {
-//         width: 720.,
-//         height: 350.,
-//         resizable: false,
-//         ..Default::default()
-//     };
-    
-//     let (mut ctx, event_loop) = cb.build()?;
+fn main() -> GameResult {
+    let mut app = IbmPc::new();
+    let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo");
+ 
+    let win_mode = WindowMode {
+        width: 720.,
+        height: 350.,
+        resizable: false,
+        ..Default::default()
+    };
+ 
+    let (mut ctx, event_loop) = cb.build()?;
 
-//     graphics::set_mode(&mut ctx, win_mode)?;
+    graphics::set_mode(&mut ctx, win_mode)?;
 
-//     app.sys.rst();
-//     app.sys.load_bios();
+    app.sys.rst();
+    app.sys.load_bios();
 
-//     event::run(ctx, event_loop, app);
-// }
+    event::run(ctx, event_loop, app);
+}
 
-fn main() {
+fn _main() {
     let mut app = IbmPc::new();
 
     app.sys.rst();

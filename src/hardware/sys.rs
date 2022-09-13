@@ -1,7 +1,5 @@
 // use std::fs::File;
-use std::{io::stdout, fs::File};
-use std::sync::Mutex;
-use std::sync::mpsc::Receiver;
+use std::{fs::File};
 #[cfg(not(debug_assertions))]
 use std::time::{Instant, Duration};
 // use std::thread::sleep;
@@ -59,6 +57,7 @@ impl System {
         let mut cycles_ran = 0;
 
         while cycles_ran <= max_cycles {
+            let ip = self.cpu.ip;
             let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
             cycles_ran += cycles;
 
@@ -67,7 +66,7 @@ impl System {
 
             self.cpu.handle_interrupts(&mut self.bus);
 
-            writeln!(&mut self.file, "{:04X}", self.cpu.ip).unwrap();
+            writeln!(&mut self.file, "{:04X} - {}", ip, self.cpu.instr.opcode).unwrap();
 
             if self.cpu.halted { 
                 let _a = 0;

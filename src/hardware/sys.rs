@@ -7,14 +7,12 @@ use std::time::{Instant, Duration};
 // use std::thread::sleep;
 // use std::time::{Instant, Duration};
 
-use crossterm::execute;
-use crossterm::terminal::SetSize;
+// use crossterm::execute;
+// use crossterm::terminal::SetSize;
 
 use super::cpu_8088::CPU;
 use super::bus::Bus;
-use crate::util::debug::*;
-
-const FPS: f32 = 50.0;
+// use crate::util::debug::*;
 
 pub struct System {
     pub cpu: CPU,
@@ -22,24 +20,26 @@ pub struct System {
 
     pub running: bool,
 
-    pub rx: Mutex<Receiver<bool>>,
+    // pub rx: Mutex<Receiver<bool>>,
 }
 
 impl System {
-    pub fn new(rx: Receiver<bool>) -> Self {
-        execute!(stdout(), SetSize(120, 30)).unwrap();
+    pub fn new() -> Self {
+        // execute!(stdout(), SetSize(120, 30)).unwrap();
         let sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
 
             running: false,
 
-            rx: Mutex::new(rx),
+            // rx: Mutex::new(rx),
         };
         
         sys
     }
 }
+
+use crate::DESIRED_FPS;
 
 impl System {
     pub fn rst(&mut self) {
@@ -49,9 +49,9 @@ impl System {
         self.running = false;
     }
 
-    // Llamar 60 veces por segundo
+    // Llamar cada frame
     pub fn update(self: &mut Self) {
-        let max_cycles = (4_772_726.7 / FPS) as u32;
+        let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
         let mut cycles_ran = 0;
 
         while cycles_ran <= max_cycles {
@@ -69,7 +69,7 @@ impl System {
             }
         }
 
-        display(self);
+        // display(self);
     }
 
     pub fn step(self: &mut Self) {
@@ -80,11 +80,11 @@ impl System {
 
         self.cpu.handle_interrupts(&mut self.bus);
 
-        display(self);
+        // display(self);
     }
 
     pub fn run(&mut self) {
-        self.running = self.rx.lock().unwrap().recv().unwrap();
+        // self.running = self.rx.lock().unwrap().recv().unwrap();
 
         while self.running {
             #[cfg(not(debug_assertions))]
@@ -92,10 +92,10 @@ impl System {
 
             self.update();
 
-            self.running = match self.rx.lock().unwrap().try_recv() {
-                Ok(v) => v,
-                Err(_v) => self.running,
-            };
+            // self.running = match self.rx.lock().unwrap().try_recv() {
+            //     Ok(v) => v,
+            //     Err(_v) => self.running,
+            // };
 
             if self.cpu.halted {
                 self.running = false;

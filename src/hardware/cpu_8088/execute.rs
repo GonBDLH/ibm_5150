@@ -412,8 +412,8 @@ impl CPU {
             Opcode::SCASW => self.string_op_z(bus, CPU::scas, 19),
             Opcode::LODSB => self.string_op(bus, CPU::lods, 13),
             Opcode::LODSW => self.string_op(bus, CPU::lods, 17),
-            Opcode::STOSB => self.string_op(bus, CPU::lods, 13),
-            Opcode::STOSW => self.string_op(bus, CPU::lods, 17),
+            Opcode::STOSB => self.string_op(bus, CPU::stos, 13),
+            Opcode::STOSW => self.string_op(bus, CPU::stos, 17),
 
             Opcode::CALL => {
                 match self.instr.jump_type {

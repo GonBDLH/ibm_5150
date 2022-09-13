@@ -57,8 +57,7 @@ impl System {
         let mut cycles_ran = 0;
 
         while cycles_ran <= max_cycles {
-            let ip = self.cpu.ip;
-            let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
+            let (cycles, ip) = self.cpu.fetch_decode_execute(&mut self.bus);
             cycles_ran += cycles;
 
             // RESTO DE UPDATES (TIMERS, ETC)
@@ -66,7 +65,7 @@ impl System {
 
             self.cpu.handle_interrupts(&mut self.bus);
 
-            writeln!(&mut self.file, "{:04X} - {}", ip, self.cpu.instr.opcode).unwrap();
+            writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + ip as usize, self.cpu.instr.opcode).unwrap();
 
             if self.cpu.halted { 
                 let _a = 0;
@@ -83,7 +82,7 @@ impl System {
     }
 
     pub fn step(self: &mut Self) {
-        let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
+        let (cycles, _) = self.cpu.fetch_decode_execute(&mut self.bus);
 
         // RESTO DE UPDATES (TIMERS, ETC)
         self.bus.update_peripherals(cycles);

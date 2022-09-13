@@ -100,8 +100,10 @@ impl CPU {
         bus.read_dir(dir)
     }
 
-    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> u32 {
+    // DEVUELVO LA IP PARA DEBUGEAR
+    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> (u32, u16) {
         self.cycles = 0;
+        let ip = self.ip;
 
         if self.to_decode {
             self.instr = Instruction::default();
@@ -109,12 +111,8 @@ impl CPU {
             self.decode(bus, op);
         }
 
-        if self.ip == 0xE258 {
-            let _a = 0;
-        }
-
         self.execute(bus);
-        self.cycles
+        (self.cycles, ip)
     }
 
     pub fn handle_interrupts(&mut self, bus: &mut Bus) {
@@ -128,7 +126,12 @@ impl CPU {
         } else if self.flags.i && bus.intr {
             self.interrupt(bus, (bus.intr_type * 0x04) as u16);
             bus.intr = false;
-        } 
+        } else {
+            // TODO ESTO IGUAL ESTA MAL
+            bus.intr = false;
+            self.nmi = false;
+            self.sw_int = false;
+        }
     }
 
     pub fn interrupt(&mut self, bus: &mut Bus, ip_location: u16) {

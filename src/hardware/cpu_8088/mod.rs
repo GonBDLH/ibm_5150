@@ -6,9 +6,6 @@ mod execute;
 
 pub mod dissasemble;
 
-use std::{io::Write, fs::OpenOptions};
-use std::fs::File;
-
 use super::bus::Bus;
 use instr_utils::*;
 use regs::{GPReg, Flags};
@@ -215,7 +212,6 @@ impl CPU {
             Segment::SS => self.ss,
             Segment::DS => self.ds,
             Segment::None => 0,
-            _ => unreachable!(),
         }
     }
 

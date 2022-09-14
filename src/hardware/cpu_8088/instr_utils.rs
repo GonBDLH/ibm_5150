@@ -298,7 +298,6 @@ impl Display for Opcode {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Operand {
-    None,
     AL,
     BL,
     CL,
@@ -333,7 +332,6 @@ pub enum Operand {
 impl Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let val = match self {
-            Operand::None => String::from("None"),
             Operand::AL => String::from("AL"),
             Operand::BL => String::from("BL"),
             Operand::CL => String::from("CL"),

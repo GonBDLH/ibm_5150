@@ -57,6 +57,10 @@ impl System {
         let mut cycles_ran = 0;
 
         while cycles_ran <= max_cycles {
+            if self.cpu.ip == 0xE1FA {
+                let _a = 0;
+            }
+
             let (cycles, ip) = self.cpu.fetch_decode_execute(&mut self.bus);
             cycles_ran += cycles;
 

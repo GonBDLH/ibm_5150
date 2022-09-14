@@ -2,6 +2,7 @@ use crate::hardware::cpu_8088::cpu_utils::*;
 use crate::hardware::cpu_8088::instr_utils::{Length, Operand};
 use crate::hardware::cpu_8088::CPU;
 
+use super::cpu_8088::instr_utils::Segment;
 use super::dma_8237::DMA8237;
 use super::peripheral::Peripheral;
 use super::pic_8259::PIC8259;
@@ -86,7 +87,7 @@ impl Bus {
         self.write_8(segment, offset.wrapping_add(1), (val >> 8) as u8);
     }
 
-    pub fn write_length(&mut self, cpu: &mut CPU, length: Length, segment: Operand, offset: u16, val: u16) {
+    pub fn write_length(&mut self, cpu: &mut CPU, length: Length, segment: Segment, offset: u16, val: u16) {
         let segment_u16 = cpu.get_segment(segment);
 
         match length {
@@ -100,7 +101,7 @@ impl Bus {
         self.memory[dir % 0x100000]
     }
 
-    pub fn read_length(&self, cpu: &CPU, segment: Operand, offset: u16, length: Length) -> u16 {
+    pub fn read_length(&self, cpu: &CPU, segment: Segment, offset: u16, length: Length) -> u16 {
         let segment_u16 = cpu.get_segment(segment);
 
         match length {

@@ -208,23 +208,23 @@ impl CPU {
         }
     }
 
-    pub fn get_segment(&self, segment: Operand) -> u16 {
+    pub fn get_segment(&self, segment: Segment) -> u16 {
         match segment {
-            Operand::ES => self.es,
-            Operand::CS => self.cs,
-            Operand::SS => self.ss,
-            Operand::DS => self.ds,
-            Operand::None => 0,
+            Segment::ES => self.es,
+            Segment::CS => self.cs,
+            Segment::SS => self.ss,
+            Segment::DS => self.ds,
+            Segment::None => 0,
             _ => unreachable!(),
         }
     }
 
-    pub fn set_segment(&mut self, segment: Operand, val: u16) {
+    pub fn set_segment(&mut self, segment: Segment, val: u16) {
         match segment {
-            Operand::ES => self.es = val,
-            Operand::CS => self.cs = val,
-            Operand::SS => self.ss = val,
-            Operand::DS => self.ds = val,
+            Segment::ES => self.es = val,
+            Segment::CS => self.cs = val,
+            Segment::SS => self.ss = val,
+            Segment::DS => self.ds = val,
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
@@ -291,12 +291,12 @@ impl CPU {
         let offset_from = self.si;
         let offset_to = self.di;
     
-        let segment_from = if self.instr.segment == Operand::None {
-            Operand::DS
+        let segment_from = if self.instr.segment == Segment::None {
+            Segment::DS
         } else {
             self.instr.segment
         };
-        let segment_to = Operand::ES;
+        let segment_to = Segment::ES;
     
         let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         bus.write_length(self, self.instr.data_length, segment_to, offset_to, val);
@@ -306,12 +306,12 @@ impl CPU {
         let offset_from = self.si;
         let offset_to = self.di;
     
-        let segment_from = if self.instr.segment == Operand::None {
-            Operand::DS
+        let segment_from = if self.instr.segment == Segment::None {
+            Segment::DS
         } else {
             self.instr.segment
         };
-        let segment_to = Operand::ES;
+        let segment_to = Segment::ES;
     
         let val1 = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
@@ -321,7 +321,7 @@ impl CPU {
     
     pub fn scas(&mut self, bus: &mut Bus) {
         let offset_to = self.di;
-        let segment_to = Operand::ES;
+        let segment_to = Segment::ES;
     
         let val1 = match self.instr.data_length {
             Length::Byte => self.ax.low as u16,
@@ -335,8 +335,8 @@ impl CPU {
     
     pub fn lods(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
-        let segment_from = if self.instr.segment == Operand::None {
-            Operand::DS
+        let segment_from = if self.instr.segment == Segment::None {
+            Segment::DS
         } else {
             self.instr.segment
         };
@@ -352,7 +352,7 @@ impl CPU {
     
     pub fn stos(&mut self, bus: &mut Bus) {
         let offset_to = self.di;
-        let segment_to = Operand::ES;
+        let segment_to = Segment::ES;
     
         let val = match self.instr.data_length {
             Length::Byte => self.ax.low as u16,

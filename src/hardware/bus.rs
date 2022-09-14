@@ -1,5 +1,5 @@
 use crate::hardware::cpu_8088::cpu_utils::*;
-use crate::hardware::cpu_8088::instr_utils::{Length, Operand};
+use crate::hardware::cpu_8088::instr_utils::Length;
 use crate::hardware::cpu_8088::CPU;
 
 use super::cpu_8088::instr_utils::Segment;

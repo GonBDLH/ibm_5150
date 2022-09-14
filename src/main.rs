@@ -3,7 +3,7 @@ mod util;
 
 // use std::{sync::{Arc, mpsc::{Sender, Receiver, self}, RwLock}, thread::JoinHandle};
 
-use std::time::Duration;
+// use std::time::Duration;
 
 use ggez::conf::WindowMode;
 // use eframe::{run_native, NativeOptions, App};
@@ -100,7 +100,7 @@ const DESIRED_FPS: f32 = 50.;
 use ggez::{GameError, GameResult};
 use ggez::event::{self, EventHandler};
 use ggez::graphics::{self, Color};
-use ggez::timer::{check_update_time, remaining_update_time, sleep};
+use ggez::timer::check_update_time;
 
 struct IbmPc {
     sys: System,

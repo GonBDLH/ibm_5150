@@ -69,7 +69,9 @@ impl TIM8253 {
 
                     if dif.1 {
                         self.channels[channel].current_count = 0;
-                        pic.irq(IRQs::Irq0);
+                        if channel == 0 {
+                            pic.irq(IRQs::Irq0);
+                        }
                     }
                 },
                 Mode::Mode1 => {},

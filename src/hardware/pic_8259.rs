@@ -28,14 +28,14 @@ pub enum IRQs {
 
 pub fn decode_irq_u8(irq: u8) -> u8 {
     match irq {
-        0b00000001 => 0,
-        0b00000010 => 1,
-        0b00000100 => 2,
-        0b00001000 => 3,
-        0b00010000 => 4,
-        0b00100000 => 5,
-        0b01000000 => 6,
-        0b10000000 => 7,
+        0b00000001 => 0x8,
+        0b00000010 => 0x9,
+        0b00000100 => 0xA,
+        0b00001000 => 0xB,
+        0b00010000 => 0xC,
+        0b00100000 => 0xD,
+        0b01000000 => 0xE,
+        0b10000000 => 0xF,
 
         _ => unreachable!(),
     }
@@ -76,10 +76,12 @@ impl PIC8259 {
     }
 
     fn priority_resolver(&mut self) -> (bool, u8) {
-        for i in 0..7 {
+        for i in 0..8 {
             let int = (self.max_prio as u8).rotate_left(i);
 
-            if int & self.irr & self.imr != 0 {
+            let _a = 0;
+
+            if int & self.irr & !self.imr != 0 {
                 self.isr |= int;
                 self.irr ^= int;
 
@@ -103,31 +105,37 @@ impl Peripheral for PIC8259 {
     // Copiado de: https://github.com/NeatMonster/Intel8086/blob/master/src/fr/neatmonster/ibmpc/Intel8259.java
     //       y de: https://github.com/Lichtso/DOS-Emulator/blob/master/src/pic.rs
     fn port_out(&mut self, val: u16, port: u16) {
+        // if port == 0x20 {
+        //     if val & 0x10 == 1 {                                    // ICW1
+        //         self.imr = 0;
+        //         self.icw[self.icw_step] = val as u8;
+        //         self.icw_step += 1;
+        //     } else {
+        //         if val & 0x20 == 1 {                                // Non Specific EOI
+        //             if self.handled_int & 0b00000111 > 0 {
+        //                 let handled = self.handled_int & 0b0000111;
+        //                 self.isr ^= 1 << handled;
+        //                 self.get_next();
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     if self.icw_step == 1 {                                 // ICW2
+        //         self.icw[self.icw_step] = val as u8;
+        //         self.icw_step += 1;
+        //         if self.icw[0] & 0x02 == 1 {self.icw_step += 1};
+        //     } else if self.icw_step < 4 {                           // ICW3-4
+        //         self.icw[self.icw_step] = val as u8;
+        //         self.icw_step += 1;
+        //     } else {
+        //         self.imr = val as u8;                               // OCW1
+        //     }
+        // }
+
         if port == 0x20 {
-            if val & 0x10 == 1 {                                    // ICW1
-                self.imr = 0;
-                self.icw[self.icw_step] = val as u8;
-                self.icw_step += 1;
-            } else {
-                if val & 0x20 == 1 {                                // Non Specific EOI
-                    if self.handled_int & 0b00000111 > 0 {
-                        let handled = self.handled_int & 0b0000111;
-                        self.isr ^= 1 << handled;
-                        self.get_next();
-                    }
-                }
-            }
+            self.imr = 0xFF; // TODO CREO
         } else {
-            if self.icw_step == 1 {                                 // ICW2
-                self.icw[self.icw_step] = val as u8;
-                self.icw_step += 1;
-                if self.icw[0] & 0x02 == 1 {self.icw_step += 1};
-            } else if self.icw_step < 4 {                           // ICW3-4
-                self.icw[self.icw_step] = val as u8;
-                self.icw_step += 1;
-            } else {
-                self.imr = val as u8;                               // OCW1
-            }
+            self.imr = val as u8;
         }
     }
 }

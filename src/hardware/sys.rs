@@ -77,8 +77,8 @@ impl System {
 
         self.cpu.handle_interrupts(&mut self.bus);
 
-        writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + ip as usize, self.cpu.instr.opcode).unwrap();
-        self.file.flush().unwrap();
+        // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + ip as usize, self.cpu.instr.opcode).unwrap();
+        // self.file.flush().unwrap();
 
         if self.cpu.halted { 
             let _a = 0;

@@ -136,7 +136,7 @@ impl EventHandler for IbmPc {
     }
 }
 
-fn _main() -> GameResult {
+fn main() -> GameResult {
     let mut app = IbmPc::new();
     let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo");
  
@@ -157,7 +157,7 @@ fn _main() -> GameResult {
     event::run(ctx, event_loop, app);
 }
 
-fn main() {
+fn _main() {
     let mut app = IbmPc::new();
 
     app.sys.rst();

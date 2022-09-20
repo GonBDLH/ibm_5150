@@ -14,7 +14,7 @@ pub fn debug(cpu: &mut CPU) {
         0xFE3C0 => println!("Test 10"),
         0xFE3F8 => println!("Test 11"),
         0xFE4C7 => println!("Test 12"),
-        0xFE51E => println!("Test 13"),
+        0xFE521 => println!("Test 13"),
         0xFE55C => println!("Test 14"),
 
         0xFE6CA => println!("ERROR"),

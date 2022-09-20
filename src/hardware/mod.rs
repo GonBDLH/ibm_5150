@@ -5,3 +5,4 @@ pub mod peripheral;
 pub mod pic_8259;
 pub mod timer_8253;
 pub mod dma_8237;
+pub mod ppi_8255;

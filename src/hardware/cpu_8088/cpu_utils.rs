@@ -50,43 +50,110 @@ pub fn get_lsb(val: u16, length: Length) -> bool {
     }
 }
 
-// Dir -> true: L
-//        false: R
-pub fn rotate(val: u16, mut count: u32, length: Length, dir: bool) -> (u16, bool) {
-    let mut last_bit = false;
-    if dir {
-        let mut res = val;
-        while count > 0 {
-            let msb = get_msb(val, length);
-            (res, last_bit) = res.overflowing_shl(1);
-            res |= msb as u16;
-            count -= 1;
-        }
-        (res, last_bit)
-    } else {
-        match length {
-            Length::Byte => {
-                let mut res = val as u8;
-                while count > 0 {
-                    let lsb = (get_lsb(val, length) as u8) << 7;
-                    (res, last_bit) = res.overflowing_shr(1);
-                    res |= lsb;
-                    count -= 1;
-                }
-                (res as u16, last_bit)
-            },
-            Length::Word => {
-                let mut res = val;
-                while count > 0 {
-                    let lsb = (get_lsb(val, length) as u16) << 15;
-                    (res, last_bit) = res.overflowing_shr(1);
-                    res |= lsb;
-                    count -= 1;
-                }
-                (res, last_bit)
-            },
-            _ => unreachable!(),
-        }
+pub fn rotate_left(val: u16, count: u32, len: Length) -> (u16, bool) {
+    match len {
+        Length::Byte => {
+            let res = (val as u8).rotate_left(count);
+            let last = (0x01 & res) != 0;
+            (res as u16, last)
+        },
+        Length::Word => {
+            let res = val.rotate_left(count);
+            let last = (0x0001 & res) != 0;
+            (res, last)
+        },
+        _ => unreachable!()
     }
 }
 
+pub fn rotate_rigth(val: u16, count: u32, len: Length) -> (u16, bool) {
+    match len {
+        Length::Byte => {
+            let res = (val as u8).rotate_right(count);
+            let last = (0x80 & res) != 0;
+            (res as u16, last)
+        },
+        Length::Word => {
+            let res = val.rotate_right(count);
+            let last = (0x8000 & res) != 0;
+            (res, last)
+        },
+        _ => unreachable!()
+    }
+}
+
+pub fn rotate_left_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -> u16 {
+    match len {
+        Length::Byte => {
+            let mut res = val as u8;
+
+            while count > 0 {
+                let to_carry = (0x80 & res) != 0;
+                let from_carry = cpu.flags.c;
+
+                cpu.flags.c = to_carry;
+                res <<= 1;
+                res |= from_carry as u8;
+
+                count -= 1;
+            }
+
+            res as u16
+        },
+        Length::Word => {
+            let mut res = val;
+
+            while count > 0 {
+                let to_carry = (0x8000 & res) != 0;
+                let from_carry = cpu.flags.c;
+
+                cpu.flags.c = to_carry;
+                res <<= 1;
+                res |= from_carry as u16;
+
+                count -= 1;
+            }
+
+            res
+        },
+        _ => unreachable!()
+    }
+}
+
+pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -> u16 {
+    match len {
+        Length::Byte => {
+            let mut res = val as u8;
+
+            while count > 0 {
+                let to_carry = (0x01 & res) != 0;
+                let from_carry = cpu.flags.c;
+
+                cpu.flags.c = to_carry;
+                res >>= 1;
+                res |= (from_carry as u8) << 7;
+
+                count -= 1;
+            }
+
+            res as u16
+        },
+        Length::Word => {
+            let mut res = val;
+
+            while count > 0 {
+                let to_carry = (0x0001 & res) != 0;
+                let from_carry = cpu.flags.c;
+
+                cpu.flags.c = to_carry;
+                res >>= 1;
+                res |= (from_carry as u16) << 15;
+
+                count -= 1;
+            }
+
+            res
+        },
+        _ => unreachable!()
+    }
+}

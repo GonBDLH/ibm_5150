@@ -353,7 +353,7 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate(val, count, self.instr.data_length, true);
+                let res = rotate_left(val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
@@ -363,17 +363,29 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate(val, count, self.instr.data_length, false);
+                let res = rotate_rigth(val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
                 self.flags.set_rot_flags(res.1, count, res.0, val, self.instr.data_length);
             },
             Opcode::RCL => {
-                // TODO
+                let val = self.get_val(bus, self.instr.operand1);
+                let count = self.get_val(bus, self.instr.operand2) as u32;
+
+                let res = rotate_left_carry(self, val, count, self.instr.data_length);
+
+                self.set_val(bus, self.instr.operand1, res);
+                self.flags.set_rc_flags(count, res, val, self.instr.data_length);
             },
             Opcode::RCR => {
-                // TODO
+                let val = self.get_val(bus, self.instr.operand1);
+                let count = self.get_val(bus, self.instr.operand2) as u32;
+
+                let res = rotate_right_carry(self, val, count, self.instr.data_length);
+
+                self.set_val(bus, self.instr.operand1, res);
+                self.flags.set_rc_flags(count, res, val, self.instr.data_length);
             },
             Opcode::AND => {
                 let val1 = self.get_val(bus, self.instr.operand1);
@@ -526,12 +538,10 @@ impl CPU {
                 self.cycles += 2; // jump() ya suma lo demas
             },
             Opcode::INT => {
-                // self.interrupt(bus, self.sw_int_type);
                 self.sw_int = true;
             },
             Opcode::INTO => {
                 if self.flags.o {
-                    // self.interrupt(bus, self.sw_int_type);
                     self.sw_int = true;
                     self.cycles += 73;
                 } else {

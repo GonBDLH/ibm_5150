@@ -343,6 +343,12 @@ impl Flags {
         }
     }
 
+    pub fn set_rc_flags(&mut self, count: u32, res: u16, val: u16, length: Length) {
+        if count == 1 {
+            self.o = get_msb(val, length) != get_msb(res, length);
+        }
+    }
+
     pub fn set_logic_flags(&mut self, length: Length, res: u16) {
         self.o = false;
         self.c = false;

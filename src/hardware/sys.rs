@@ -41,7 +41,7 @@ impl System {
     }
 }
 
-use crate::DESIRED_FPS;
+use crate::{DESIRED_FPS, util::debug_bios::debug};
 
 impl System {
     pub fn rst(&mut self) {
@@ -60,11 +60,12 @@ impl System {
             self.step(&mut cycles_ran);
         }
 
-        //self.file.flush().unwrap();
+        // self.file.flush().unwrap();
         // display(self);
     }
 
     pub fn step(self: &mut Self, cycles_ran: &mut u32) {
+        debug(&mut self.cpu);
         if self.cpu.ip == 0xf980 {
             let _a = 0;
         }
@@ -78,14 +79,16 @@ impl System {
         self.cpu.handle_interrupts(&mut self.bus);
 
         // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + ip as usize, self.cpu.instr.opcode).unwrap();
-        // self.file.flush().unwrap();
+        //self.file.flush().unwrap();
 
         if self.cpu.halted { 
             let _a = 0;
+            // self.file.flush().unwrap();
             todo!("Halted") 
         }
 
         if (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) >= 0xF6000 && (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) < 0xFE000 {
+            // self.file.flush().unwrap();
             panic!("JUJEUEJUEJ")
         }
     }

@@ -1,5 +1,8 @@
-use super::instr_utils::*;
+use super::{instr_utils::*, CPU};
 
+pub fn get_address(cpu: &mut CPU) -> usize {
+    ((cpu.cs as usize) << 4) + cpu.ip as usize
+}
 
 pub fn sign_extend(value: u8) -> u16 {
     value as i8 as i16 as u16

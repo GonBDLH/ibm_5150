@@ -92,7 +92,7 @@ impl CPU {
 
 impl CPU {
     pub fn fetch(self: &mut Self, bus: &mut Bus) -> u8 {
-        let dir = ((self.cs as usize) << 4) + self.ip as usize;
+        let dir = get_address(self);
         self.ip = (self.ip as u32 + 1) as u16;
         bus.read_dir(dir)
     }

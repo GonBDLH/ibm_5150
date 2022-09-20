@@ -123,7 +123,7 @@ impl EventHandler for IbmPc {
             veces += 1;
         }
 
-        println!("{veces} - {}", ggez::timer::fps(ctx));
+        // println!("{veces} - {}", ggez::timer::fps(ctx));
 
         Ok(())
     }

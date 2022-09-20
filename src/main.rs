@@ -1,13 +1,11 @@
-mod hardware;
-mod util;
-
+// pub mod hardware;
+// mod util;
 // use std::{sync::{Arc, mpsc::{Sender, Receiver, self}, RwLock}, thread::JoinHandle};
 
 // use std::time::Duration;
 
-use ggez::conf::WindowMode;
 // use eframe::{run_native, NativeOptions, App};
-use hardware::sys::System;
+// use crate::hardware::sys::System;
 // use util::debug::display;
 
 // struct IbmPc {
@@ -94,47 +92,7 @@ use hardware::sys::System;
 
 //     run_native("IBM PC", NativeOptions::default(), Box::new(|_cc| Box::new(app)));
 // }
-
-const DESIRED_FPS: f32 = 50.;
-
-use ggez::{GameError, GameResult};
-use ggez::event::{self, EventHandler};
-use ggez::graphics::{self, Color};
-use ggez::timer::check_update_time;
-
-struct IbmPc {
-    sys: System,
-}
-
-impl IbmPc {
-    pub fn new() -> Self {
-        IbmPc {
-            sys: System::new()
-        }
-    }
-}
-
-impl EventHandler for IbmPc {
-    fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        let mut veces = 0;
-
-        while check_update_time(ctx, DESIRED_FPS as u32) {
-            self.sys.update();
-            veces += 1;
-        }
-
-        // println!("{veces} - {}", ggez::timer::fps(ctx));
-
-        Ok(())
-    }
-
-    fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        graphics::clear(ctx, Color::WHITE);
-        // TODO
-
-        graphics::present(ctx)
-    }
-}
+use ibm_5150::*; 
 
 fn main() -> GameResult {
     let mut app = IbmPc::new();

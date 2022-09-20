@@ -1,5 +1,5 @@
 // use std::fs::File;
-use std::{fs::File};
+use std::fs::File;
 #[cfg(not(debug_assertions))]
 use std::time::{Instant, Duration};
 // use std::thread::sleep;

@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fmt::Display;
 
 use super::CPU;
@@ -398,6 +399,18 @@ pub enum OperandType {
 }
 
 impl Display for OperandType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperandType::Register(r) => write!(f, "{}", r),
+            OperandType::SegmentRegister(r) => write!(f, "{}", r),
+            OperandType::Memory(r) => write!(f, "[{}]", r),
+            OperandType::Immediate(r) => write!(f, "{:X}", r),
+            OperandType::None => write!(f, "None"),
+        }
+    }
+}
+
+impl Debug for OperandType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OperandType::Register(r) => write!(f, "{}", r),

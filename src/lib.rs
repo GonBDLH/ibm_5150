@@ -1,6 +1,7 @@
 pub mod hardware;
 pub mod util;
 
+use ggez::graphics::{Image, Drawable, DrawParam, Rect};
 pub use hardware::sys::System;
 
 pub use ggez::conf::WindowMode;
@@ -21,12 +22,6 @@ impl IbmPc {
             sys: System::new()
         }
     }
-
-    pub fn run_test(&mut self) {
-        loop {
-            self.sys.step(&mut 0u32);
-        }
-    }
 }
 
 impl EventHandler for IbmPc {
@@ -44,8 +39,11 @@ impl EventHandler for IbmPc {
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        graphics::clear(ctx, Color::WHITE);
+        // graphics::clear(ctx, Color::RED);
         // TODO
+        let img = self.sys.bus.mda.create_frame(ctx);
+
+        img.draw(ctx, DrawParam::default())?;
 
         graphics::present(ctx)
     }

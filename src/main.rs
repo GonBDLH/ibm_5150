@@ -94,20 +94,18 @@
 // }
 use ibm_5150::*; 
 
-fn main() -> GameResult {
+fn _main() -> GameResult {
     let mut app = IbmPc::new();
-    let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo");
- 
-    let win_mode = WindowMode {
-        width: 720.,
-        height: 350.,
-        resizable: false,
-        ..Default::default()
-    };
- 
-    let (mut ctx, event_loop) = cb.build()?;
+    let win_mode = WindowMode::default()
+                            .dimensions(720., 350.)
+                            .resize_on_scale_factor_change(true);
 
-    graphics::set_mode(&mut ctx, win_mode)?;
+    let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo").window_mode(win_mode);
+ 
+
+    let (ctx, event_loop) = cb.build()?;
+
+    //graphics::set_mode(&mut ctx, win_mode)?;
 
     app.sys.rst();
     app.sys.load_bios();
@@ -115,7 +113,7 @@ fn main() -> GameResult {
     event::run(ctx, event_loop, app);
 }
 
-fn _main() {
+fn main() {
     let mut app = IbmPc::new();
 
     app.sys.rst();

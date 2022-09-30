@@ -4,6 +4,7 @@ use crate::hardware::cpu_8088::CPU;
 
 use super::cpu_8088::instr_utils::Segment;
 use super::dma_8237::DMA8237;
+use super::ibm_mda::IbmMDA;
 use super::peripheral::Peripheral;
 use super::pic_8259::PIC8259;
 use super::ppi_8255::PPI8255;
@@ -17,6 +18,7 @@ pub struct Bus {
     pub pit: TIM8253,
     pub dma: DMA8237,
     pub ppi: PPI8255,
+    pub mda: IbmMDA,
 
     // Interrupciones
     pub intr: bool,
@@ -33,6 +35,7 @@ impl Bus {
             pit: TIM8253::new(),
             dma: DMA8237::new(),
             ppi: PPI8255::new(),
+            mda: IbmMDA::new(),
 
             intr: false,
             intr_type: 0,

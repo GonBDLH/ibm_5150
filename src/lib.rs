@@ -26,11 +26,11 @@ impl IbmPc {
 
 impl EventHandler for IbmPc {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        let mut veces = 0;
+        // let mut veces = 0;
 
         while check_update_time(ctx, DESIRED_FPS as u32) {
             self.sys.update();
-            veces += 1;
+            // veces += 1;
         }
 
         // println!("{veces} - {}", ggez::timer::fps(ctx));

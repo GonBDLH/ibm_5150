@@ -93,34 +93,6 @@ impl System {
         }
     }
 
-    // pub fn run(&mut self) {
-    //     self.running = self.rx.lock().unwrap().recv().unwrap();
-
-    //     while self.running {
-    //         #[cfg(not(debug_assertions))]
-    //         let start = Instant::now();
-
-    //         self.update();
-
-    //          self.running = match self.rx.lock().unwrap().try_recv() {
-    //              Ok(v) => v,
-    //              Err(_v) => self.running,
-    //          };
-
-    //         if self.cpu.halted {
-    //             self.running = false;
-    //         };
-
-    //         #[cfg(not(debug_assertions))] {
-    //             let end = Instant::now();
-
-    //             let t = end.duration_since(start).as_millis();
-    //             let millis = ((1. / FPS) * 1000.) as u128;
-    //             std::thread::sleep(Duration::from_millis(millis.saturating_sub(t) as u64));
-    //         }
-    //     }
-    // }
-
     pub fn load_bios(&mut self) {
         unsafe {
             for (idx, element) in std::fs::read("roms/basic.bin").unwrap().into_iter().enumerate() {
@@ -131,5 +103,8 @@ impl System {
                 std::ptr::write(&mut self.bus.memory[0xFE000 + idx], element);
             }
         }
+    }
+
+    fn update_mda_img_buffer(&mut self) {
     }
 }

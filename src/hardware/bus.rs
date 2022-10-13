@@ -4,7 +4,7 @@ use crate::hardware::cpu_8088::CPU;
 
 use super::cpu_8088::instr_utils::Segment;
 use super::dma_8237::DMA8237;
-use super::ibm_mda::IbmMDA;
+use super::display::ibm_mda::IbmMDA;
 use super::peripheral::Peripheral;
 use super::pic_8259::PIC8259;
 use super::ppi_8255::PPI8255;

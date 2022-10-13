@@ -1,7 +1,7 @@
 pub mod hardware;
 pub mod util;
 
-use ggez::graphics::{Image, Drawable, DrawParam, Rect};
+use ggez::graphics::{Drawable, DrawParam};
 pub use hardware::sys::System;
 
 pub use ggez::conf::WindowMode;

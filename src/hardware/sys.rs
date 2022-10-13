@@ -70,7 +70,7 @@ impl System {
             let _a = 0;
         }
 
-        let (cycles, ip) = self.cpu.fetch_decode_execute(&mut self.bus);
+        let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
         *cycles_ran += cycles;
 
         // RESTO DE UPDATES (TIMERS, ETC)
@@ -78,7 +78,7 @@ impl System {
 
         self.cpu.handle_interrupts(&mut self.bus);
 
-        // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + ip as usize, self.cpu.instr.opcode).unwrap();
+        // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + _ip as usize, self.cpu.instr.opcode).unwrap();
         //self.file.flush().unwrap();
 
         if self.cpu.halted { 

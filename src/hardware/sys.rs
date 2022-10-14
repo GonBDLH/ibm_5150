@@ -66,8 +66,8 @@ impl System {
 
     pub fn step(self: &mut Self, cycles_ran: &mut u32) {
         debug(&mut self.cpu);
-        if self.cpu.ip == 0xe359 {
-            let _a = 0;
+        if self.cpu.ip == 0xe3DA {
+            println!("llego")
         }
 
         let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);

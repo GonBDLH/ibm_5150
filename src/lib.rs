@@ -2,6 +2,7 @@ pub mod hardware;
 pub mod util;
 
 use ggez::graphics::{Drawable, DrawParam};
+use hardware::display::DisplayAdapter;
 pub use hardware::sys::System;
 
 pub use ggez::conf::WindowMode;
@@ -33,7 +34,7 @@ impl EventHandler for IbmPc {
             // veces += 1;
         }
 
-        // println!("{veces} - {}", ggez::timer::fps(ctx));
+        // println!("{}", ggez::timer::fps(ctx));
 
         Ok(())
     }
@@ -41,7 +42,7 @@ impl EventHandler for IbmPc {
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
         // graphics::clear(ctx, Color::RED);
         // TODO
-        let img = self.sys.bus.mda.create_frame(ctx);
+        let img = self.sys.bus.mda.create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB0FA0]);
 
         img.draw(ctx, DrawParam::default())?;
 

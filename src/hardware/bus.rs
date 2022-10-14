@@ -56,6 +56,7 @@ impl Bus {
             0x80..=0x83 => {/* TODO Reg pagina DMA */ 0},
             0xA0..=0xAF => {/* TODO NMI */ 0},
 
+            0x3B0..=0x3BF => self.mda.port_in(port),
             _ => {0},
         }
     }

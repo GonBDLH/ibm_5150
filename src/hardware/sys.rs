@@ -66,7 +66,7 @@ impl System {
 
     pub fn step(self: &mut Self, cycles_ran: &mut u32) {
         debug(&mut self.cpu);
-        if self.cpu.ip == 0xe3DA {
+        if self.cpu.ip == 0xe538 {
             println!("llego")
         }
 
@@ -103,8 +103,5 @@ impl System {
                 std::ptr::write(&mut self.bus.memory[0xFE000 + idx], element);
             }
         }
-    }
-
-    fn update_mda_img_buffer(&mut self) {
     }
 }

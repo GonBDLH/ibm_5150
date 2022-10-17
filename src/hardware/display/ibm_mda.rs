@@ -14,8 +14,13 @@ pub struct IbmMDA {
     pub img_buffer: Vec<u8>,
     pub font: Vec<u8>,
 
-    crt_op1: u8,
-    crt_sp: u8,
+    crtc_op1: u8,
+    crtc_sp: u8,
+
+    crtc_adddr_reg: usize,
+    crtc_registers: [u8; 18],
+
+    retrace: u8,
 }
 
 impl IbmMDA {
@@ -30,8 +35,13 @@ impl IbmMDA {
             img_buffer: a,
             font: buf,
 
-            crt_op1: 0b00001001,
-            crt_sp: 0b00001000,
+            crtc_op1: 0b00001001,
+            crtc_sp: 0b11111110,
+
+            crtc_adddr_reg: 0,
+            crtc_registers: [0x00; 18],
+
+            retrace: 0,
         }
     }
 }
@@ -75,10 +85,6 @@ impl DisplayAdapter for IbmMDA {
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = fg_colors.1;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = fg_colors.2;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = fg_colors.3;
-                    // self.img_buffer[((height + i) * 720 + (width + j)) * 4 + 0] = fg_colors.0;
-                    // self.img_buffer[((height + i) * 720 + (width + j)) * 4 + 1] = fg_colors.1;
-                    // self.img_buffer[((height + i) * 720 + (width + j)) * 4 + 2] = fg_colors.2;
-                    // self.img_buffer[((height + i) * 720 + (width + j)) * 4 + 3] = fg_colors.3;
                 } else {
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 0] = bg_colors.0;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = bg_colors.1;
@@ -94,8 +100,20 @@ impl DisplayAdapter for IbmMDA {
 impl Peripheral for IbmMDA {
     fn port_in(&mut self, port: u16) -> u16 {
         match port {
-            0x3B8 => self.crt_op1 as u16,
-            0x3BA => self.crt_sp as u16,
+            0x3B8 => self.crtc_op1 as u16,
+            // 0x3BA => self.crtc_sp as u16,
+            0x3BA => {
+                self.retrace = (self.retrace + 1) % 4;
+                match self.retrace {
+                    0 => 8,
+                    1 => 0,
+                    2 => 1,
+                    3 => 0,
+                    _ => unreachable!()
+                }
+            }
+
+            0x3B1 | 0x3B3 | 0x3B5 | 0x3B7 =>  self.crtc_registers[self.crtc_adddr_reg] as u16,
 
             _ => 0 //TODO
         }
@@ -103,7 +121,9 @@ impl Peripheral for IbmMDA {
 
     fn port_out(&mut self, val: u16, port: u16) {
         match port {
-            0x3B8 => self.crt_op1 = val as u8,
+            0x3B8 => self.crtc_op1 = val as u8,
+            0x3B0 | 0x3B2 | 0x3B4 | 0x3B6 =>  self.crtc_adddr_reg = (val as u8) as usize,
+            0x3B1 | 0x3B3 | 0x3B5 | 0x3B7 =>  self.crtc_registers[self.crtc_adddr_reg] = val as u8,
             _ => {}   
         }
     }

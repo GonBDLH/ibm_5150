@@ -79,7 +79,6 @@ impl DisplayAdapter for IbmMDA {
     
                 let bg_colors = character.background_color.to_rgba();
                 let fg_colors = character.foreground_color.to_rgba();
-                // TODO Cambiar prints por correspondiente codigo para poner pixeles en la imagen
                 if pixel > 0 {
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 0] = fg_colors.0;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = fg_colors.1;
@@ -89,7 +88,7 @@ impl DisplayAdapter for IbmMDA {
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 0] = bg_colors.0;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = bg_colors.1;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = bg_colors.2;
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = bg_colors.3;
+                    self.ig_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = bg_colors.3;
                 };
                 
             }

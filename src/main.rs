@@ -1,93 +1,31 @@
-mod hardware;
-mod util;
+use ibm_5150::*; 
 
-use std::{sync::{Arc, mpsc::{Sender, Receiver, self}, RwLock}, thread::JoinHandle};
+fn _main() -> GameResult {
+    let mut app = IbmPc::new();
+    let win_mode = WindowMode::default()
+                            .dimensions(720., 350.)
+                            .resize_on_scale_factor_change(true);
 
-use eframe::{run_native, NativeOptions, App};
-use hardware::sys::System;
-use util::debug::display;
+    let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo").window_mode(win_mode);
+ 
 
-struct IbmPc {
-    system: Arc<RwLock<System>>,
+    let (ctx, event_loop) = cb.build()?;
 
-    running: bool,
-    run_handle: Option<JoinHandle<()>>,
-    tx: Sender<bool>,
-}
+    //graphics::set_mode(&mut ctx, win_mode)?;
 
-impl IbmPc {
-    pub fn new(system: Arc<RwLock<System>>, tx: Sender<bool>) -> Self {
-        IbmPc { 
-            system,
+    app.sys.rst();
+    app.sys.load_bios();
 
-            running: false,
-            run_handle: None,
-            tx,
-        }
-    }
-}
-
-impl App for IbmPc {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(v) = &self.run_handle {
-                self.running = !v.is_finished();
-            }
-
-            if ui.button("Step").clicked() {
-                if !self.running {
-                    self.system.write().unwrap().step();
-                }
-            }
-
-            let ip = match self.system.try_read() {
-                Ok(v) => v.cpu.ip,
-                Err(_) => 0,
-            };
-
-            let halted = match self.system.try_read() {
-                Ok(v) => v.cpu.halted,
-                Err(_) => false,
-            };
-
-            ui.label(format!("{}", ip));
-            ui.label(format!("{}", halted));
-
-            if ui.button("Run").clicked() {
-                let sys_thread = self.system.clone();
-
-                self.tx.send(!self.running).unwrap();
-                self.running = !self.running;
-
-                if self.running {
-                    self.run_handle = Some(std::thread::spawn(move || {
-                        sys_thread.write().unwrap().run();
-                    }));
-                }
-            }
-
-            ui.label(format!("{}", self.running));
-
-            if ui.button("Reset").clicked() {
-                if !self.running {
-                    self.system.write().unwrap().rst();
-                    self.system.write().unwrap().load_bios();
-                }
-            }
-        });
-
-        // display(&self.system.read().unwrap());
-    }
+    event::run(ctx, event_loop, app);
 }
 
 fn main() {
-    let (tx, rx): (Sender<bool>, Receiver<bool>) = mpsc::channel();
+    let mut app = IbmPc::new();
 
-    let sys = Arc::new(RwLock::new(System::new(rx)));
+    app.sys.rst();
+    app.sys.load_bios();
 
-    sys.write().unwrap().load_bios();
-
-    let app = IbmPc::new(sys.clone(), tx);
-
-    run_native("IBM PC", NativeOptions::default(), Box::new(|_cc| Box::new(app)));
+    loop {
+        app.sys.update();
+    }
 }

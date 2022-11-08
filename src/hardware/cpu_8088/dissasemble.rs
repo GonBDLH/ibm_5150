@@ -3,6 +3,7 @@ use crate::hardware::bus::Bus;
 use super::CPU;
 use super::instr_utils::Instruction;
 
+#[allow(dead_code)]
 pub fn dissasemble_one(bus_: &Bus, cpu_: &CPU) -> Instruction {
     let mut cpu = CPU::new();
     cpu.ip = cpu_.ip;

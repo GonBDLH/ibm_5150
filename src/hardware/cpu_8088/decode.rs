@@ -800,10 +800,12 @@ impl CPU {
             },
 
             0x26 | 0x2E | 0x36 | 0x3E => {
-                self.instr.segment = if let OperandType::SegmentRegister(operand) = decode_segment(op, 4) {
-                    operand
-                } else {
-                    panic!()
+                self.instr.segment = match op {
+                    0x26 => Segment::ES,
+                    0x2E => Segment::CS,
+                    0x36 => Segment::SS,
+                    0x3E => Segment::DS,
+                    _ => unreachable!(),
                 };
                 
                 self.cycles += 2;

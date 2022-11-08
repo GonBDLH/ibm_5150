@@ -1,10 +1,13 @@
 use crate::hardware::cpu_8088::cpu_utils::*;
-use crate::hardware::cpu_8088::instr_utils::{Length, Operand};
+use crate::hardware::cpu_8088::instr_utils::Length;
 use crate::hardware::cpu_8088::CPU;
 
+use super::cpu_8088::instr_utils::Segment;
 use super::dma_8237::DMA8237;
+use super::display::ibm_mda::IbmMDA;
 use super::peripheral::Peripheral;
 use super::pic_8259::PIC8259;
+use super::ppi_8255::PPI8255;
 use super::timer_8253::TIM8253;
 
 #[derive(Clone)]
@@ -14,6 +17,8 @@ pub struct Bus {
     pub pic: PIC8259,
     pub pit: TIM8253,
     pub dma: DMA8237,
+    pub ppi: PPI8255,
+    pub mda: IbmMDA,
 
     // Interrupciones
     pub intr: bool,
@@ -29,6 +34,8 @@ impl Bus {
             pic: PIC8259::new(),
             pit: TIM8253::new(),
             dma: DMA8237::new(),
+            ppi: PPI8255::new(),
+            mda: IbmMDA::new(),
 
             intr: false,
             intr_type: 0,
@@ -45,10 +52,11 @@ impl Bus {
             0x00..=0x0F => self.dma.port_in(port),
             0x20..=0x21 => self.pic.port_in(port),
             0x40..=0x43 => self.pit.port_in(port),
-            0x60..=0x63 => {/* TODO 8255 */ 0},
+            0x60..=0x63 => self.ppi.port_in(port),
             0x80..=0x83 => {/* TODO Reg pagina DMA */ 0},
             0xA0..=0xAF => {/* TODO NMI */ 0},
 
+            0x3B0..=0x3BF => self.mda.port_in(port),
             _ => {0},
         }
     }
@@ -58,7 +66,7 @@ impl Bus {
             0x00..=0x0F => self.dma.port_out(val, port),
             0x20..=0x21 => self.pic.port_out(val, port),
             0x40..=0x43 => self.pit.port_out(val, port),
-            0x60..=0x63 => {/* TODO 8255 */ },
+            0x60..=0x63 => self.ppi.port_out(val, port),
             0x80..=0x83 => {/* TODO Reg pagina DMA */ },
             0xA0..=0xAF => {/* TODO NMI */ },
 
@@ -86,7 +94,7 @@ impl Bus {
         self.write_8(segment, offset.wrapping_add(1), (val >> 8) as u8);
     }
 
-    pub fn write_length(&mut self, cpu: &mut CPU, length: Length, segment: Operand, offset: u16, val: u16) {
+    pub fn write_length(&mut self, cpu: &mut CPU, length: Length, segment: Segment, offset: u16, val: u16) {
         let segment_u16 = cpu.get_segment(segment);
 
         match length {
@@ -100,7 +108,7 @@ impl Bus {
         self.memory[dir % 0x100000]
     }
 
-    pub fn read_length(&self, cpu: &CPU, segment: Operand, offset: u16, length: Length) -> u16 {
+    pub fn read_length(&self, cpu: &CPU, segment: Segment, offset: u16, length: Length) -> u16 {
         let segment_u16 = cpu.get_segment(segment);
 
         match length {

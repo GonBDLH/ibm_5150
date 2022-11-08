@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display};
+
 use super::{peripheral::Peripheral, pic_8259::{PIC8259, IRQs}};
 
 #[derive(Clone, Copy)]
@@ -12,7 +14,7 @@ enum Mode {
 
 #[derive(Clone, Copy)]
 pub struct Channel {
-    pub current_count: u32,
+    pub current_count: DecimalFixed,
     reload_value: u16,          // TODO
     latch_val: u16,
     rl_mode: u8,
@@ -26,7 +28,7 @@ pub struct Channel {
 impl Channel {
     fn new() -> Self {
         Self {
-            current_count: 0,
+            current_count: DecimalFixed(0),
             reload_value: 0,
             latch_val: 0,
             rl_mode: 0,
@@ -53,23 +55,25 @@ impl TIM8253 {
         }
     }
 
-    // TODO TERMINAR FUNCIONAMIENTO
+    // TODO REHACER
     pub fn update(&mut self, cycles: u32, pic: &mut PIC8259) {
         for channel in 0..3 {
             match self.channels[channel].mode {
                 Mode::Mode0 => {
                     let before = self.get_current_count(channel);
-                    self.channels[channel].current_count = (self.channels[channel].current_count & 0x3FFFF).wrapping_sub(cycles);
+                    self.channels[channel].current_count.dec(cycles);
                     let after = self.get_current_count(channel);
 
                     let dif = before.wrapping_sub(1).overflowing_sub(after.wrapping_sub(1));
 
-                    let _a = self.get_current_count(1);
-                    let _b = 0;
+                    // let _a = self.get_current_count(1);
+                    // let _b = 0;
 
                     if dif.1 {
-                        self.channels[channel].current_count = 0;
-                        pic.irq(IRQs::Irq0);
+                        self.channels[channel].current_count = DecimalFixed(0);
+                        if channel == 0 {
+                            pic.irq(IRQs::Irq0);
+                        }
                     }
                 },
                 Mode::Mode1 => {},
@@ -141,24 +145,89 @@ impl Peripheral for TIM8253 {
 }
 
 impl TIM8253 {
+    // fn set_current_count(&mut self, channel: usize, val: u16) {
+    //     let val = match self.channels[channel].rl_mode {
+    //         0b01 => (((self.get_current_count(channel) & 0xFF00) | (val & 0x00FF)) as u32) << 2,
+    //         0b10 => (((self.get_current_count(channel) & 0x00FF) | ((val & 0x00FF) << 8)) as u32) << 2,
+    //         0b11 => if self.channels[channel].toggle {
+    //             self.channels[channel].toggle = false;
+    //             (((self.get_current_count(channel) & 0xFF00) | (val & 0x00FF)) as u32) << 2
+    //         } else {
+    //             self.channels[channel].toggle = true;
+    //             (((self.get_current_count(channel) & 0x00FF) | ((val & 0x00FF) << 8)) as u32) << 2
+    //         },
+    //         _ => unreachable!()
+    //     };
+
+    //     self.channels[channel].current_count = val;
+    // }
+
     fn set_current_count(&mut self, channel: usize, val: u16) {
-        let val = match self.channels[channel].rl_mode {
-            0b01 => (((self.get_current_count(channel) & 0xFF00) | (val & 0x00FF)) as u32) << 2,
-            0b10 => (((self.get_current_count(channel) & 0x00FF) | ((val & 0x00FF) << 8)) as u32) << 2,
+        match self.channels[channel].rl_mode {
+            0b01 => self.channels[channel].current_count.set_low(val as u8), 
+            0b10 => self.channels[channel].current_count.set_high(val as u8),
             0b11 => if self.channels[channel].toggle {
                 self.channels[channel].toggle = false;
-                (((self.get_current_count(channel) & 0xFF00) | (val & 0x00FF)) as u32) << 2
+                self.channels[channel].current_count.set_low(val as u8);
             } else {
                 self.channels[channel].toggle = true;
-                (((self.get_current_count(channel) & 0x00FF) | ((val & 0x00FF) << 8)) as u32) << 2
+                self.channels[channel].current_count.set_high(val as u8);
             },
-            _ => unreachable!()
-        };
-
-        self.channels[channel].current_count = val;
+            _ => unreachable!(),
+        }
     }
 
     fn get_current_count(&self, channel: usize) -> u16 {
-        (self.channels[channel].current_count >> 2) as u16
+        self.channels[channel].current_count.get()
+    }
+}
+
+#[derive(Clone, Copy)]
+// 00000000_00000000.00 -> CLK / 4
+pub struct DecimalFixed(u32);
+
+impl DecimalFixed {
+    fn set(&mut self, new_val: u16) {
+        self.0 = (new_val as u32) << 2;
+    }
+
+    fn set_low(&mut self, val: u8) {
+        let prev = (self.0 >> 2) as u16;
+        let val = val as u16;
+        let prev_high = prev & 0xFF00;
+        let new_val = prev_high | val;
+        self.set(new_val);
+    }
+
+    fn set_high(&mut self, val: u8) {
+        let prev = (self.0 >> 2) as u16;
+        let val = (val as u16) << 8;
+        let prev_low = prev & 0x00FF;
+        let new_val = val | prev_low;
+        self.set(new_val);
+    }
+
+    fn get(&self) -> u16 {
+        (self.0 >> 2) as u16
+    }
+
+    fn dec(&mut self, cycles: u32) {
+        // (self.channels[channel].current_count & 0x3FFFF).wrapping_sub(cycles);self
+        self.0 = self.0.wrapping_sub(cycles);
+        self.0 &= 0x3FFFF;
+    }
+}
+
+impl Debug for DecimalFixed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let val = match self.0 & 3 {
+            0b00 => 0.0,
+            0b01 => 0.25,
+            0b10 => 0.5,
+            0b11 => 0.75,
+            _ => unreachable!(),
+        } + ((self.0 << 2) as u16) as f64;
+
+        write!(f, "{}", val)
     }
 }

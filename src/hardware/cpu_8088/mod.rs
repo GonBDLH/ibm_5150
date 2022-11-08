@@ -6,9 +6,6 @@ mod execute;
 
 pub mod dissasemble;
 
-use std::{io::Write, fs::OpenOptions};
-use std::fs::File;
-
 use super::bus::Bus;
 use instr_utils::*;
 use regs::{GPReg, Flags};
@@ -54,10 +51,6 @@ pub struct CPU {
 
     // Usado en instrucciones de Strings cuando tengan que repetirse
     pub to_decode: bool,
-
-    // Archivo de logs (Igual hay que quitarlo de aqui)
-    #[cfg(debug_assertions)]
-    pub file: File,
 }
 
 impl CPU {
@@ -93,35 +86,30 @@ impl CPU {
             halted: false,
 
             to_decode: true,
-
-            #[cfg(debug_assertions)]
-            file: OpenOptions::new().create(true).write(true).open("logs/logs.txt").unwrap(),
         }
     }
 }
 
 impl CPU {
     pub fn fetch(self: &mut Self, bus: &mut Bus) -> u8 {
-        let dir = ((self.cs as usize) << 4) + self.ip as usize;
+        let dir = get_address(self);
         self.ip = (self.ip as u32 + 1) as u16;
         bus.read_dir(dir)
     }
 
-    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> u32 {
-        #[cfg(debug_assertions)] {
-            writeln!(&mut self.file, "{:04X}", self.ip).unwrap();
-            self.file.flush().unwrap();
-        }
-
+    // DEVUELVO LA IP PARA DEBUGEAR
+    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> (u32, u16) {
         self.cycles = 0;
+        let ip = self.ip;
 
         if self.to_decode {
+            self.instr = Instruction::default();
             let op = self.fetch(bus);
             self.decode(bus, op);
         }
 
         self.execute(bus);
-        self.cycles
+        (self.cycles, ip)
     }
 
     pub fn handle_interrupts(&mut self, bus: &mut Bus) {
@@ -135,7 +123,12 @@ impl CPU {
         } else if self.flags.i && bus.intr {
             self.interrupt(bus, (bus.intr_type * 0x04) as u16);
             bus.intr = false;
-        } 
+        } else {
+            // TODO ESTO IGUAL ESTA MAL
+            bus.intr = false;
+            self.nmi = false;
+            self.sw_int = false;
+        }
     }
 
     pub fn interrupt(&mut self, bus: &mut Bus, ip_location: u16) {
@@ -212,23 +205,22 @@ impl CPU {
         }
     }
 
-    pub fn get_segment(&self, segment: Operand) -> u16 {
+    pub fn get_segment(&self, segment: Segment) -> u16 {
         match segment {
-            Operand::ES => self.es,
-            Operand::CS => self.cs,
-            Operand::SS => self.ss,
-            Operand::DS => self.ds,
-            Operand::None => 0,
-            _ => unreachable!(),
+            Segment::ES => self.es,
+            Segment::CS => self.cs,
+            Segment::SS => self.ss,
+            Segment::DS => self.ds,
+            Segment::None => 0,
         }
     }
 
-    pub fn set_segment(&mut self, segment: Operand, val: u16) {
+    pub fn set_segment(&mut self, segment: Segment, val: u16) {
         match segment {
-            Operand::ES => self.es = val,
-            Operand::CS => self.cs = val,
-            Operand::SS => self.ss = val,
-            Operand::DS => self.ds = val,
+            Segment::ES => self.es = val,
+            Segment::CS => self.cs = val,
+            Segment::SS => self.ss = val,
+            Segment::DS => self.ds = val,
             _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
@@ -259,8 +251,8 @@ impl CPU {
 
     fn push_stack_16(self: &mut Self, bus: &mut Bus, val: u16) {
         let val = to_2u8(val);
-        self.push_stack_8(bus, val.0);
         self.push_stack_8(bus, val.1);
+        self.push_stack_8(bus, val.0);
     }
 
     fn push_stack(&mut self, bus: &mut Bus, val: u16) {
@@ -295,12 +287,12 @@ impl CPU {
         let offset_from = self.si;
         let offset_to = self.di;
     
-        let segment_from = if self.instr.segment == Operand::None {
-            Operand::DS
+        let segment_from = if self.instr.segment == Segment::None {
+            Segment::DS
         } else {
             self.instr.segment
         };
-        let segment_to = Operand::ES;
+        let segment_to = Segment::ES;
     
         let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         bus.write_length(self, self.instr.data_length, segment_to, offset_to, val);
@@ -310,12 +302,12 @@ impl CPU {
         let offset_from = self.si;
         let offset_to = self.di;
     
-        let segment_from = if self.instr.segment == Operand::None {
-            Operand::DS
+        let segment_from = if self.instr.segment == Segment::None {
+            Segment::DS
         } else {
             self.instr.segment
         };
-        let segment_to = Operand::ES;
+        let segment_to = Segment::ES;
     
         let val1 = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
@@ -325,7 +317,7 @@ impl CPU {
     
     pub fn scas(&mut self, bus: &mut Bus) {
         let offset_to = self.di;
-        let segment_to = Operand::ES;
+        let segment_to = Segment::ES;
     
         let val1 = match self.instr.data_length {
             Length::Byte => self.ax.low as u16,
@@ -339,8 +331,8 @@ impl CPU {
     
     pub fn lods(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
-        let segment_from = if self.instr.segment == Operand::None {
-            Operand::DS
+        let segment_from = if self.instr.segment == Segment::None {
+            Segment::DS
         } else {
             self.instr.segment
         };
@@ -356,7 +348,7 @@ impl CPU {
     
     pub fn stos(&mut self, bus: &mut Bus) {
         let offset_to = self.di;
-        let segment_to = Operand::ES;
+        let segment_to = Segment::ES;
     
         let val = match self.instr.data_length {
             Length::Byte => self.ax.low as u16,
@@ -374,40 +366,41 @@ impl CPU {
             _ => unreachable!(),
         };
     
+        match self.instr.opcode {
+            Opcode::CMPSB | Opcode::CMPSW => {
+                self.adjust_string_di(to_change);
+                self.adjust_string_si(to_change);
+            },
+            Opcode::SCASB | Opcode::SCASW => {
+                self.adjust_string_di(to_change);
+            },
+            Opcode::LODSB | Opcode::LODSW => {
+                self.adjust_string_si(to_change);
+            },
+            Opcode::STOSB | Opcode::STOSW => {
+                self.adjust_string_di(to_change);
+            },
+            Opcode::MOVSB | Opcode::MOVSW => {
+                self.adjust_string_di(to_change);
+                self.adjust_string_si(to_change);
+            },
+            _ => unreachable!(),
+        }
+    }
+    
+    pub fn adjust_string_di(&mut self, to_change: u16) {
+        if !self.flags.d {
+            self.di = self.di.wrapping_add(to_change);
+        } else {
+            self.di = self.di.wrapping_sub(to_change);
+        }
+    }
+    
+    pub fn adjust_string_si(&mut self, to_change: u16) {
         if !self.flags.d {
             self.si = self.si.wrapping_add(to_change);
-            self.di = self.di.wrapping_add(to_change);
         } else {
             self.si = self.si.wrapping_sub(to_change);
-            self.di = self.di.wrapping_sub(to_change);
-        }
-    }
-    
-    pub fn adjust_string_di(&mut self) {
-        let to_change = match self.instr.data_length {
-            Length::Byte => 1,
-            Length::Word => 2,
-            _ => unreachable!(),
-        };
-    
-        if !self.flags.d {
-            self.di = self.di.wrapping_add(to_change);
-        } else {
-            self.di = self.di.wrapping_sub(to_change);
-        }
-    }
-    
-    pub fn adjust_string_si(&mut self) {
-        let to_change = match self.instr.data_length {
-            Length::Byte => 1,
-            Length::Word => 2,
-            _ => unreachable!(),
-        };
-    
-        if !self.flags.d {
-            self.di = self.si.wrapping_add(to_change);
-        } else {
-            self.di = self.si.wrapping_sub(to_change);
         }
     }
     
@@ -437,7 +430,7 @@ impl CPU {
     pub fn string_op(&mut self, bus: &mut Bus, f: fn(&mut CPU, &mut Bus), cycles: u32) {
         if self.instr.repetition_prefix == RepetitionPrefix::None {
             f(self, bus);
-            self.adjust_string_di();
+            self.adjust_string();
         } else {
             if self.cx.get_x() == 0 {
                 self.to_decode = true;
@@ -446,7 +439,7 @@ impl CPU {
 
                 self.cx.set_x(self.cx.get_x() - 1);
                 f(self, bus);
-                self.adjust_string_di();
+                self.adjust_string();
                 self.cycles = cycles;
             }
         }
@@ -455,7 +448,7 @@ impl CPU {
     pub fn string_op_z(&mut self, bus: &mut Bus, f: fn(&mut CPU, &mut Bus), cycles: u32) {
         if self.instr.repetition_prefix == RepetitionPrefix::None {
             f(self, bus);
-            self.adjust_string_di();
+            self.adjust_string();
         } else {
             if self.cx.get_x() == 0 {
                 self.to_decode = true;
@@ -464,7 +457,7 @@ impl CPU {
 
                 self.cx.set_x(self.cx.get_x() - 1);
                 f(self, bus);
-                self.adjust_string_di();
+                self.adjust_string();
                 self.cycles = cycles;
 
                 if !self.check_z_str() {

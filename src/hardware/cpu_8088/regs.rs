@@ -161,7 +161,7 @@ impl Flags {
             Length::Byte => {
                 self.o = check_o_add_8(val1 as u8, val2 as u8, res as u8);
                 self.s = check_s_8(res as u8);
-                self.z = check_z(res);
+                self.z = (res as u8) == 0;
                 self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = check_c_add_8(val1 as u8, val2 as u8);
@@ -183,7 +183,7 @@ impl Flags {
             Length::Byte => {
                 self.o = check_o_sub_8(val1 as u8, val2 as u8, res as u8);
                 self.s = check_s_8(res as u8);
-                self.z = check_z(res);
+                self.z = (res as u8) == 0;
                 self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = check_c_sub_8(val1 as u8, val2 as u8);
@@ -205,7 +205,7 @@ impl Flags {
             Length::Byte => {
                 self.o = check_o_sub_8(val1 as u8, val2 as u8, res as u8);
                 self.s = check_s_8(res as u8);
-                self.z = check_z(res);
+                self.z = (res as u8) == 0;
                 self.a = check_a(val1, val2);
                 self.p = check_p(res);
                 self.c = val2 as u8 != 0;
@@ -232,7 +232,7 @@ impl Flags {
 
     pub fn set_aam_flags(&mut self, val1: u8) {
         self.s = check_s_8(val1);
-        self.z = check_z(val1 as u16);
+        self.z = val1 == 0;
         self.p = check_p(val1 as u16)
     }
 
@@ -338,6 +338,12 @@ impl Flags {
 
     pub fn set_rot_flags(&mut self, last_bit: bool, count: u32, res: u16, val: u16, length: Length) {
         self.c = last_bit;
+        if count == 1 {
+            self.o = get_msb(val, length) != get_msb(res, length);
+        }
+    }
+
+    pub fn set_rc_flags(&mut self, count: u32, res: u16, val: u16, length: Length) {
         if count == 1 {
             self.o = get_msb(val, length) != get_msb(res, length);
         }

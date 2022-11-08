@@ -1,20 +1,18 @@
 // use std::fs::File;
-use std::io::stdout;
-use std::sync::Mutex;
-use std::sync::mpsc::Receiver;
+use std::fs::File;
 #[cfg(not(debug_assertions))]
 use std::time::{Instant, Duration};
 // use std::thread::sleep;
 // use std::time::{Instant, Duration};
 
-use crossterm::execute;
-use crossterm::terminal::SetSize;
+// use crossterm::execute;
+// use crossterm::terminal::SetSize;
 
 use super::cpu_8088::CPU;
 use super::bus::Bus;
-use crate::util::debug::*;
+// use crate::util::debug::*;
 
-const FPS: f32 = 50.0;
+use std::{io::Write, fs::OpenOptions};
 
 pub struct System {
     pub cpu: CPU,
@@ -22,24 +20,28 @@ pub struct System {
 
     pub running: bool,
 
-    pub rx: Mutex<Receiver<bool>>,
+    pub file: File,
+    // pub rx: Mutex<Receiver<bool>>,
 }
 
 impl System {
-    pub fn new(rx: Receiver<bool>) -> Self {
-        execute!(stdout(), SetSize(120, 30)).unwrap();
+    pub fn new() -> Self {
+        // execute!(stdout(), SetSize(120, 30)).unwrap();
         let sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
 
             running: false,
 
-            rx: Mutex::new(rx),
+            file: OpenOptions::new().create(true).write(true).open("logs/logs.txt").unwrap(),
+            // rx: Mutex::new(rx),
         };
         
         sys
     }
 }
+
+use crate::{DESIRED_FPS, util::debug_bios::debug};
 
 impl System {
     pub fn rst(&mut self) {
@@ -49,65 +51,45 @@ impl System {
         self.running = false;
     }
 
-    // Llamar 60 veces por segundo
+    // Llamar cada frame
     pub fn update(self: &mut Self) {
-        let max_cycles = (4_772_726.7 / FPS) as u32;
+        let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
         let mut cycles_ran = 0;
 
         while cycles_ran <= max_cycles {
-            let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
-            cycles_ran += cycles;
-
-            // RESTO DE UPDATES (TIMERS, ETC)
-            self.bus.update_peripherals(cycles);
-
-            self.cpu.handle_interrupts(&mut self.bus);
-
-            if self.cpu.halted { 
-                let _a = 0;
-                break; 
-            }
+            self.step(&mut cycles_ran);
         }
 
-        display(self);
+        // self.file.flush().unwrap();
+        // display(self);
     }
 
-    pub fn step(self: &mut Self) {
-        let cycles = self.cpu.fetch_decode_execute(&mut self.bus);
+    pub fn step(self: &mut Self, cycles_ran: &mut u32) {
+        debug(&mut self.cpu);
+        if self.cpu.ip == 0xe538 {
+            println!("llego")
+        }
+
+        let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
+        *cycles_ran += cycles;
 
         // RESTO DE UPDATES (TIMERS, ETC)
         self.bus.update_peripherals(cycles);
 
         self.cpu.handle_interrupts(&mut self.bus);
 
-        display(self);
-    }
+        // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + _ip as usize, self.cpu.instr.opcode).unwrap();
+        //self.file.flush().unwrap();
 
-    pub fn run(&mut self) {
-        self.running = self.rx.lock().unwrap().recv().unwrap();
+        if self.cpu.halted { 
+            let _a = 0;
+            // self.file.flush().unwrap();
+            todo!("Halted") 
+        }
 
-        while self.running {
-            #[cfg(not(debug_assertions))]
-            let start = Instant::now();
-
-            self.update();
-
-            self.running = match self.rx.lock().unwrap().try_recv() {
-                Ok(v) => v,
-                Err(_v) => self.running,
-            };
-
-            if self.cpu.halted {
-                self.running = false;
-            };
-
-            #[cfg(not(debug_assertions))] {
-                let end = Instant::now();
-
-                let t = end.duration_since(start).as_millis();
-                let millis = ((1. / FPS) * 1000.) as u128;
-                std::thread::sleep(Duration::from_millis(millis.saturating_sub(t) as u64));
-            }
+        if (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) >= 0xF6000 && (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) < 0xFE000 {
+            // self.file.flush().unwrap();
+            panic!("JUJEUEJUEJ")
         }
     }
 

@@ -55,29 +55,34 @@ impl System {
     pub fn update(self: &mut Self) {
         let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
         let mut cycles_ran = 0;
+        let mut cycles_to_run = 0;
 
         while cycles_ran <= max_cycles {
-            self.step(&mut cycles_ran);
+            self.step(&mut cycles_to_run, &mut cycles_ran);
         }
 
         // self.file.flush().unwrap();
         // display(self);
     }
 
-    pub fn step(self: &mut Self, cycles_ran: &mut u32) {
+    pub fn step(self: &mut Self, cycles_to_run: &mut u32, cycles_ran: &mut u32) {
         debug(&mut self.cpu);
         if self.cpu.ip == 0xe538 {
             println!("llego")
         }
 
-        let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
-        *cycles_ran += cycles;
+        // let mut _ip = 0;
+        if cycles_to_run == cycles_ran {
+           let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
+            *cycles_ran += cycles;
+        };
 
         // RESTO DE UPDATES (TIMERS, ETC)
-        self.bus.update_peripherals(cycles);
+        self.bus.update_peripherals(1);
 
         self.cpu.handle_interrupts(&mut self.bus);
 
+        *cycles_to_run += 1;
         // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + _ip as usize, self.cpu.instr.opcode).unwrap();
         //self.file.flush().unwrap();
 

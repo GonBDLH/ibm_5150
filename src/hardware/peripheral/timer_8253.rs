@@ -72,7 +72,9 @@ impl TIM8253 {
                     // let _b = 0;
 
                     if dif.1 {
-                        self.channels[channel].out = true;
+                        if channel == 0 {
+                            pic.irq(IRQs::Irq0);
+                        }
                     }
                 },
                 Mode::Mode1 => {},
@@ -83,15 +85,15 @@ impl TIM8253 {
             }
         }
 
-        if self.channels[0].out {
-            pic.irq(IRQs::Irq0);
-        }
-        if self.channels[1].out {
+        // if self.channels[0].out {
+        //     pic.irq(IRQs::Irq0);
+        // }
+        // if self.channels[1].out {
 
-        }
-        if self.channels[2].out {
+        // }
+        // if self.channels[2].out {
 
-        }
+        // }
     }
 }
 

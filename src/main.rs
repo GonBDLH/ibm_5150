@@ -1,6 +1,6 @@
 use ibm_5150::*; 
 
-fn _main() -> GameResult {
+fn main() -> GameResult {
     let mut app = IbmPc::new();
     let win_mode = WindowMode::default()
                             .dimensions(720., 350.)
@@ -19,7 +19,7 @@ fn _main() -> GameResult {
     event::run(ctx, event_loop, app);
 }
 
-fn main() {
+fn _main() {
     let mut app = IbmPc::new();
 
     app.sys.rst();

@@ -1,4 +1,4 @@
-use super::peripheral::Peripheral;
+use super::Peripheral;
 
 #[derive(Default, Clone, Copy)]
 struct Channel {

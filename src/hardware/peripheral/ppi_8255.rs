@@ -1,4 +1,4 @@
-use super::peripheral::Peripheral;
+use super::Peripheral;
 
 #[derive(Clone, Copy)]
 pub struct PPI8255 {

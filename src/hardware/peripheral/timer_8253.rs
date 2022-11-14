@@ -72,6 +72,7 @@ impl TIM8253 {
                     // let _b = 0;
 
                     if dif.1 {
+                        self.channels[channel].current_count = DecimalFixed(0);
                         if channel == 0 {
                             pic.irq(IRQs::Irq0);
                         }

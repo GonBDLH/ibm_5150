@@ -1,6 +1,6 @@
 use ibm_5150::*; 
 
-fn main() -> GameResult {
+fn main_rls() -> GameResult {
     let mut app = IbmPc::new();
     let win_mode = WindowMode::default()
                             .dimensions(720., 350.)
@@ -19,7 +19,7 @@ fn main() -> GameResult {
     event::run(ctx, event_loop, app);
 }
 
-fn _main() {
+fn main_dbg() {
     let mut app = IbmPc::new();
 
     app.sys.rst();
@@ -27,5 +27,39 @@ fn _main() {
 
     loop {
         app.sys.update();
+    }
+}
+
+fn main() {
+    #[cfg(debug_assertions)]
+    main_dbg();
+
+    #[cfg(not(debug_assertions))]
+    main_rls();
+}
+
+#[cfg(test)]
+mod test {
+    #[allow(unused_imports)]
+    use std::time::{Instant, Duration};
+
+    use ibm_5150::*;
+    #[test]
+    fn test() {
+        let mut app = IbmPc::new();
+    
+        app.sys.rst();
+        app.sys.load_bios();
+ 
+        let sec = 10.;
+        let frames = (DESIRED_FPS * sec) as usize; // 5 Segundos
+
+        let start = Instant::now();
+        for _i in 0..frames {
+            app.sys.update();
+        }
+        let t = Instant::now().duration_since(start);
+        println!("Duracion: {} ms -> {frames}", t.as_millis());
+        assert!(t.as_secs() < (sec * 1000.) as u64);
     }
 }

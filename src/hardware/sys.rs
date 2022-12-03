@@ -8,7 +8,7 @@ use std::time::{Instant, Duration};
 // use crossterm::execute;
 // use crossterm::terminal::SetSize;
 
-use super::cpu_8088::CPU;
+use super::cpu_8088::{CPU, cpu_utils::get_address};
 use super::bus::Bus;
 // use crate::util::debug::*;
 
@@ -27,7 +27,7 @@ pub struct System {
 impl System {
     pub fn new() -> Self {
         // execute!(stdout(), SetSize(120, 30)).unwrap();
-        let sys = System { 
+        let mut sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
 
@@ -36,7 +36,8 @@ impl System {
             file: OpenOptions::new().create(true).write(true).open("logs/logs.txt").unwrap(),
             // rx: Mutex::new(rx),
         };
-        
+      
+        // sys.rst();
         sys
     }
 }
@@ -48,6 +49,7 @@ impl System {
         self.cpu = CPU::new();
         self.bus = Bus::new();
 
+        // self.bus.write_8(0x40, 0x12, 1);
         self.running = false;
     }
 
@@ -55,46 +57,43 @@ impl System {
     pub fn update(self: &mut Self) {
         let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
         let mut cycles_ran = 0;
-        let mut cycles_to_run = 0;
 
         while cycles_ran <= max_cycles {
-            self.step(&mut cycles_to_run, &mut cycles_ran);
+            self.step(&mut cycles_ran);
         }
 
         // self.file.flush().unwrap();
         // display(self);
     }
 
-    pub fn step(self: &mut Self, cycles_to_run: &mut u32, cycles_ran: &mut u32) {
-        debug(&mut self.cpu);
-        if self.cpu.ip == 0xe538 {
-            println!("llego")
+    #[inline]
+    pub fn step(self: &mut Self, cycles_ran: &mut u32) {
+        if self.cpu.ip == 0xE6CD {
+            // println!("llego")
+            let _a = 0;
         }
-
-        // let mut _ip = 0;
-        if cycles_to_run == cycles_ran {
-           let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
-            *cycles_ran += cycles;
-        };
+    
+        debug(&mut self.cpu);
+        let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
 
         // RESTO DE UPDATES (TIMERS, ETC)
-        self.bus.update_peripherals(1);
+        self.bus.update_peripherals(cycles);
 
         self.cpu.handle_interrupts(&mut self.bus);
 
-        *cycles_to_run += 1;
+        *cycles_ran += cycles;
         // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + _ip as usize, self.cpu.instr.opcode).unwrap();
         //self.file.flush().unwrap();
 
         if self.cpu.halted { 
-            let _a = 0;
-            // self.file.flush().unwrap();
-            todo!("Halted") 
-        }
+             // let _a = 0;
+             // self.file.flush().unwrap();
+             todo!("Halted") 
+         }
 
         if (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) >= 0xF6000 && (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) < 0xFE000 {
             // self.file.flush().unwrap();
-            panic!("JUJEUEJUEJ")
+            panic!("Tecnicamente esta booteando?")
         }
     }
 

@@ -29,7 +29,7 @@ pub struct Channel {
 impl Channel {
     fn new() -> Self {
         Self {
-            current_count: DecimalFixed(0),
+            current_count: DecimalFixed(0xFFFF),
             reload_value: 0,
             latch_val: 0,
             rl_mode: 0,
@@ -60,19 +60,17 @@ impl TIM8253 {
     // TODO REHACER
     pub fn update(&mut self, cycles: u32, pic: &mut PIC8259) {
         for channel in 0..3 {
+            if !self.channels[channel].active {
+                continue;
+            }
+
+            let before = self.get_current_count(channel);
+            self.channels[channel].current_count.dec(cycles);
+            let after = self.get_current_count(channel);
+            
             match self.channels[channel].mode {
                 Mode::Mode0 => {
-                    let before = self.get_current_count(channel);
-                    self.channels[channel].current_count.dec(cycles);
-                    let after = self.get_current_count(channel);
-
-                    let dif = before.wrapping_sub(1).overflowing_sub(after.wrapping_sub(1));
-
-                    // let _a = self.get_current_count(1);
-                    // let _b = 0;
-
-                    if dif.1 {
-                        self.channels[channel].current_count = DecimalFixed(0);
+                    if after > before || after == 0 {
                         if channel == 0 {
                             pic.irq(IRQs::Irq0);
                         }
@@ -105,7 +103,10 @@ impl Peripheral for TIM8253 {
                 let channel = (port & 0b11) as usize;
 
                 match self.channels[channel].rl_mode {
-                    0b00 => self.channels[channel].latch_val,
+                    0b00 => {
+                        self.channels[channel].rl_mode = 0b01;
+                        self.channels[channel].latch_val
+                    },
                     0b01 => self.get_current_count(channel) as u8 as u16,
                     0b10 => self.get_current_count(channel) >> 8,
                     0b11 => {
@@ -136,8 +137,9 @@ impl Peripheral for TIM8253 {
                 let access_mode = (self.mode_reg & 0b00110000) >> 4;
                 match access_mode {
                     0b00 => self.channels[channel].latch_val = self.get_current_count(channel),
-                    _ => {self.channels[channel].rl_mode = access_mode},
+                    _ => {},
                 }
+                self.channels[channel].rl_mode = access_mode;
 
                 let mode = (self.mode_reg & 0b00001110) >> 1;
 

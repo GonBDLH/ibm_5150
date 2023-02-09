@@ -1,6 +1,20 @@
+use lazy_static::lazy_static;
+
 use crate::hardware::cpu_8088::{CPU, cpu_utils::get_address};
+use std::fs::File;
+use std::io::Write;
+use std::sync::Mutex;
+
+#[cfg(debug_assertions)]
+lazy_static!(
+    static ref FILE: Mutex<File> = Mutex::new(File::create("logs/debug.txt").unwrap());
+);
+
 
 pub fn debug(cpu: &mut CPU) {
+    #[cfg(debug_assertions)]
+    writeln!(&mut FILE.lock().unwrap(), "{:04X}", get_address(cpu)).unwrap();
+
     match get_address(cpu) {
         0xFE05B => println!("Test 1"),
         0xFE0B0 => println!("Test 2"),
@@ -17,6 +31,7 @@ pub fn debug(cpu: &mut CPU) {
         0xFE521 => println!("Test 13"),
         0xFE55C => println!("Test 14"),
 
+        0xFE0AF => println!("ERROR_1"),
         0xFE6CA => println!("ERROR"),
         0xFE630 => println!("ERR_BEEP"),
         _ => {}

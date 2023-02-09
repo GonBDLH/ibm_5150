@@ -48,4 +48,20 @@ impl EventHandler for IbmPc {
 
         graphics::present(ctx)
     }
+
+    fn key_down_event(
+            &mut self,
+            ctx: &mut ggez::Context,
+            keycode: event::KeyCode,
+            _keymods: event::KeyMods,
+            _repeat: bool,
+        ) {
+        match keycode {
+            event::KeyCode::Q => {
+                // TODO
+            },
+
+            _ => (),
+        }
+    }
 }

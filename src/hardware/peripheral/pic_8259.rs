@@ -28,6 +28,7 @@ pub enum IRQs {
 
 pub fn decode_irq_u8(irq: u8) -> u8 {
     match irq {
+        0b00000000 => 0x0,
         0b00000001 => 0x8,
         0b00000010 => 0x9,
         0b00000100 => 0xA,
@@ -45,7 +46,7 @@ impl PIC8259 {
     pub fn new() -> Self {
         Self { 
             isr: 0,                 // In-Service Register
-            imr: 0,                 // Interrupt Mask Register
+            imr: 0xFF,              // Interrupt Mask Register
             irr: 0,                 // Interrupt Request Register
 
             handled_int: 0b1111000, // Solo interesan los 3 ultimos bits
@@ -73,15 +74,16 @@ impl PIC8259 {
 
     pub fn update(&mut self) -> (bool, u8) {
         self.priority_resolver()
+        // self.service_interrupt()
     }
 
     fn priority_resolver(&mut self) -> (bool, u8) {
         for i in 0..8 {
             let int = (self.max_prio as u8).rotate_left(i);
 
-            let _a = 0;
+            // let _a = 0;
 
-            if int & self.irr & !self.imr != 0 {
+            if (int & self.irr & !self.imr) != 0 {
                 self.isr |= int;
                 self.irr ^= int;
 
@@ -90,6 +92,11 @@ impl PIC8259 {
         }
 
         (false, 0)
+    }
+
+    fn service_interrupt(&mut self) -> (bool, u8) {
+        (self.isr == 0, decode_irq_u8(self.isr))
+
     }
 
     pub fn irq(&mut self, irq: IRQs) {

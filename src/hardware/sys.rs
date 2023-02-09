@@ -49,7 +49,7 @@ impl System {
         self.cpu = CPU::new();
         self.bus = Bus::new();
 
-        // self.bus.write_8(0x40, 0x12, 1);
+        self.bus.write_8(0x40, 0x12, 1);
         self.running = false;
     }
 
@@ -68,7 +68,7 @@ impl System {
 
     #[inline]
     pub fn step(self: &mut Self, cycles_ran: &mut u32) {
-        if self.cpu.ip == 0xE6CD {
+        if self.cpu.ip == 0xE691 {
             // println!("llego")
             let _a = 0;
         }

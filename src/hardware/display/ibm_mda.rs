@@ -7,7 +7,7 @@ use crate::hardware::peripheral::Peripheral;
 use super::{DisplayAdapter, Char};
 
 const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
-const IMG_SIZE: usize = 720 * 350;
+// const IMG_SIZE: usize = 720 * 350;
 
 #[derive(Clone)]
 pub struct IbmMDA {

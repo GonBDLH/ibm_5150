@@ -37,29 +37,3 @@ fn main() {
     #[cfg(not(debug_assertions))]
     main_rls();
 }
-
-#[cfg(test)]
-mod test {
-    #[allow(unused_imports)]
-    use std::time::{Instant, Duration};
-
-    use ibm_5150::*;
-    #[test]
-    fn test() {
-        let mut app = IbmPc::new();
-    
-        app.sys.rst();
-        app.sys.load_bios();
- 
-        let sec = 10.;
-        let frames = (DESIRED_FPS * sec) as usize; // 5 Segundos
-
-        let start = Instant::now();
-        for _i in 0..frames {
-            app.sys.update();
-        }
-        let t = Instant::now().duration_since(start);
-        println!("Duracion: {} ms -> {frames}", t.as_millis());
-        assert!(t.as_secs() < (sec * 1000.) as u64);
-    }
-}

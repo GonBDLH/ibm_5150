@@ -27,7 +27,7 @@ pub struct System {
 impl System {
     pub fn new() -> Self {
         // execute!(stdout(), SetSize(120, 30)).unwrap();
-        let mut sys = System { 
+        let sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
 
@@ -42,7 +42,7 @@ impl System {
     }
 }
 
-use crate::{DESIRED_FPS, util::debug_bios::debug};
+use crate::{DESIRED_FPS, util::debug_bios::debug_82};
 
 impl System {
     pub fn rst(&mut self) {
@@ -68,16 +68,17 @@ impl System {
 
     #[inline]
     pub fn step(self: &mut Self, cycles_ran: &mut u32) {
-        if self.cpu.ip == 0xE1C6 {
+        if self.cpu.ip == 0xE563 {
             // println!("llego")
             let _a = 0;
         }
-    
-        debug(&mut self.cpu);
-        let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
 
-        // RESTO DE UPDATES (TIMERS, ETC)
-        self.bus.update_peripherals(cycles);
+        // ACTUALIZAR TIMER
+        self.bus.update_timer();
+    
+        debug_82(&mut self.cpu);
+        let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
+        // println!("{:04X}", _ip);
 
         self.cpu.handle_interrupts(&mut self.bus);
 
@@ -86,10 +87,11 @@ impl System {
         //self.file.flush().unwrap();
 
         if self.cpu.halted { 
-             // let _a = 0;
-             // self.file.flush().unwrap();
-             todo!("Halted") 
-         }
+            // let _a = 0;
+            // self.file.flush().unwrap();
+            // println!("{:04X}", self.cpu.ip);
+            todo!("Halted") 
+        }
 
         if (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) >= 0xF6000 && (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) < 0xFE000 {
             // self.file.flush().unwrap();
@@ -102,10 +104,13 @@ impl System {
             for (idx, element) in std::fs::read("roms/basic.bin").unwrap().into_iter().enumerate() {
                 std::ptr::write(&mut self.bus.memory[0xF6000 + idx], element);
             }
-    
-            for (idx, element) in std::fs::read("roms/bios.BIN").unwrap().into_iter().enumerate() {
+
+            for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN").unwrap().into_iter().enumerate() {
                 std::ptr::write(&mut self.bus.memory[0xFE000 + idx], element);
             }
+            // for (idx, element) in std::fs::read("roms/bios.BIN").unwrap().into_iter().enumerate() {
+            //     std::ptr::write(&mut self.bus.memory[0xFE000 + idx], element);
+            // }
         }
     }
 }

@@ -16,7 +16,7 @@ mod test {
         app.sys.rst();
         app.sys.load_bios();
  
-        let sec = 10.;
+        let sec = 120.;
         let frames = (DESIRED_FPS * sec) as usize; // 9 Segundos
 
         let start = Instant::now();

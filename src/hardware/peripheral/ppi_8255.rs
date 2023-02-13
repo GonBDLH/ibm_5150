@@ -2,8 +2,10 @@ use super::Peripheral;
 
 // IMPORTANTE: ESTAN AL REVES, LA POSICION 1 ES EL BIT 0.
 //             ON = 0, OFF = 1
-const SW1: u8 = 0b00110000;
-const SW2: u8 = 0b00001111;
+// const SW1: u8 = 0b00110000;
+const SW1: u8 = 0b00101100;
+// const SW2: u8 = 0b00001111;
+const SW2: u8 = 0b11110000;
 
 #[derive(Clone, Copy)]
 pub struct PPI8255 {

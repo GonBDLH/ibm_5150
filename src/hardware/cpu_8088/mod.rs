@@ -109,6 +109,7 @@ impl CPU {
         }
 
         self.execute(bus);
+        bus.pit.cycles += self.cycles;
         (self.cycles, ip)
     }
 

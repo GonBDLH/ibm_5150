@@ -35,8 +35,8 @@ impl Bus {
         }
     }
 
-    pub fn update_peripherals(&mut self, cycles: u32) {
-        self.pit.update(cycles, &mut self.pic);
+    pub fn update_timer(&mut self) {
+        self.pit.update(&mut self.pic);
     }
 
     pub fn port_in(&mut self, port: u16) -> u16 {

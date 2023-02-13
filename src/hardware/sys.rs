@@ -68,7 +68,7 @@ impl System {
 
     #[inline]
     pub fn step(self: &mut Self, cycles_ran: &mut u32) {
-        if self.cpu.ip == 0xE691 {
+        if self.cpu.ip == 0xE1C6 {
             // println!("llego")
             let _a = 0;
         }

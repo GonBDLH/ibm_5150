@@ -120,12 +120,11 @@ impl CPU {
             // Si hay una NON-MASKABLE INTERRUPT
             self.interrupt(bus, 0x0008);
             self.nmi = false;
-        } else if self.flags.i && bus.intr {
-            self.interrupt(bus, (bus.intr_type * 0x04) as u16);
-            bus.intr = false;
+        } else if self.flags.i && bus.pic.has_int() {
+            let interruption = bus.pic.get_next();
+            self.interrupt(bus, (interruption * 0x04) as u16);
         } else {
             // TODO ESTO IGUAL ESTA MAL
-            bus.intr = false;
             self.nmi = false;
             self.sw_int = false;
         }

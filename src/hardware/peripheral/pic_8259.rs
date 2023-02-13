@@ -6,9 +6,7 @@ pub struct PIC8259 {
     imr: u8,
     irr: u8,
 
-    handled_int: u8,
-
-    max_prio: IRQs,
+    // max_prio: IRQs,
 
     icw: [u8; 4],
     icw_step: usize,
@@ -26,22 +24,6 @@ pub enum IRQs {
     Irq7 = 0b10000000,
 }
 
-pub fn decode_irq_u8(irq: u8) -> u8 {
-    match irq {
-        0b00000000 => 0x0,
-        0b00000001 => 0x8,
-        0b00000010 => 0x9,
-        0b00000100 => 0xA,
-        0b00001000 => 0xB,
-        0b00010000 => 0xC,
-        0b00100000 => 0xD,
-        0b01000000 => 0xE,
-        0b10000000 => 0xF,
-
-        _ => unreachable!(),
-    }
-}
-
 impl PIC8259 {
     pub fn new() -> Self {
         Self { 
@@ -49,9 +31,7 @@ impl PIC8259 {
             imr: 0xFF,              // Interrupt Mask Register
             irr: 0,                 // Interrupt Request Register
 
-            handled_int: 0b1111000, // Solo interesan los 3 ultimos bits
-
-            max_prio: IRQs::Irq0,
+            // max_prio: IRQs::Irq0,
 
             icw: [0; 4],
             icw_step: 0,
@@ -60,43 +40,21 @@ impl PIC8259 {
 }
 
 impl PIC8259 {
-    fn get_next(&mut self) {
+    pub fn get_next(&mut self) -> u8 {
+        let requested_ints = self.irr & !self.imr;
         for i in 0..8 {
-            let mask = 1 << 7-i;
-            if self.isr & mask > 0 {
-                self.handled_int = 7 - i;
-                return;
-            }
-        }
-        self.handled_int = 0b1111000;
-        return;
-    }
-
-    pub fn update(&mut self) -> (bool, u8) {
-        self.priority_resolver()
-        // self.service_interrupt()
-    }
-
-    fn priority_resolver(&mut self) -> (bool, u8) {
-        for i in 0..8 {
-            let int = (self.max_prio as u8).rotate_left(i);
-
-            // let _a = 0;
-
-            if (int & self.irr & !self.imr) != 0 {
-                self.isr |= int;
-                self.irr ^= int;
-
-                return (true, decode_irq_u8(int));
+            if requested_ints & 1 << (7 - i) > 0 {
+                self.isr |= 1 << (7 - i);
+                self.irr ^= i << (7 - i);
+                return self.icw[1] + (7 - i);
             }
         }
 
-        (false, 0)
+        return 0;
     }
 
-    fn service_interrupt(&mut self) -> (bool, u8) {
-        (self.isr == 0, decode_irq_u8(self.isr))
-
+    pub fn has_int(&mut self) -> bool {
+        (!self.imr & self.irr) > 0
     }
 
     pub fn irq(&mut self, irq: IRQs) {
@@ -109,40 +67,37 @@ impl Peripheral for PIC8259 {
         if port == 0x20 {self.irr as u16} else {self.imr as u16}
     }
 
-    // Copiado de: https://github.com/NeatMonster/Intel8086/blob/master/src/fr/neatmonster/ibmpc/Intel8259.java
-    //       y de: https://github.com/Lichtso/DOS-Emulator/blob/master/src/pic.rs
     fn port_out(&mut self, val: u16, port: u16) {
-        // if port == 0x20 {
-        //     if val & 0x10 == 1 {                                    // ICW1
-        //         self.imr = 0;
-        //         self.icw[self.icw_step] = val as u8;
-        //         self.icw_step += 1;
-        //     } else {
-        //         if val & 0x20 == 1 {                                // Non Specific EOI
-        //             if self.handled_int & 0b00000111 > 0 {
-        //                 let handled = self.handled_int & 0b0000111;
-        //                 self.isr ^= 1 << handled;
-        //                 self.get_next();
-        //             }
-        //         }
-        //     }
-        // } else {
-        //     if self.icw_step == 1 {                                 // ICW2
-        //         self.icw[self.icw_step] = val as u8;
-        //         self.icw_step += 1;
-        //         if self.icw[0] & 0x02 == 1 {self.icw_step += 1};
-        //     } else if self.icw_step < 4 {                           // ICW3-4
-        //         self.icw[self.icw_step] = val as u8;
-        //         self.icw_step += 1;
-        //     } else {
-        //         self.imr = val as u8;                               // OCW1
-        //     }
-        // }
-
+        let val = val as u8;
+        
         if port == 0x20 {
-            self.imr = 0xFF; // TODO CREO
+            if val & 0x10 > 0 {
+                // ICW1
+                self.icw[self.icw_step] = val;
+                self.imr = 0;
+                self.icw_step += 1;
+            }
+            // TODO OCW
+            if val & 0x20 > 0 {
+                for i in 0..8 {
+                    if self.isr & 1 << (7  - i) > 0 {
+                        self.isr ^= 1 << (7  - i);
+                    }
+                }
+            }
         } else {
-            self.imr = val as u8;
+            if self.icw_step == 1 {
+                self.icw[self.icw_step] = val;
+                self.icw_step += 1;
+                if self.icw[0] & 0x02 == 1 {
+                    self.icw_step += 1;
+                }
+            } else if self.icw_step < 4 {
+                self.icw[self.icw_step] = val;
+                self.icw_step += 1;
+            } else {
+                self.imr = val;
+            }
         }
     }
 }

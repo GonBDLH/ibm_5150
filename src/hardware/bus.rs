@@ -19,10 +19,6 @@ pub struct Bus {
     pub dma: DMA8237,
     pub ppi: PPI8255,
     pub mda: IbmMDA,
-
-    // Interrupciones
-    pub intr: bool,
-    pub intr_type: u8,
 }
 
 impl Bus {
@@ -36,15 +32,11 @@ impl Bus {
             dma: DMA8237::new(),
             ppi: PPI8255::new(),
             mda: IbmMDA::new(),
-
-            intr: false,
-            intr_type: 0,
         }
     }
 
     pub fn update_peripherals(&mut self, cycles: u32) {
         self.pit.update(cycles, &mut self.pic);
-        (self.intr, self.intr_type) = self.pic.update();
     }
 
     pub fn port_in(&mut self, port: u16) -> u16 {

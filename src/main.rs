@@ -1,6 +1,7 @@
 use ibm_5150::*; 
 
-fn main_rls() -> GameResult {
+#[cfg(not(debug_assertions))]
+fn main() -> GameResult {
     let mut app = IbmPc::new();
     let win_mode = WindowMode::default()
                             .dimensions(720., 350.)
@@ -19,7 +20,8 @@ fn main_rls() -> GameResult {
     event::run(ctx, event_loop, app);
 }
 
-fn main_dbg() {
+#[cfg(debug_assertions)]
+fn main() {
     let mut app = IbmPc::new();
 
     app.sys.rst();
@@ -28,12 +30,4 @@ fn main_dbg() {
     loop {
         app.sys.update();
     }
-}
-
-fn main() {
-    #[cfg(debug_assertions)]
-    main_dbg();
-
-    #[cfg(not(debug_assertions))]
-    main_rls();
 }

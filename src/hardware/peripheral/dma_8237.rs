@@ -29,14 +29,12 @@ impl DMA8237 {
                 let length = (self.channels[channel].length & 0xFF00) | (val as u8) as u16;
                 self.channels[channel].length = length;
             }
+        } else if opt == 0 {
+            let addr = (self.channels[channel].addr & 0x00FF) | (val << 8);
+            self.channels[channel].addr = addr;
         } else {
-            if opt == 0 {
-                let addr = (self.channels[channel].addr & 0x00FF) | (val << 8);
-                self.channels[channel].addr = addr;
-            } else {
-                let length = (self.channels[channel].length & 0x00FF) | (val & 0xFF00);
-                self.channels[channel].length = length;
-            }
+            let length = (self.channels[channel].length & 0x00FF) | (val & 0xFF00);
+            self.channels[channel].length = length;
         }
 
         self.channels[channel].toggle = !self.channels[channel].toggle;

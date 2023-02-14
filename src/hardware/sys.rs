@@ -8,11 +8,12 @@ use std::time::{Instant, Duration};
 // use crossterm::execute;
 // use crossterm::terminal::SetSize;
 
-use super::cpu_8088::{CPU, cpu_utils::get_address};
+use super::cpu_8088::cpu_utils;
+use super::cpu_8088::CPU;
 use super::bus::Bus;
 // use crate::util::debug::*;
 
-use std::{io::Write, fs::OpenOptions};
+use std::fs::OpenOptions;
 
 pub struct System {
     pub cpu: CPU,
@@ -54,7 +55,7 @@ impl System {
     }
 
     // Llamar cada frame
-    pub fn update(self: &mut Self) {
+    pub fn update(&mut self) {
         let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
         let mut cycles_ran = 0;
 
@@ -67,8 +68,8 @@ impl System {
     }
 
     #[inline]
-    pub fn step(self: &mut Self, cycles_ran: &mut u32) {
-        if self.cpu.ip == 0xE563 {
+    pub fn step(&mut self, cycles_ran: &mut u32) {
+        if self.cpu.ip == 0xE6BD {
             // println!("llego")
             let _a = 0;
         }
@@ -93,9 +94,12 @@ impl System {
             todo!("Halted") 
         }
 
-        if (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) >= 0xF6000 && (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) < 0xFE000 {
-            // self.file.flush().unwrap();
-            panic!("Tecnicamente esta booteando?")
+        // if (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) >= 0xF6000 && (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) < 0xFE000 {
+        //     // self.file.flush().unwrap();
+        //     println!("Tecnicamente esta booteando?")
+        // }
+        if cpu_utils::get_address(&mut self.cpu) == 0xF6000 {
+            println!("Tecnicamente esta booteando?")
         }
     }
 
@@ -103,6 +107,7 @@ impl System {
         unsafe {
             for (idx, element) in std::fs::read("roms/basic.bin").unwrap().into_iter().enumerate() {
                 std::ptr::write(&mut self.bus.memory[0xF6000 + idx], element);
+                // println!("{:04X} : {:02X}", 0xF6000 + idx, element);
             }
 
             for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN").unwrap().into_iter().enumerate() {

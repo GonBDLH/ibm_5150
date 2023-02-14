@@ -1,5 +1,6 @@
 pub mod hardware;
 pub mod util;
+
 // A
 use ggez::graphics::{Drawable, DrawParam};
 use hardware::display::DisplayAdapter;
@@ -22,6 +23,23 @@ impl IbmPc {
         IbmPc {
             sys: System::new()
         }
+    }
+}
+
+fn decode_key(keycode: event::KeyCode) -> u8 {
+    match keycode {
+        event::KeyCode::Escape => 1,
+        event::KeyCode::Key1 => 2, 
+        event::KeyCode::Key2 => 3,
+        event::KeyCode::Key3 => 4,
+        event::KeyCode::Key4 => 5,
+        event::KeyCode::Key5 => 6,
+        event::KeyCode::Key6 => 7,
+        event::KeyCode::Key7 => 8,
+        event::KeyCode::Key8 => 9,
+        event::KeyCode::Key9 => 10,
+        event::KeyCode::Key0 => 11,
+        _ => 0,
     }
 }
 
@@ -49,19 +67,17 @@ impl EventHandler for IbmPc {
         graphics::present(ctx)
     }
 
-    fn key_down_event(
-            &mut self,
-            ctx: &mut ggez::Context,
-            keycode: event::KeyCode,
-            _keymods: event::KeyMods,
-            _repeat: bool,
-        ) {
-        match keycode {
-            event::KeyCode::Q => {
-                // TODO
-            },
+    fn key_up_event(&mut self, _ctx: &mut ggez::Context, keycode: event::KeyCode, _keymods: event::KeyMods) {
+        let key_code = decode_key(keycode) + 0x80;
+        self.sys.bus.key_input(key_code);
+    }
 
-            _ => (),
+    fn key_down_event(&mut self, _ctx: &mut ggez::Context, keycode: event::KeyCode, _keymods: event::KeyMods, repeat: bool,
+        ) {
+
+        if !repeat {
+            let key_code = decode_key(keycode);
+            self.sys.bus.key_input(key_code);
         }
     }
 }

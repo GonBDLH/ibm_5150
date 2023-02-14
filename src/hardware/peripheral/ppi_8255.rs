@@ -3,13 +3,13 @@ use super::Peripheral;
 // IMPORTANTE: ESTAN AL REVES, LA POSICION 1 ES EL BIT 0.
 //             ON = 0, OFF = 1
 // const SW1: u8 = 0b00110000;
-const SW1: u8 = 0b00101100;
+const SW1: u8 = 0b00110100;
 // const SW2: u8 = 0b00001111;
-const SW2: u8 = 0b11110000;
+const SW2: u8 = 0b11100000;
 
 #[derive(Clone, Copy)]
 pub struct PPI8255 {
-    port_a: u8,
+    pub port_a: u8,
     port_b: u8,
     port_c: u8,
     mode_reg: u8,
@@ -54,15 +54,14 @@ impl Peripheral for PPI8255 {
 impl PPI8255 {
     fn read_pa(&mut self) -> u8 {
         if self.port_b & 0x80 == 0x80 {
-            // SW1
             SW1
         } else {
-            0xAA
+            // TODO KEY_CODE
+            self.port_a
         }
     }
 
     fn read_pc(&mut self) -> u8 {
-        // self.port_c
         if self.port_b & 0x04 == 0x04 {
             SW2 & 0x0F | self.port_c & 0xF0
         } else {

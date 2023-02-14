@@ -12,11 +12,11 @@ impl GPReg {
         GPReg { high: 0x00, low: 0x00 }
     }
 
-    pub fn get_x(self: &Self) -> u16 {
+    pub fn get_x(&self) -> u16 {
         to_u16(self.low, self.high)
     }
 
-    pub fn set_x(self: &mut Self, val: u16) {
+    pub fn set_x(&mut self, val: u16) {
         self.high = (val >> 8) as u8;
         self.low = val as u8;
     }
@@ -40,7 +40,7 @@ impl Flags {
         Flags { o: false, d: false, i: true, t: false, s: false, z: false, a: false, p: false, c: false }
     }
 
-    pub fn set_flags(self: &mut Self, val: u16) {
+    pub fn set_flags(&mut self, val: u16) {
         self.o = val & 0b0000100000000000 == 0b0000100000000000;
         self.d = val & 0b0000010000000000 == 0b0000010000000000;
         self.i = val & 0b0000001000000000 == 0b0000001000000000;
@@ -52,7 +52,7 @@ impl Flags {
         self.c = val & 0b0000000000000001 == 0b0000000000000001;
     }
 
-    pub fn get_flags(self: &Self) -> u16 {
+    pub fn get_flags(&self) -> u16 {
         let o = ((self.o as u16) << 11) & 0b0000100000000000;
         let d = ((self.d as u16) << 10) & 0b0000010000000000;
         let i = ((self.i as u16) <<  9) & 0b0000001000000000;
@@ -62,8 +62,7 @@ impl Flags {
         let a = ((self.a as u16) <<  4) & 0b0000000000010000;
         let p = ((self.p as u16) <<  2) & 0b0000000000000100;
         let c = ((self.c as u16) <<  0) & 0b0000000000000001;
-        let val = o + d + i + t + s + z + a + p + c;
-        val
+        o + d + i + t + s + z + a + p + c
     }
 }
 
@@ -72,10 +71,11 @@ fn check_o_add_8(val1: u8, val2: u8, res: u8) -> bool {
     let sign_2 = val2 >> 7;
     let sign_res = res >> 7;
 
-    match (sign_1, sign_2, sign_res) {
-        (0, 0, 1) | (1, 1, 0) => true,
-        _ => false,
-    }
+    // match (sign_1, sign_2, sign_res) {
+    //     (0, 0, 1) | (1, 1, 0) => true,
+    //     _ => false,
+    // }
+    matches!((sign_1, sign_2, sign_res), (0, 0, 1) | (1, 1, 0))
 }
 
 fn check_o_add_16(val1: u16, val2: u16, res: u16) -> bool {
@@ -83,10 +83,11 @@ fn check_o_add_16(val1: u16, val2: u16, res: u16) -> bool {
     let sign_2 = val2 >> 15;
     let sign_res = res >> 15;
 
-    match (sign_1, sign_2, sign_res) {
-        (0, 0, 1) | (1, 1, 0) => true,
-        _ => false,
-    }
+    // match (sign_1, sign_2, sign_res) {
+    //     (0, 0, 1) | (1, 1, 0) => true,
+    //     _ => false,
+    // }
+    matches!((sign_1, sign_2, sign_res), (0, 0, 1) | (1, 1, 0))
 }
 
 fn check_o_sub_8(val1: u8, val2: u8, res: u8) -> bool {
@@ -94,10 +95,11 @@ fn check_o_sub_8(val1: u8, val2: u8, res: u8) -> bool {
     let sign_2 = val2 >> 7;
     let sign_res = res >> 7;
 
-    match (sign_1, sign_2, sign_res) {
-        (0, 1, 1) | (1, 0, 0) => true,
-        _ => false,
-    }
+    // match (sign_1, sign_2, sign_res) {
+    //     (0, 1, 1) | (1, 0, 0) => true,
+    //     _ => false,
+    // }
+    matches!((sign_1, sign_2, sign_res), (0, 1, 1) | (1, 0, 0))
 }
 
 fn check_o_sub_16(val1: u16, val2: u16, res: u16) -> bool {
@@ -105,10 +107,11 @@ fn check_o_sub_16(val1: u16, val2: u16, res: u16) -> bool {
     let sign_2 = val2 >> 15;
     let sign_res = res >> 15;
 
-    match (sign_1, sign_2, sign_res) {
-        (0, 1, 1) | (1, 0, 0) => true,
-        _ => false,
-    }
+    // match (sign_1, sign_2, sign_res) {
+    //     (0, 1, 1) | (1, 0, 0) => true,
+    //     _ => false,
+    // }
+    matches!((sign_1, sign_2, sign_res), (0, 1, 1) | (1, 0, 0))
 }
 
 fn check_s_16(res: u16) -> bool {
@@ -261,9 +264,9 @@ impl Flags {
             },
             _ => unreachable!(),
         };
-        match operand {
-            OperandType::Immediate(_) => self.o = get_msb(res, length) ^ self.c,
-            _ => {},
+
+        if let OperandType::Immediate(_) = operand {
+            self.o = get_msb(res, length) ^ self.c;
         }
         self.z = check_z(res);
         self.p = check_p(res);
@@ -297,10 +300,10 @@ impl Flags {
         };
         self.z = check_z(res);
         self.p = check_p(res);
-        match operand {
-            OperandType::Immediate(_) => self.o = get_msb(val, length) != get_msb(res, length),
-            _ => {},
-        };
+
+        if let OperandType::Immediate(_) = operand {
+            self.o = get_msb(val, length) != get_msb(res, length);
+        }
     }
 
     pub fn set_sar_flags(&mut self, length: Length, operand: OperandType, count: u32, val: u16, res: u16) {
@@ -328,10 +331,11 @@ impl Flags {
             },
             _ => unreachable!(),
         };
-        match operand {
-            OperandType::Immediate(_) => self.o = get_msb(val, length) != get_msb(res, length),
-            _ => {},
+        
+        if let OperandType::Immediate(_) = operand {
+            self.o = get_msb(val, length) != get_msb(res, length)
         }
+        
         self.z = check_z(res);
         self.p = check_p(res);
     }

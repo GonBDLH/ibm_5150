@@ -9,6 +9,7 @@ use super::{DisplayAdapter, Char};
 const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
 // const IMG_SIZE: usize = 720 * 350;
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct IbmMDA {
     pub img_buffer: Vec<u8>,
@@ -48,11 +49,10 @@ impl IbmMDA {
 
 impl DisplayAdapter for IbmMDA {
     fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> ImageGeneric<GlBackendSpec> {
-        let mut iter = vram.chunks(2).enumerate();
-        
-        while let Some(v) = iter.next() {
+        let iter = vram.chunks(2).enumerate();
+        for v in iter {
             let character = Char { index: v.1[0] as usize, ..Default::default() };
-            self.render_font(character, v.0 % 80, (v.0 / 80) as usize);
+            self.render_font(character, v.0 % 80, v.0 / 80);
         }
 
         Image::from_rgba8(ctx, 720, 350, &self.img_buffer).unwrap()
@@ -69,23 +69,21 @@ impl DisplayAdapter for IbmMDA {
             for j in 0..9 {
                 let pixel = if j < 8 {
                     char_ & (1 << (7 - j))
+                } else if character.index >= 0xC0 && character.index <= 0xDF {
+                    char_ & 1
                 } else {
-                    if character.index >= 0xC0 && character.index <= 0xDF {
-                        char_ & 1
-                    } else {
-                        0
-                    }
+                    0
                 };
     
                 let bg_colors = character.background_color.to_rgba();
                 let fg_colors = character.foreground_color.to_rgba();
                 if pixel > 0 {
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 0] = fg_colors.0;
+                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = fg_colors.0;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = fg_colors.1;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = fg_colors.2;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = fg_colors.3;
                 } else {
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 0] = bg_colors.0;
+                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = bg_colors.0;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = bg_colors.1;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = bg_colors.2;
                     self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = bg_colors.3;

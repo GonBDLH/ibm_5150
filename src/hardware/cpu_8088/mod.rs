@@ -91,7 +91,7 @@ impl CPU {
 }
 
 impl CPU {
-    pub fn fetch(self: &mut Self, bus: &mut Bus) -> u8 {
+    pub fn fetch(&mut self, bus: &mut Bus) -> u8 {
         let dir = get_address(self);
         self.ip = (self.ip as u32 + 1) as u16;
         bus.read_dir(dir)
@@ -174,7 +174,7 @@ impl CPU {
         }
     }
 
-    pub fn set_reg(self: &mut Self, length: Length, reg: Operand, val: u16) {
+    pub fn set_reg(&mut self, length: Length, reg: Operand, val: u16) {
 
         match length {
             Length::Byte => self.set_reg8(reg, val as u8),
@@ -244,12 +244,12 @@ impl CPU {
         }
     }
 
-    fn push_stack_8(self: &mut Self, bus: &mut Bus, val: u8) {
+    fn push_stack_8(&mut self, bus: &mut Bus, val: u8) {
         self.sp = self.sp.wrapping_sub(1);
         bus.write_8(self.ss, self.sp, val);
     }
 
-    fn push_stack_16(self: &mut Self, bus: &mut Bus, val: u16) {
+    fn push_stack_16(&mut self, bus: &mut Bus, val: u16) {
         let val = to_2u8(val);
         self.push_stack_8(bus, val.1);
         self.push_stack_8(bus, val.0);
@@ -263,13 +263,13 @@ impl CPU {
         }
     }
 
-    fn pop_stack_8(self: &mut Self, bus: &mut Bus) -> u8 {
+    fn pop_stack_8(&mut self, bus: &mut Bus) -> u8 {
         let val = bus.read_8(self.ss, self.sp);
         self.sp = self.sp.wrapping_add(1);
         val
     }
 
-    fn pop_stack_16(self: &mut Self, bus: &mut Bus) -> u16 {
+    fn pop_stack_16(&mut self, bus: &mut Bus) -> u16 {
         let val_low = self.pop_stack_8(bus);
         let val_high = self.pop_stack_8(bus);
         to_u16(val_low, val_high)
@@ -431,17 +431,15 @@ impl CPU {
         if self.instr.repetition_prefix == RepetitionPrefix::None {
             f(self, bus);
             self.adjust_string();
+        } else if self.cx.get_x() == 0 {
+            self.to_decode = true;
         } else {
-            if self.cx.get_x() == 0 {
-                self.to_decode = true;
-            } else {
-                self.to_decode = false;
+            self.to_decode = false;
 
-                self.cx.set_x(self.cx.get_x() - 1);
-                f(self, bus);
-                self.adjust_string();
-                self.cycles = cycles;
-            }
+            self.cx.set_x(self.cx.get_x() - 1);
+            f(self, bus);
+            self.adjust_string();
+            self.cycles = cycles;
         }
     }
 
@@ -449,20 +447,18 @@ impl CPU {
         if self.instr.repetition_prefix == RepetitionPrefix::None {
             f(self, bus);
             self.adjust_string();
+        } else if self.cx.get_x() == 0 {
+            self.to_decode = true;
         } else {
-            if self.cx.get_x() == 0 {
+            self.to_decode = false;
+
+            self.cx.set_x(self.cx.get_x() - 1);
+            f(self, bus);
+            self.adjust_string();
+            self.cycles = cycles;
+
+            if !self.check_z_str() {
                 self.to_decode = true;
-            } else {
-                self.to_decode = false;
-
-                self.cx.set_x(self.cx.get_x() - 1);
-                f(self, bus);
-                self.adjust_string();
-                self.cycles = cycles;
-
-                if !self.check_z_str() {
-                    self.to_decode = true;
-                }
             }
         }
     }

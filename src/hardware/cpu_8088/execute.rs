@@ -157,11 +157,11 @@ impl CPU {
                     self.ax.high = self.ax.high.wrapping_sub(1);
                     self.flags.a = true;
                     self.flags.c = true;
-                    self.ax.low = self.ax.low & 0x0F;
+                    self.ax.low &= 0x0F;
                 } else {
                     self.flags.a = false;
                     self.flags.c = false;
-                    self.ax.low = self.ax.low & 0x0F;
+                    self.ax.low &= 0x0F;
                 }
             },
             Opcode::DAS => {
@@ -296,7 +296,7 @@ impl CPU {
                 let temp_ah = self.ax.high;
                 self.ax.high = 0;
                 let val = self.get_val(bus, self.instr.operand1);
-                self.ax.low = (temp_al + (temp_ah.wrapping_add(val as u8))) & 0xFF;
+                self.ax.low = temp_al + (temp_ah.wrapping_add(val as u8));
 
                 self.flags.set_aam_flags(self.ax.low);
             },

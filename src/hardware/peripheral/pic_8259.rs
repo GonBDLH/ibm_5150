@@ -45,12 +45,12 @@ impl PIC8259 {
         for i in 0..8 {
             if requested_ints & 1 << (7 - i) > 0 {
                 self.isr |= 1 << (7 - i);
-                self.irr ^= i << (7 - i);
+                self.irr ^= 1 << (7 - i);
                 return self.icw[1] + (7 - i);
             }
         }
 
-        return 0;
+        0
     }
 
     pub fn has_int(&mut self) -> bool {
@@ -85,19 +85,17 @@ impl Peripheral for PIC8259 {
                     }
                 }
             }
-        } else {
-            if self.icw_step == 1 {
-                self.icw[self.icw_step] = val;
+        } else if self.icw_step == 1 {
+            self.icw[self.icw_step] = val;
+            self.icw_step += 1;
+            if self.icw[0] & 0x02 > 0 {
                 self.icw_step += 1;
-                if self.icw[0] & 0x02 == 1 {
-                    self.icw_step += 1;
-                }
-            } else if self.icw_step < 4 {
-                self.icw[self.icw_step] = val;
-                self.icw_step += 1;
-            } else {
-                self.imr = val;
             }
+        } else if self.icw_step < 4 {
+            self.icw[self.icw_step] = val;
+            self.icw_step += 1;
+        } else {
+            self.imr = val;
         }
     }
 }

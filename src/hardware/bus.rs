@@ -6,7 +6,7 @@ use super::cpu_8088::instr_utils::Segment;
 use super::display::ibm_mda::IbmMDA;
 use super::peripheral::Peripheral;
 use super::peripheral::dma_8237::DMA8237;
-use super::peripheral::pic_8259::PIC8259;
+use super::peripheral::pic_8259::{PIC8259, IRQs};
 use super::peripheral::ppi_8255::PPI8255;
 use super::peripheral::timer_8253::TIM8253;
 
@@ -33,6 +33,11 @@ impl Bus {
             ppi: PPI8255::new(),
             mda: IbmMDA::new(),
         }
+    }
+
+    pub fn key_input(&mut self, key_code: u8) {
+        self.ppi.port_a = key_code;
+        self.pic.irq(IRQs::Irq1);
     }
 
     pub fn update_timer(&mut self) {

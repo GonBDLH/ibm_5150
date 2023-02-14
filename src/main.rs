@@ -1,6 +1,6 @@
 use ibm_5150::*; 
 
-#[cfg(not(debug_assertions))]
+// #[cfg(not(debug_assertions))]
 fn main() -> GameResult {
     let mut app = IbmPc::new();
     let win_mode = WindowMode::default()
@@ -15,19 +15,19 @@ fn main() -> GameResult {
     //graphics::set_mode(&mut ctx, win_mode)?;
 
     app.sys.rst();
-    app.sys.load_bios();
+    app.sys.load_roms();
 
     event::run(ctx, event_loop, app);
 }
 
-#[cfg(debug_assertions)]
-fn main() {
-    let mut app = IbmPc::new();
+// #[cfg(debug_assertions)]
+// fn main() {
+//     let mut app = IbmPc::new();
 
-    app.sys.rst();
-    app.sys.load_bios();
+//     app.sys.rst();
+//     app.sys.load_bios();
 
-    loop {
-        app.sys.update();
-    }
-}
+//     loop {
+//         app.sys.update();
+//     }
+// }

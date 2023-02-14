@@ -14,7 +14,7 @@ mod test {
         let mut app = IbmPc::new();
     
         app.sys.rst();
-        app.sys.load_bios();
+        app.sys.load_roms();
  
         let sec = 120.;
         let frames = (DESIRED_FPS * sec) as usize; // 9 Segundos

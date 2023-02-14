@@ -72,9 +72,7 @@ impl EventHandler for IbmPc {
         self.sys.bus.key_input(key_code);
     }
 
-    fn key_down_event(&mut self, _ctx: &mut ggez::Context, keycode: event::KeyCode, _keymods: event::KeyMods, repeat: bool,
-        ) {
-
+    fn key_down_event(&mut self, _ctx: &mut ggez::Context, keycode: event::KeyCode, _keymods: event::KeyMods, repeat: bool,) {
         if !repeat {
             let key_code = decode_key(keycode);
             self.sys.bus.key_input(key_code);

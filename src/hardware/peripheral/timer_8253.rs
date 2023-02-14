@@ -49,31 +49,32 @@ impl TIM8253 {
         self.out[channel] = state;
     }
 
+    fn mode0(&mut self, i: usize, pic: &mut PIC8259) {
+        self.count[i] = self.count[i].wrapping_sub(1);
+        if self.count[i] == 0 {
+            self.output(i, true, pic)
+        }
+    }
+
+    fn mode2(&mut self, i: usize, pic: &mut PIC8259) {
+        self.count[i] = self.count[i].wrapping_sub(1);
+        if self.count[i] == 1 {
+            self.output(i, false, pic);
+        } else {
+            self.output(i, true, pic);
+            if self.count[i] == 0 {
+                self.count[i] = self.reload[i];
+            }
+        }
+    }
+
     pub fn update(&mut self, pic: &mut PIC8259) {
         while self.cycles > 3 {
             for i in 0..3 {
                 if self.active[i] {
-
                     match self.mode[i] {
-                        Mode::Mode0 => {
-                            self.count[i] = self.count[i].wrapping_sub(1);
-                            if self.count[i] == 0 {
-                                self.output(i, true, pic)
-                            }
-                        },
-
-                        Mode::Mode2 => {
-                            self.count[i] = self.count[i].wrapping_sub(1);
-                            if self.count[i] == 1 {
-                                self.output(i, false, pic);
-                            } else {
-                                self.output(i, true, pic);
-                                if self.count[i] == 0 {
-                                    self.count[i] = self.reload[i];
-                                }
-                            }
-                        }
-
+                        Mode::Mode0 => self.mode0(i, pic),
+                        Mode::Mode2 => self.mode2(i, pic), 
                         _ => {}, // TODO
                     }
                 }
@@ -157,24 +158,23 @@ impl Peripheral for TIM8253 {
                 self.mode_reg = val as u8;
                 let channel = ((self.mode_reg & 0b11000000) >> 6) as usize;
                 let access_mode = (self.mode_reg & 0b00110000) >> 4;
-                match access_mode {
-                    0b00 => self.latch_val[channel] = self.count[channel],
-                    _ => {
-                        self.rl_mode[channel] = access_mode;
-                        let mode = (self.mode_reg & 0b00001110) >> 1;
+                
+                if access_mode == 0b00 {
+                    self.latch_val[channel] = self.count[channel];
+                } else {
+                    self.rl_mode[channel] = access_mode;
+                    let mode = (self.mode_reg & 0b00001110) >> 1;
 
-                        match mode {
-                            0b000 => self.mode[channel] = Mode::Mode0,
-                            0b001 => self.mode[channel] = Mode::Mode1,
-                            0b010 | 0b110 => self.mode[channel] = Mode::Mode2,
-                            0b011 | 0b111 => self.mode[channel] = Mode::Mode3,
-                            0b100 => self.mode[channel] = Mode::Mode4,
-                            0b101 => self.mode[channel] = Mode::Mode5,
-                            _ => unreachable!(),
-                        }
-                    },
+                    match mode {
+                        0b000 => self.mode[channel] = Mode::Mode0,
+                        0b001 => self.mode[channel] = Mode::Mode1,
+                        0b010 | 0b110 => self.mode[channel] = Mode::Mode2,
+                        0b011 | 0b111 => self.mode[channel] = Mode::Mode3,
+                        0b100 => self.mode[channel] = Mode::Mode4,
+                        0b101 => self.mode[channel] = Mode::Mode5,
+                        _ => unreachable!(),
+                    }
                 }
-
             },
             _ => unreachable!(),
         }

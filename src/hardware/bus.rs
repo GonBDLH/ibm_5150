@@ -51,21 +51,21 @@ impl Bus {
             0x40..=0x43 => self.pit.port_in(port),
             0x60..=0x63 => self.ppi.port_in(port),
             0x80..=0x83 => {/* TODO Reg pagina DMA */ 0},
-            0xA0..=0xAF => {/* TODO NMI */ 0},
+            0xA0..=0xAF => 0,
 
             0x3B0..=0x3BF => self.mda.port_in(port),
             _ => {0},
         }
     }
 
-    pub fn port_out(&mut self, val: u16, port: u16) {
+    pub fn port_out(&mut self, cpu: &mut CPU, val: u16, port: u16) {
         match port {
             0x00..=0x0F => self.dma.port_out(val, port),
             0x20..=0x21 => self.pic.port_out(val, port),
             0x40..=0x43 => self.pit.port_out(val, port),
             0x60..=0x63 => self.ppi.port_out(val, port),
             0x80..=0x83 => {/* TODO Reg pagina DMA */ },
-            0xA0..=0xAF => {/* TODO NMI */ },
+            0xA0..=0xAF => cpu.nmi_out(val),
 
             _ => {},
         };

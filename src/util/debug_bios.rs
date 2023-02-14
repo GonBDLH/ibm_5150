@@ -39,7 +39,7 @@ pub fn debug_82(cpu: &mut CPU) {
         0xFE6BA => println!(" - P_MSG: {:04X}", ip_queue_lock[1]),
         0xFE5CF => println!(" - ERROR BEEP SUBROUTINE: {:04X}", ip_queue_lock[1]),
 
-
+        0xF6000 => println!("BASIC"),
         _ => {},
     }
 }

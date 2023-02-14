@@ -51,7 +51,9 @@ impl DisplayAdapter for IbmMDA {
     fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> ImageGeneric<GlBackendSpec> {
         let iter = vram.chunks(2).enumerate();
         for v in iter {
-            let character = Char { index: v.1[0] as usize, ..Default::default() };
+            // let character = Char { index: v.1[0] as usize, ..Default::default() };
+            let character = Char::new(v.1[0] as usize).decode_colors(v.1[1]);
+
             self.render_font(character, v.0 % 80, v.0 / 80);
         }
 
@@ -77,18 +79,13 @@ impl DisplayAdapter for IbmMDA {
     
                 let bg_colors = character.background_color.to_rgba();
                 let fg_colors = character.foreground_color.to_rgba();
-                if pixel > 0 {
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = fg_colors.0;
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = fg_colors.1;
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = fg_colors.2;
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = fg_colors.3;
-                } else {
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = bg_colors.0;
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = bg_colors.1;
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = bg_colors.2;
-                    self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = bg_colors.3;
-                };
-                
+
+                let color = if pixel > 0 { &fg_colors } else { &bg_colors };
+
+                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = color.0;
+                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = color.1;
+                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = color.2;
+                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = color.3;
             }
         }
     }

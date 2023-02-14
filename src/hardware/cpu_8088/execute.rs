@@ -33,7 +33,7 @@ impl CPU {
             },
             Opcode::OUT => {
                 let val = self.get_val(bus, self.instr.operand2);
-                bus.port_out(val, self.instr.port);
+                bus.port_out(self, val, self.instr.port);
             },
             Opcode::XLAT => {
                 let val = bus.read_8(self.get_segment(Segment::DS), self.get_reg(Operand::BX) + self.get_reg(Operand::AL));

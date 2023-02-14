@@ -43,6 +43,7 @@ pub struct CPU {
     pub cycles: u32,
 
     pub nmi: bool,
+    pub nmi_enabled: bool,
     // Controla de que tipo es la SW INT si existe
     pub sw_int: bool,
     pub sw_int_type: u8,
@@ -80,6 +81,7 @@ impl CPU {
             cycles: 0,
 
             nmi: false,
+            nmi_enabled: false,
             sw_int: false,
             sw_int_type: 0,
 
@@ -115,9 +117,9 @@ impl CPU {
 
     pub fn handle_interrupts(&mut self, bus: &mut Bus) {
         if self.flags.i && self.sw_int {
-            self.interrupt(bus, (self.sw_int_type * 0x04) as u16);
+            self.interrupt(bus, self.sw_int_type as u16 * 0x04);
             self.sw_int = false;
-        } else if self.nmi {
+        } else if self.nmi && self.nmi_enabled {
             // Si hay una NON-MASKABLE INTERRUPT
             self.interrupt(bus, 0x0008);
             self.nmi = false;
@@ -141,6 +143,16 @@ impl CPU {
         
         self.flags.i = false;
         self.flags.t = false;
+    }
+    
+    pub fn nmi_out(&mut self, val: u16) {
+        self.nmi_enabled = if val == 0x80 {
+            true
+        } else if val == 0x00 {
+            false
+        } else {
+            self.nmi_enabled
+        };
     }
 }
 

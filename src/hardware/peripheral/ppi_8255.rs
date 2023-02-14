@@ -18,7 +18,7 @@ pub struct PPI8255 {
 impl PPI8255 {
     pub fn new() -> Self {
         PPI8255 { 
-            port_a: 0x00,
+            port_a: 0x01,
             port_b: 0x00,
             port_c: 0x00,
             mode_reg: 0x00,

@@ -50,7 +50,7 @@ impl System {
         self.cpu = CPU::new();
         self.bus = Bus::new();
 
-        self.bus.write_8(0x40, 0x12, 1);
+        // self.bus.write_8(0x40, 0x12, 1);
         self.running = false;
     }
 
@@ -60,6 +60,11 @@ impl System {
         let mut cycles_ran = 0;
 
         while cycles_ran <= max_cycles {
+            if self.cpu.halted {
+                print!("HALTED\r");
+                cycles_ran += 1;
+                continue;
+            }
             self.step(&mut cycles_ran);
         }
 
@@ -87,35 +92,35 @@ impl System {
         // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + _ip as usize, self.cpu.instr.opcode).unwrap();
         //self.file.flush().unwrap();
 
-        if self.cpu.halted { 
-            // let _a = 0;
-            // self.file.flush().unwrap();
-            // println!("{:04X}", self.cpu.ip);
-            todo!("Halted") 
-        }
-
-        // if (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) >= 0xF6000 && (((self.cpu.cs as usize) << 4) + self.cpu.ip as usize) < 0xFE000 {
+        // if self.cpu.halted { 
+        //     // let _a = 0;
         //     // self.file.flush().unwrap();
-        //     println!("Tecnicamente esta booteando?")
+        //     // println!("{:04X}", self.cpu.ip);
+        //     todo!("Halted") 
         // }
-        if cpu_utils::get_address(&mut self.cpu) == 0xF6000 {
-            println!("Tecnicamente esta booteando?")
-        }
     }
 
-    pub fn load_bios(&mut self) {
-        unsafe {
-            for (idx, element) in std::fs::read("roms/basic.bin").unwrap().into_iter().enumerate() {
-                std::ptr::write(&mut self.bus.memory[0xF6000 + idx], element);
-                // println!("{:04X} : {:02X}", 0xF6000 + idx, element);
-            }
+    pub fn load_roms(&mut self) {
+        // BASIC
+        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U29-5000019.bin").unwrap().into_iter().enumerate() {
+            self.bus.memory[0xF6000 + idx] = element;
+        }
 
-            for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN").unwrap().into_iter().enumerate() {
-                std::ptr::write(&mut self.bus.memory[0xFE000 + idx], element);
-            }
-            // for (idx, element) in std::fs::read("roms/bios.BIN").unwrap().into_iter().enumerate() {
-            //     std::ptr::write(&mut self.bus.memory[0xFE000 + idx], element);
-            // }
+        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U30-5000021.bin").unwrap().into_iter().enumerate() {
+            self.bus.memory[0xF8000 + idx] = element;
+        }
+        
+        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U31-5000022.bin").unwrap().into_iter().enumerate() {
+            self.bus.memory[0xFA000 + idx] = element;
+        }
+        
+        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U32-5000023.bin").unwrap().into_iter().enumerate() {
+            self.bus.memory[0xFC000 + idx] = element;
+        }
+        
+        // BIOS
+        for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN").unwrap().into_iter().enumerate() {
+            self.bus.memory[0xFE000 + idx] = element;
         }
     }
 }

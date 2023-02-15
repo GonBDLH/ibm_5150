@@ -8,7 +8,6 @@ use std::time::{Instant, Duration};
 // use crossterm::execute;
 // use crossterm::terminal::SetSize;
 
-use super::cpu_8088::cpu_utils;
 use super::cpu_8088::CPU;
 use super::bus::Bus;
 // use crate::util::debug::*;
@@ -74,7 +73,7 @@ impl System {
 
     #[inline]
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        if self.cpu.ip == 0xE6BD {
+        if self.cpu.ip == 0xEC56 {
             // println!("llego")
             let _a = 0;
         }

@@ -54,6 +54,10 @@ impl DisplayAdapter for IbmMDA {
             // let character = Char { index: v.1[0] as usize, ..Default::default() };
             let character = Char::new(v.1[0] as usize).decode_colors(v.1[1]);
 
+            // if character.index != 0x20 {
+            //     let _a = 0;
+            // }
+            
             self.render_font(character, v.0 % 80, v.0 / 80);
         }
 
@@ -77,10 +81,11 @@ impl DisplayAdapter for IbmMDA {
                     0
                 };
     
-                let bg_colors = character.background_color.to_rgba();
-                let fg_colors = character.foreground_color.to_rgba();
-
-                let color = if pixel > 0 { &fg_colors } else { &bg_colors };
+                let color = if pixel > 0 { 
+                    character.foreground_color.to_rgba()
+                } else {
+                    character.background_color.to_rgba()
+                };
 
                 self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = color.0;
                 self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = color.1;

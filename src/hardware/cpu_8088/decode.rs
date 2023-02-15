@@ -238,7 +238,11 @@ impl CPU {
                     _ => unreachable!(),
                 }
             },
-            0x90..=0x97 => {
+            0x90 => {
+                self.instr.opcode = Opcode::NOP;
+                self.cycles += 3;
+            },
+            0x91..=0x97 => {
                 self.instr.opcode = Opcode::XCHG;
                 self.instr.data_length = Length::Word;
                 self.instr.direction = Direction::ToReg;

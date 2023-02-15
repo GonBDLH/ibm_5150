@@ -196,6 +196,7 @@ pub enum Opcode {
     CLI,
     STI,
     HLT,
+    NOP,
 }
 
 impl Display for Opcode {
@@ -292,6 +293,7 @@ impl Display for Opcode {
             Opcode::CLI => "CLI",
             Opcode::STI => "STI",
             Opcode::HLT => "HLT",
+            Opcode::NOP => "NOP",
         };
         write!(f, "{}", val)
     }

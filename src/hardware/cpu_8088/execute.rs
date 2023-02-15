@@ -127,8 +127,8 @@ impl CPU {
             Opcode::SBB => {
                 // TODO ESTO ESTA MAL CASI SEGURO
                 let val1 = self.get_val(bus, self.instr.operand1);
-                let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
-                let res = val1.wrapping_sub(val2);
+                let val2 = self.get_val(bus, self.instr.operand2);
+                let res = val1.wrapping_sub(val2).wrapping_sub(self.flags.c as u16);
                 self.set_val(bus, self.instr.operand1, res);
                 self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
             },
@@ -207,19 +207,25 @@ impl CPU {
                     Length::Word => self.ax.get_x() as i16 as i32,
                     _ => unreachable!(),
                 };
-                let val2 = self.get_val(bus, self.instr.operand1) as i32;
-                let res = val1.wrapping_mul(val2);
-
-                match self.instr.data_length {
-                    Length::Byte => self.ax.set_x(res as u16),
+                
+                let res = match self.instr.data_length {
+                    Length::Byte => {
+                        let val2 = self.get_val(bus, self.instr.operand1) as i8 as i16 as i32;
+                        let res = val1.wrapping_mul(val2);
+                        self.ax.set_x(res as u16);
+                        res
+                    },
                     Length::Word => {
+                        let val2 = self.get_val(bus, self.instr.operand1) as i16 as i32;
+                        let res = val1.wrapping_mul(val2);
                         self.dx.set_x((res >> 16) as u16);
                         self.ax.set_x(res as u16);
+                        res
                     },
                     _ => unreachable!(),
                 };
 
-                self.flags.set_mul_flags(self.instr.data_length, res as u32);
+                self.flags.set_imul_flags(self.instr.data_length, res as u32);
             },
             Opcode::AAM => {
                 let temp_al = self.ax.low;

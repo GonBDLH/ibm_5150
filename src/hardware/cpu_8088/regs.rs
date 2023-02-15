@@ -217,6 +217,22 @@ impl Flags {
         }
     }
 
+    pub fn set_imul_flags(&mut self, length: Length, res: u32) {
+        match length {
+            Length::Word => {
+                let val = !matches!(res & 0x80008000, 0x80008000 | 0x0);
+                self.o = val;
+                self.c = val;
+            },
+            Length::Byte => {
+                let val = !matches!(res & 0x8080, 0x8080 | 0x0000);
+                self.o = val;
+                self.c = val;
+            },
+            _ => unreachable!(),
+        }
+    }
+    
     pub fn set_mul_flags(&mut self, length: Length, res: u32) {
         match length {
             Length::Word => {

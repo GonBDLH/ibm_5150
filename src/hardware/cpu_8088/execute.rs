@@ -5,6 +5,9 @@ use super::cpu_utils::*;
 
 impl CPU {
    pub fn execute(&mut self, bus: &mut Bus) {
+        #[cfg(debug_assertions)]
+        self.instr_map.entry(self.instr.opcode).and_modify(|e| *e += 1).or_default();
+
         match self.instr.opcode {
             Opcode::MOV => {
                 let val = self.get_val(bus, self.instr.operand2);
@@ -12,10 +15,10 @@ impl CPU {
             },
             Opcode::PUSH => {
                 let val = self.get_val(bus, self.instr.operand1);
-                self.push_stack(bus, val);
+                self.push_stack_16(bus, val);
             },
             Opcode::POP => {
-                let val = self.pop_stack(bus);
+                let val = self.pop_stack_16(bus);
                 self.set_val(bus, self.instr.operand1, val);
             },
             Opcode::XCHG => {
@@ -83,7 +86,7 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let res = val.wrapping_add(1);
                 self.set_val(bus, self.instr.operand1, res);
-                self.flags.set_add_flags(self.instr.data_length, val, 1, res);
+                self.flags.set_inc_flags(self.instr.data_length, val, res);
             },
             Opcode::AAA => {
                 if (self.ax.low & 0x0F) > 9 || self.flags.a {
@@ -136,7 +139,7 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let res = val.wrapping_sub(1);
                 self.set_val(bus, self.instr.operand1, res);
-                self.flags.set_sub_flags(self.instr.data_length, val, 1, res);
+                self.flags.set_dec_flags(self.instr.data_length, val, res);
             },
             Opcode::NEG => {
                 let val = self.get_val(bus, self.instr.operand1);

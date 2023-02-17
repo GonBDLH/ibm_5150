@@ -4,7 +4,7 @@ use super::Peripheral;
 pub struct PIC8259 {
     isr: u8,
     imr: u8,
-    irr: u8,
+    pub irr: u8,
 
     // max_prio: IRQs,
 
@@ -59,6 +59,10 @@ impl PIC8259 {
 
     pub fn irq(&mut self, irq: IRQs) {
         self.irr |= irq as u8;
+    }
+
+    pub fn clear_int(&mut self, irq: IRQs) {
+        self.irr &= !(irq as u8);
     }
 }
 

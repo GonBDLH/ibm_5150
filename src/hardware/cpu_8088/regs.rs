@@ -173,6 +173,27 @@ impl Flags {
         }
     }
 
+    pub fn set_inc_flags(&mut self, length: Length, val: u16, res: u16) {
+
+        match length {
+            Length::Word => {
+                self.o = check_o_add_16(val, 1, res);
+                self.s = check_s_16(res);
+                self.z = check_z(res);
+                self.a = check_a(val, 1);
+                self.p = check_p(res);
+            },
+            Length::Byte => {
+                self.o = check_o_add_8(val as u8, 1, res as u8);
+                self.s = check_s_8(res as u8);
+                self.z = (res as u8) == 0;
+                self.a = check_a(val, 1);
+                self.p = check_p(res);
+            },
+            _ => unreachable!(),
+        }
+    }
+
     pub fn set_sub_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16) {
         match length {
             Length::Word => {
@@ -195,6 +216,25 @@ impl Flags {
         }
     }
 
+    pub fn set_dec_flags(&mut self, length: Length, val: u16, res: u16) {
+        match length {
+            Length::Word => {
+                self.o = check_o_sub_16(val, 1, res);
+                self.s = check_s_16(res);
+                self.z = check_z(res);
+                self.a = check_a(val, 1);
+                self.p = check_p(res);
+            },
+            Length::Byte => {
+                self.o = check_o_sub_8(val as u8, 1, res as u8);
+                self.s = check_s_8(res as u8);
+                self.z = (res as u8) == 0;
+                self.a = check_a(val, 1);
+                self.p = check_p(res);
+            },
+            _ => unreachable!(),
+        }
+    }
     pub fn set_neg_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16) {
         match length {
             Length::Word => {

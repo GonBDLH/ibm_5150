@@ -1,4 +1,4 @@
-use super::{Peripheral, pic_8259::{PIC8259, IRQs}};
+use super::{Peripheral, pic_8259::{PIC8259, IRQs}, ppi_8255::PPI8255};
 
 #[derive(Clone, Copy, PartialEq)]
 enum Mode {
@@ -28,6 +28,8 @@ pub struct TIM8253 {
     mode: [Mode; 3],
     out: [bool; 3],
     active: [bool; 3],
+    first_clk: [bool; 3],
+    reload_clk: [bool; 3],
 
     toggle: [bool; 3],
 
@@ -38,6 +40,9 @@ impl TIM8253 {
     pub fn new() -> Self {
         Self {
             active: [false; 3],
+            first_clk: [true; 3],
+            reload_clk: [false; 3],
+            toggle: [true; 3],
             ..Default::default()
         }
     }
@@ -68,17 +73,48 @@ impl TIM8253 {
         }
     }
 
-    pub fn update(&mut self, pic: &mut PIC8259) {
+    fn mode3(&mut self, i: usize, pic: &mut PIC8259) {
+        let half = (self.reload[i] as f32 / 2.0).ceil() as u16;
+
+        self.output(i, self.count[i] <= half, pic);
+
+        if self.count[i] % 2 == 0 && self.out[i] && self.first_clk[i] {
+            if self.reload_clk[i] {
+                self.count[i] = self.count[i].wrapping_sub(3);
+                self.reload_clk[i] = false;
+            } else {
+                self.count[i] = self.count[i].wrapping_sub(1);
+            }
+            
+            self.first_clk[i] = false;
+        } else {
+            self.count[i] = self.count[i].wrapping_sub(2);
+        }
+
+        if self.count[i] == 0 {
+            self.count[i] = self.reload[i];
+            self.first_clk[i] = true;
+            self.reload_clk[i] = true;
+        }
+    }
+
+    pub fn update(&mut self, pic: &mut PIC8259, _ppi: &mut PPI8255) {
         while self.cycles > 3 {
             for i in 0..3 {
                 if self.active[i] {
                     match self.mode[i] {
                         Mode::Mode0 => self.mode0(i, pic),
                         Mode::Mode2 => self.mode2(i, pic), 
+                        Mode::Mode3 => self.mode3(i, pic),
+
                         _ => {}, // TODO
                     }
                 }
             }
+            // let bit = (self.out[2] as u8) << 5;
+            // let prev_pc = ppi.read_pc() & 0b11011111;
+            // let new_pc = prev_pc | bit;
+            // ppi.port_c = new_pc;
 
             self.cycles -= 4;
         }
@@ -161,6 +197,7 @@ impl Peripheral for TIM8253 {
                 
                 if access_mode == 0b00 {
                     self.latch_val[channel] = self.count[channel];
+                    self.latched[channel] = true;
                 } else {
                     self.rl_mode[channel] = access_mode;
                     let mode = (self.mode_reg & 0b00001110) >> 1;

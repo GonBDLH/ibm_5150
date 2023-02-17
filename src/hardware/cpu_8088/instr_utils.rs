@@ -103,7 +103,7 @@ impl Length {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Opcode {
     None,
     MOV,

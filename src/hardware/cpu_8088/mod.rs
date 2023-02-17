@@ -6,6 +6,9 @@ mod execute;
 
 pub mod dissasemble;
 
+#[cfg(debug_assertions)]
+use std::collections::HashMap;
+
 use super::bus::Bus;
 use instr_utils::*;
 use regs::{GPReg, Flags};
@@ -52,6 +55,9 @@ pub struct CPU {
 
     // Usado en instrucciones de Strings cuando tengan que repetirse
     pub to_decode: bool,
+
+    #[cfg(debug_assertions)]
+    instr_map: HashMap<Opcode, usize>,
 }
 
 impl CPU {
@@ -88,6 +94,9 @@ impl CPU {
             halted: false,
 
             to_decode: true,
+
+            #[cfg(debug_assertions)]
+            instr_map: HashMap::new(),
         }
     }
 }
@@ -267,14 +276,6 @@ impl CPU {
         self.push_stack_8(bus, val.0);
     }
 
-    fn push_stack(&mut self, bus: &mut Bus, val: u16) {
-        match self.instr.data_length {
-            Length::Byte => self.push_stack_8(bus, val as u8),
-            Length::Word => self.push_stack_16(bus, val),
-            _ => unreachable!(),
-        }
-    }
-
     fn pop_stack_8(&mut self, bus: &mut Bus) -> u8 {
         let val = bus.read_8(self.ss, self.sp);
         self.sp = self.sp.wrapping_add(1);
@@ -285,14 +286,6 @@ impl CPU {
         let val_low = self.pop_stack_8(bus);
         let val_high = self.pop_stack_8(bus);
         to_u16(val_low, val_high)
-    }
-
-    fn pop_stack(&mut self, bus: &mut Bus) -> u16 {
-        match self.instr.data_length {
-            Length::Byte => self.pop_stack_8(bus) as u16,
-            Length::Word => self.pop_stack_16(bus),
-            _ => unreachable!(),
-        }
     }
 
     pub fn movs(&mut self, bus: &mut Bus) {

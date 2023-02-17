@@ -6,7 +6,7 @@ use super::cpu_8088::instr_utils::Segment;
 use super::display::ibm_mda::IbmMDA;
 use super::peripheral::Peripheral;
 use super::peripheral::dma_8237::DMA8237;
-use super::peripheral::pic_8259::{PIC8259, IRQs};
+use super::peripheral::pic_8259::PIC8259;
 use super::peripheral::ppi_8255::PPI8255;
 use super::peripheral::timer_8253::TIM8253;
 
@@ -35,13 +35,17 @@ impl Bus {
         }
     }
 
-    pub fn key_input(&mut self, key_code: u8) {
-        self.ppi.port_a = key_code;
-        self.pic.irq(IRQs::Irq1);
+    pub fn update_peripherals(&mut self, cycles: u32) {
+        self.update_timer();
+        self.update_ppi(cycles);        
+    }
+    
+    fn update_timer(&mut self) {
+        self.pit.update(&mut self.pic, &mut self.ppi);
     }
 
-    pub fn update_timer(&mut self) {
-        self.pit.update(&mut self.pic);
+    fn update_ppi(&mut self, cycles: u32) {
+        self.ppi.update(&mut self.pic, cycles);
     }
 
     pub fn port_in(&mut self, port: u16) -> u16 {
@@ -73,6 +77,11 @@ impl Bus {
 
     pub fn read_8(&self, segment: u16, offset: u16) -> u8 {
         let ea = ((segment as usize) << 4) + offset as usize;
+        
+        if ea == 1042 {
+            let _a = 0;
+        }
+        
         self.memory[ea % 0x100000]
     }
 
@@ -83,6 +92,10 @@ impl Bus {
 
     pub fn write_8(&mut self, segment: u16, offset: u16, val: u8) {
         let ea = ((segment as usize) << 4) + offset as usize;
+
+        if ea == 1042 {
+            let _a = 0;
+        }
 
         // NO ESCRIBIR EN ROM
         if ea >= 0xC0000 {

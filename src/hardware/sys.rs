@@ -1,16 +1,8 @@
 // use std::fs::File;
 use std::fs::File;
-#[cfg(not(debug_assertions))]
-use std::time::{Instant, Duration};
-// use std::thread::sleep;
-// use std::time::{Instant, Duration};
-
-// use crossterm::execute;
-// use crossterm::terminal::SetSize;
 
 use super::cpu_8088::CPU;
 use super::bus::Bus;
-// use crate::util::debug::*;
 
 use std::fs::OpenOptions;
 
@@ -21,12 +13,11 @@ pub struct System {
     pub running: bool,
 
     pub file: File,
-    // pub rx: Mutex<Receiver<bool>>,
+    cycles_step: u32,
 }
 
 impl System {
     pub fn new() -> Self {
-        // execute!(stdout(), SetSize(120, 30)).unwrap();
         let sys = System { 
             cpu: CPU::new(),
             bus: Bus::new(),
@@ -34,10 +25,9 @@ impl System {
             running: false,
 
             file: OpenOptions::new().create(true).write(true).open("logs/logs.txt").unwrap(),
-            // rx: Mutex::new(rx),
+            cycles_step: 0,
         };
       
-        // sys.rst();
         sys
     }
 }
@@ -49,7 +39,6 @@ impl System {
         self.cpu = CPU::new();
         self.bus = Bus::new();
 
-        // self.bus.write_8(0x40, 0x12, 1);
         self.running = false;
     }
 
@@ -66,37 +55,25 @@ impl System {
             }
             self.step(&mut cycles_ran);
         }
-
-        // self.file.flush().unwrap();
-        // display(self);
     }
 
     #[inline]
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        if self.cpu.ip == 0xEC56 {
-            // println!("llego")
-            let _a = 0;
-        }
-
-        // ACTUALIZAR TIMER
-        self.bus.update_timer();
-    
+        // if self.cpu.ip == 0xE287 {
+        //     let _a = 0;
+        // }
+        
         debug_82(&mut self.cpu);
         let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
+        self.cycles_step = cycles;
         // println!("{:04X}", _ip);
-
+        
         self.cpu.handle_interrupts(&mut self.bus);
+        
+        // ACTUALIZAR PERIFERICOS
+        self.bus.update_peripherals(cycles);
 
         *cycles_ran += cycles;
-        // writeln!(&mut self.file, "{:05X} - {}", ((self.cpu.cs as usize) << 4) + _ip as usize, self.cpu.instr.opcode).unwrap();
-        //self.file.flush().unwrap();
-
-        // if self.cpu.halted { 
-        //     // let _a = 0;
-        //     // self.file.flush().unwrap();
-        //     // println!("{:04X}", self.cpu.ip);
-        //     todo!("Halted") 
-        // }
     }
 
     pub fn load_roms(&mut self) {

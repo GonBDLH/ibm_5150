@@ -414,10 +414,10 @@ impl Flags {
         self.c = false;
         match length {
             Length::Byte => {
-                self.c = check_s_8(res as u8);
+                self.s = check_s_8(res as u8);
             },
             Length::Word => {
-                self.c = check_s_16(res);
+                self.s = check_s_16(res);
             },
             _ => unreachable!(),
         }

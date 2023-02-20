@@ -1,6 +1,7 @@
 use ggez::{Context, graphics::{ImageGeneric, GlBackendSpec, Color}};
 
 pub mod ibm_mda;
+pub mod crtc6845;
 
 pub trait DisplayAdapter {
     fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> ImageGeneric<GlBackendSpec>;

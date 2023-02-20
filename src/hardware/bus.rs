@@ -71,17 +71,18 @@ impl Bus {
             0x80..=0x83 => {/* TODO Reg pagina DMA */ },
             0xA0..=0xAF => cpu.nmi_out(val),
 
+            0x3B0..=0x3BF => self.mda.port_out(val, port),
             _ => {},
         };
     }
 
     pub fn read_8(&self, segment: u16, offset: u16) -> u8 {
         let ea = ((segment as usize) << 4) + offset as usize;
-        
-        if ea == 1042 {
+
+        if ea == 0xFAC9B {
             let _a = 0;
         }
-        
+
         self.memory[ea % 0x100000]
     }
 
@@ -93,7 +94,11 @@ impl Bus {
     pub fn write_8(&mut self, segment: u16, offset: u16, val: u8) {
         let ea = ((segment as usize) << 4) + offset as usize;
 
-        if ea == 1042 {
+        if val == 'T' as u8 {
+            let _a = 0;
+        }
+
+        if ea >= 0xB0000 && ea < 0xB1000 {
             let _a = 0;
         }
 

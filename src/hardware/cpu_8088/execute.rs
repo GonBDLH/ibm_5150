@@ -27,7 +27,7 @@ impl CPU {
                 
                 if let OperandType::Register(operand) = self.instr.operand1 {
                     self.set_reg(self.instr.data_length, operand, val2);
-                } else {panic!("No se pudo hacer esto")};
+                } else {unreachable!("No se pudo hacer esto")};
                 self.set_val(bus, self.instr.operand2, val1);
             },
             Opcode::IN => {
@@ -39,25 +39,42 @@ impl CPU {
                 bus.port_out(self, val, self.instr.port);
             },
             Opcode::XLAT => {
-                let val = bus.read_8(self.get_segment(Segment::DS), self.get_reg(Operand::BX) + self.get_reg(Operand::AL));
+                let segment = if self.instr.segment == Segment::None {
+                    Segment::DS
+                } else {
+                    self.instr.segment
+                };
+
+                let val = bus.read_8(self.get_segment(segment), self.get_reg(Operand::BX) + self.get_reg(Operand::AL));
                 self.set_reg8(Operand::AL, val);
             },
             Opcode::LEA => {
-                self.set_val(bus, self.instr.operand1, self.instr.offset);
+                let val = bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length);
+                self.set_val(bus, self.instr.operand1, val);
+                // self.set_val(bus, self.instr.operand1, self.instr.offset);
             }
             Opcode::LDS => {
-                self.set_val(bus, self.instr.operand1, self.instr.offset);
+                let val = bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length);
+                // self.set_val(bus, self.instr.operand1, self.instr.offset);
+                self.set_val(bus, self.instr.operand1, val);
                 self.ds = bus.read_length(self, self.instr.segment, self.instr.offset.wrapping_add(2), self.instr.data_length);
             },
             Opcode::LES => {
-                self.set_val(bus, self.instr.operand1, self.instr.offset);
+                let val = bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length);
+                // self.set_val(bus, self.instr.operand1, self.instr.offset);
+                self.set_val(bus, self.instr.operand1, val);
                 self.es = bus.read_length(self, self.instr.segment, self.instr.offset.wrapping_add(2), self.instr.data_length);
             },
             Opcode::LAHF => {
                 self.ax.high = self.flags.get_flags() as u8;
             },
             Opcode::SAHF => {
-                self.flags.set_flags(self.ax.high as u16);
+                // self.flags.set_flags(self.ax.high as u16);
+                self.flags.s = self.ax.high & 0x80 > 0;
+                self.flags.z = self.ax.high & 0x40 > 0;
+                self.flags.a = self.ax.high & 0x10 > 0;
+                self.flags.p = self.ax.high & 0x04 > 0;
+                self.flags.c = self.ax.high & 0x01 > 0;
             },
             Opcode::PUSHF => {
                 let val = self.flags.get_flags();
@@ -505,16 +522,16 @@ impl CPU {
                 }
             },
             Opcode::JEJZ => self.jump(self.flags.z),
-            Opcode::JLJNGE => self.jump(self.flags.s != self.flags.o),
-            Opcode::JLEJNG => self.jump(self.flags.z | (self.flags.s != self.flags.o)),
+            Opcode::JLJNGE => self.jump(self.flags.s ^ self.flags.o),
+            Opcode::JLEJNG => self.jump((self.flags.s ^ self.flags.o) | self.flags.z),
             Opcode::JBJNAE => self.jump(self.flags.c),
             Opcode::JBEJNA => self.jump(self.flags.c | self.flags.z),
             Opcode::JPJPE => self.jump(self.flags.p),
             Opcode::JO => self.jump(self.flags.o),
             Opcode::JS => self.jump(self.flags.s),
             Opcode::JNEJNZ => self.jump(!self.flags.z),
-            Opcode::JNLJGE => self.jump(self.flags.s == self.flags.o),
-            Opcode::JNLEJG => self.jump(!self.flags.z & (self.flags.s == self.flags.o)),
+            Opcode::JNLJGE => self.jump(!(self.flags.s ^ self.flags.o)),
+            Opcode::JNLEJG => self.jump(!((self.flags.s ^ self.flags.o) | self.flags.z)),
             Opcode::JNBJAE => self.jump(!self.flags.c),
             Opcode::JNBEJA => self.jump(!self.flags.c & !self.flags.z),
             Opcode::JNPJPO => self.jump(!self.flags.p),

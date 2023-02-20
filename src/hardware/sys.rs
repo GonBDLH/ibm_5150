@@ -1,7 +1,7 @@
 // use std::fs::File;
 use std::fs::File;
 
-use super::cpu_8088::CPU;
+use super::cpu_8088::{CPU, cpu_utils::get_address};
 use super::bus::Bus;
 
 use std::fs::OpenOptions;
@@ -59,9 +59,9 @@ impl System {
 
     #[inline]
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        // if self.cpu.ip == 0xE287 {
-        //     let _a = 0;
-        // }
+        if get_address(&mut self.cpu) == 0xFF123 {
+            let _a = 0;
+        }
         
         debug_82(&mut self.cpu);
         let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);

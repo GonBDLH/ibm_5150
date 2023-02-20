@@ -4,7 +4,7 @@ use ggez::{graphics::{ImageGeneric, GlBackendSpec, Image}, Context};
 
 use crate::hardware::peripheral::Peripheral;
 
-use super::{DisplayAdapter, Char};
+use super::{DisplayAdapter, Char, crtc6845::CRTC6845};
 
 const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
 // const IMG_SIZE: usize = 720 * 350;
@@ -19,7 +19,8 @@ pub struct IbmMDA {
     crtc_sp: u8,
 
     crtc_adddr_reg: usize,
-    crtc_registers: [u8; 18],
+    // crtc_registers: [u8; 18],
+    crtc: CRTC6845,
 
     retrace: u8,
 }
@@ -40,24 +41,28 @@ impl IbmMDA {
             crtc_sp: 0b11111110,
 
             crtc_adddr_reg: 0,
-            crtc_registers: [0x00; 18],
+            // crtc_registers: [0x00; 18],
+            crtc: CRTC6845::default(),
 
             retrace: 0,
         }
+    }
+    
+    fn enabled(&self) -> bool {
+        self.crtc_op1 & 0b00001000 > 0
     }
 }
 
 impl DisplayAdapter for IbmMDA {
     fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> ImageGeneric<GlBackendSpec> {
+        if !self.enabled() {
+            return Image::from_rgba8(ctx, 720, 350, &[0x00; IMG_BUFF_SIZE]).unwrap();
+        }
+
         let iter = vram.chunks(2).enumerate();
         for v in iter {
-            // let character = Char { index: v.1[0] as usize, ..Default::default() };
             let character = Char::new(v.1[0] as usize).decode_colors(v.1[1]);
 
-            // if character.index != 0x20 {
-            //     let _a = 0;
-            // }
-            
             self.render_font(character, v.0 % 80, v.0 / 80);
         }
 
@@ -112,7 +117,8 @@ impl Peripheral for IbmMDA {
                 }
             }
 
-            0x3B1 | 0x3B3 | 0x3B5 | 0x3B7 =>  self.crtc_registers[self.crtc_adddr_reg] as u16,
+            // 0x3B5 => self.crtc_registers[self.crtc_adddr_reg] as u16,
+            0x3B5 => self.crtc.read_reg(self.crtc_adddr_reg) as u16,
 
             _ => 0 //TODO
         }
@@ -121,8 +127,9 @@ impl Peripheral for IbmMDA {
     fn port_out(&mut self, val: u16, port: u16) {
         match port {
             0x3B8 => self.crtc_op1 = val as u8,
-            0x3B0 | 0x3B2 | 0x3B4 | 0x3B6 =>  self.crtc_adddr_reg = (val as u8) as usize,
-            0x3B1 | 0x3B3 | 0x3B5 | 0x3B7 =>  self.crtc_registers[self.crtc_adddr_reg] = val as u8,
+            0x3B4 =>  self.crtc_adddr_reg = (val as u8) as usize,
+            // 0x3B5 =>  self.crtc_registers[self.crtc_adddr_reg] = val as u8,
+            0x3B5 => self.crtc.reg_write(self.crtc_adddr_reg, val as u8),
             _ => {}   
         }
     }

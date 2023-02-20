@@ -1,5 +1,6 @@
+use std::collections::VecDeque;
+
 use ggez::event;
-use rand::random;
 
 use super::{Peripheral, pic_8259::{PIC8259, IRQs}};
 
@@ -13,7 +14,7 @@ const SW2: u8 = 0b11100000;
 const KBD_RESET_CYCLES: u32 = 47700; // 20 ms
 const KBD_RESET_CYCLE_DELAY: u32 = 100;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PPI8255 {
     key_code: u8,
     pub port_b: u8,
@@ -23,8 +24,10 @@ pub struct PPI8255 {
     kbd: Keyboard,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Keyboard {
+    key_queue: VecDeque<u8>,
+    
     clear: bool,
     reset:bool,
 
@@ -39,6 +42,8 @@ pub struct Keyboard {
 impl Keyboard {
     pub fn new() -> Self {
         Self { 
+            key_queue: VecDeque::new(),
+
             clear: false,
             reset: false,
 
@@ -96,7 +101,9 @@ impl PPI8255 {
     }
     
     pub fn key_input(&mut self, key_code: u8, pic: &mut PIC8259) {
+        // self.key_code = key_code;
         self.key_code = key_code;
+        self.kbd.key_queue.push_back(key_code);
         pic.irq(IRQs::Irq1);
     }
     
@@ -104,7 +111,11 @@ impl PPI8255 {
         if self.port_b & 0x80 == 0x80 {
             SW1
         } else {
-            self.key_code
+            if let Some(v) = self.kbd.key_queue.pop_front() {
+                v
+            } else {
+                self.key_code
+            }
         }
     }
 

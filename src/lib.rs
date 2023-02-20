@@ -9,6 +9,7 @@ pub use hardware::sys::System;
 pub use ggez::conf::WindowMode;
 pub use ggez::{GameError, GameResult};
 pub use ggez::event::{self, EventHandler};
+pub use ggez::input::keyboard::KeyCode;
 pub use ggez::graphics::{self, Color};
 pub use ggez::timer::check_update_time;
 

@@ -1,6 +1,6 @@
-use std::collections::VecDeque;
+// use ggez::event::{self, KeyCode};
 
-use ggez::event;
+use ggez::event::KeyCode;
 
 use super::{Peripheral, pic_8259::{PIC8259, IRQs}};
 
@@ -26,8 +26,6 @@ pub struct PPI8255 {
 
 #[derive(Clone)]
 pub struct Keyboard {
-    key_queue: VecDeque<u8>,
-    
     clear: bool,
     reset:bool,
 
@@ -42,8 +40,6 @@ pub struct Keyboard {
 impl Keyboard {
     pub fn new() -> Self {
         Self { 
-            key_queue: VecDeque::new(),
-
             clear: false,
             reset: false,
 
@@ -57,19 +53,35 @@ impl Keyboard {
     }
 }
 
-fn decode_key(keycode: event::KeyCode) -> u8 {
+fn decode_key(keycode: KeyCode) -> u8 {
+    println!("{:?}", keycode);
     match keycode {
-        event::KeyCode::Escape => 1,
-        event::KeyCode::Key1 => 2, 
-        event::KeyCode::Key2 => 3,
-        event::KeyCode::Key3 => 4,
-        event::KeyCode::Key4 => 5,
-        event::KeyCode::Key5 => 6,
-        event::KeyCode::Key6 => 7,
-        event::KeyCode::Key7 => 8,
-        event::KeyCode::Key8 => 9,
-        event::KeyCode::Key9 => 10,
-        event::KeyCode::Key0 => 11,
+        KeyCode::Escape => 1,
+        KeyCode::Key1 => 2, 
+        KeyCode::Key2 => 3,
+        KeyCode::Key3 => 4,
+        KeyCode::Key4 => 5,
+        KeyCode::Key5 => 6,
+        KeyCode::Key6 => 7,
+        KeyCode::Key7 => 8,
+        KeyCode::Key8 => 9,
+        KeyCode::Key9 => 10,
+        KeyCode::Key0 => 11,
+        KeyCode::Minus => 12,
+        KeyCode::Equals => 13,
+        KeyCode::Back => 14,
+        KeyCode::Tab => 15,
+        KeyCode::Q => 16,
+        KeyCode::W => 17,
+        KeyCode::E => 18,
+        KeyCode::R => 19,
+        KeyCode::T => 20,
+        KeyCode::Y => 21,
+        KeyCode::U => 22,
+        KeyCode::I => 23,
+        KeyCode::O => 24,
+        KeyCode::P => 25,
+
         _ => 0,
     }
 }
@@ -86,14 +98,14 @@ impl PPI8255 {
         }
     }
 
-    pub fn key_up(&mut self, keycode: event::KeyCode, pic: &mut PIC8259) {
+    pub fn key_up(&mut self, keycode: KeyCode, pic: &mut PIC8259) {
         // if self.keyboard_enabled {
         let key_code = decode_key(keycode) + 0x80;
         self.key_input(key_code, pic);
         // }
     }
 
-    pub fn key_down(&mut self, keycode: event::KeyCode, pic: &mut PIC8259) {
+    pub fn key_down(&mut self, keycode: KeyCode, pic: &mut PIC8259) {
         // if self.keyboard_enabled {
         let key_code = decode_key(keycode);
         self.key_input(key_code, pic);
@@ -101,9 +113,7 @@ impl PPI8255 {
     }
     
     pub fn key_input(&mut self, key_code: u8, pic: &mut PIC8259) {
-        // self.key_code = key_code;
         self.key_code = key_code;
-        self.kbd.key_queue.push_back(key_code);
         pic.irq(IRQs::Irq1);
     }
     
@@ -111,11 +121,7 @@ impl PPI8255 {
         if self.port_b & 0x80 == 0x80 {
             SW1
         } else {
-            if let Some(v) = self.kbd.key_queue.pop_front() {
-                v
-            } else {
-                self.key_code
-            }
+            self.key_code
         }
     }
 

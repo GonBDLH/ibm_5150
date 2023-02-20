@@ -1,10 +1,10 @@
-use ggez::{Context, graphics::{ImageGeneric, GlBackendSpec, Color}};
+use ggez::{Context, graphics::{Color, Image}};
 
 pub mod ibm_mda;
 pub mod crtc6845;
 
 pub trait DisplayAdapter {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> ImageGeneric<GlBackendSpec>;
+    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
     fn render_font(&mut self, char: Char, width: usize, height: usize);
 }
 

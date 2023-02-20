@@ -1,6 +1,4 @@
-// use ggez::event::{self, KeyCode};
-
-use ggez::event::KeyCode;
+use ggez::event::ScanCode;
 
 use super::{Peripheral, pic_8259::{PIC8259, IRQs}};
 
@@ -53,39 +51,6 @@ impl Keyboard {
     }
 }
 
-fn decode_key(keycode: KeyCode) -> u8 {
-    println!("{:?}", keycode);
-    match keycode {
-        KeyCode::Escape => 1,
-        KeyCode::Key1 => 2, 
-        KeyCode::Key2 => 3,
-        KeyCode::Key3 => 4,
-        KeyCode::Key4 => 5,
-        KeyCode::Key5 => 6,
-        KeyCode::Key6 => 7,
-        KeyCode::Key7 => 8,
-        KeyCode::Key8 => 9,
-        KeyCode::Key9 => 10,
-        KeyCode::Key0 => 11,
-        KeyCode::Minus => 12,
-        KeyCode::Equals => 13,
-        KeyCode::Back => 14,
-        KeyCode::Tab => 15,
-        KeyCode::Q => 16,
-        KeyCode::W => 17,
-        KeyCode::E => 18,
-        KeyCode::R => 19,
-        KeyCode::T => 20,
-        KeyCode::Y => 21,
-        KeyCode::U => 22,
-        KeyCode::I => 23,
-        KeyCode::O => 24,
-        KeyCode::P => 25,
-
-        _ => 0,
-    }
-}
-
 impl PPI8255 {
     pub fn new() -> Self {
         PPI8255 { 
@@ -98,18 +63,12 @@ impl PPI8255 {
         }
     }
 
-    pub fn key_up(&mut self, keycode: KeyCode, pic: &mut PIC8259) {
-        // if self.keyboard_enabled {
-        let key_code = decode_key(keycode) + 0x80;
-        self.key_input(key_code, pic);
-        // }
+    pub fn key_up(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
+        self.key_input((keycode + 0x80) as u8, pic);
     }
 
-    pub fn key_down(&mut self, keycode: KeyCode, pic: &mut PIC8259) {
-        // if self.keyboard_enabled {
-        let key_code = decode_key(keycode);
-        self.key_input(key_code, pic);
-        // }
+    pub fn key_down(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
+        self.key_input(keycode as u8, pic);
     }
     
     pub fn key_input(&mut self, key_code: u8, pic: &mut PIC8259) {

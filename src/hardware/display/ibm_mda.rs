@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use ggez::{graphics::{ImageGeneric, GlBackendSpec, Image}, Context};
+use ggez::{graphics::{Image, ImageFormat}, Context};
 
 use crate::hardware::peripheral::Peripheral;
 
@@ -54,9 +54,9 @@ impl IbmMDA {
 }
 
 impl DisplayAdapter for IbmMDA {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> ImageGeneric<GlBackendSpec> {
+    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image {
         if !self.enabled() {
-            return Image::from_rgba8(ctx, 720, 350, &[0x00; IMG_BUFF_SIZE]).unwrap();
+            return Image::from_pixels(ctx , &[0x00; IMG_BUFF_SIZE], ImageFormat::Rgba8Unorm, 720, 350);
         }
 
         let iter = vram.chunks(2).enumerate();
@@ -66,7 +66,7 @@ impl DisplayAdapter for IbmMDA {
             self.render_font(character, v.0 % 80, v.0 / 80);
         }
 
-        Image::from_rgba8(ctx, 720, 350, &self.img_buffer).unwrap()
+        Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350)
     }
 
     fn render_font(&mut self, character: Char, width: usize, height: usize) {

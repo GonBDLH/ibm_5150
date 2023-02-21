@@ -111,10 +111,6 @@ impl TIM8253 {
                     }
                 }
             }
-            // let bit = (self.out[2] as u8) << 5;
-            // let prev_pc = ppi.read_pc() & 0b11011111;
-            // let new_pc = prev_pc | bit;
-            // ppi.port_c = new_pc;
 
             self.cycles -= 4;
         }

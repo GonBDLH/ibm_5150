@@ -145,7 +145,6 @@ impl CPU {
                 self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
             },
             Opcode::SBB => {
-                // TODO ESTO ESTA MAL CASI SEGURO
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
                 let res = val1.wrapping_sub(val2).wrapping_sub(self.flags.c as u16);

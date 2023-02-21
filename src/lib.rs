@@ -1,8 +1,10 @@
 pub mod hardware;
 pub mod util;
 
+use ggez::Context;
+use ggez::glam::Vec2;
+use ggez::input::keyboard::KeyInput;
 // A
-use ggez::graphics::{DrawParam, Drawable};
 use hardware::display::DisplayAdapter;
 pub use hardware::sys::System;
 
@@ -21,7 +23,7 @@ pub struct IbmPc {
 impl IbmPc {
     pub fn new() -> Self {
         IbmPc {
-            sys: System::new()
+            sys: System::new(),
         }
     }
 }
@@ -44,38 +46,22 @@ impl EventHandler for IbmPc {
         let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
         let img = self.sys.bus.mda.create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB0FA0]);
 
-        img.draw(&mut canvas, DrawParam::new());
-        // canvas.draw(&img, DrawParam::new());
+        canvas.draw(&img, Vec2::new(0.0, 0.0));
         canvas.finish(ctx)?;
         Ok(())
     }
 
-    fn key_up_event(&mut self, _ctx: &mut ggez::Context, input: ggez::input::keyboard::KeyInput) -> Result<(), GameError> {
+    fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> Result<(), GameError> {
         self.sys.bus.ppi.key_up(input.scancode, &mut self.sys.bus.pic);
 
         Ok(())
     }
 
-    fn key_down_event(
-            &mut self,
-            _ctx: &mut ggez::Context,
-            input: ggez::input::keyboard::KeyInput,
-            repeated: bool,
-        ) -> Result<(), GameError> {
+    fn key_down_event(&mut self, _ctx: &mut Context, input: KeyInput, repeated: bool) -> Result<(), GameError> {
         if !repeated {
             self.sys.bus.ppi.key_down(input.scancode, &mut self.sys.bus.pic);
         }
 
         Ok(())
     }
-
-    // fn key_up_event(&mut self, _ctx: &mut ggez::Context, keycode: event::KeyCode, _keymods: event::KeyMods) {
-    //     self.sys.bus.ppi.key_up(keycode, &mut self.sys.bus.pic);
-    // }
-
-    // fn key_down_event(&mut self, _ctx: &mut ggez::Context, keycode: event::KeyCode, _keymods: event::KeyMods, repeat: bool,) {
-    //     if !repeat {
-    //         self.sys.bus.ppi.key_down(keycode, &mut self.sys.bus.pic);
-    //     }
-    // }
 }

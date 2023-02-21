@@ -6,7 +6,7 @@ use crate::hardware::peripheral::Peripheral;
 
 use super::{DisplayAdapter, Char, crtc6845::CRTC6845};
 
-const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
+pub const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
 // const IMG_SIZE: usize = 720 * 350;
 
 #[allow(dead_code)]

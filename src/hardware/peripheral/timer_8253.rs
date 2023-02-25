@@ -101,14 +101,13 @@ impl TIM8253 {
     pub fn update(&mut self, pic: &mut PIC8259, _ppi: &mut PPI8255) {
         while self.cycles > 3 {
             for i in 0..3 {
-                if self.active[i] {
-                    match self.mode[i] {
-                        Mode::Mode0 => self.mode0(i, pic),
-                        Mode::Mode2 => self.mode2(i, pic), 
-                        Mode::Mode3 => self.mode3(i, pic),
+                if !self.active[i] { continue; }
+                match self.mode[i] {
+                    Mode::Mode0 => self.mode0(i, pic),
+                    Mode::Mode2 => self.mode2(i, pic), 
+                    Mode::Mode3 => self.mode3(i, pic),
 
-                        _ => {}, // TODO
-                    }
+                    _ => {}, // TODO
                 }
             }
 

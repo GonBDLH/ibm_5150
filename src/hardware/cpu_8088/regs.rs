@@ -66,6 +66,7 @@ impl Flags {
     }
 }
 
+#[inline]
 fn check_o_add_8(val1: u8, val2: u8, res: u8) -> bool {
     let sign_1 = val1 >> 7;
     let sign_2 = val2 >> 7;
@@ -78,6 +79,7 @@ fn check_o_add_8(val1: u8, val2: u8, res: u8) -> bool {
     matches!((sign_1, sign_2, sign_res), (0, 0, 1) | (1, 1, 0))
 }
 
+#[inline]
 fn check_o_add_16(val1: u16, val2: u16, res: u16) -> bool {
     let sign_1 = val1 >> 15;
     let sign_2 = val2 >> 15;
@@ -90,6 +92,7 @@ fn check_o_add_16(val1: u16, val2: u16, res: u16) -> bool {
     matches!((sign_1, sign_2, sign_res), (0, 0, 1) | (1, 1, 0))
 }
 
+#[inline]
 fn check_o_sub_8(val1: u8, val2: u8, res: u8) -> bool {
     let sign_1 = val1 >> 7;
     let sign_2 = val2 >> 7;
@@ -102,6 +105,7 @@ fn check_o_sub_8(val1: u8, val2: u8, res: u8) -> bool {
     matches!((sign_1, sign_2, sign_res), (0, 1, 1) | (1, 0, 0))
 }
 
+#[inline]
 fn check_o_sub_16(val1: u16, val2: u16, res: u16) -> bool {
     let sign_1 = val1 >> 15;
     let sign_2 = val2 >> 15;
@@ -114,38 +118,47 @@ fn check_o_sub_16(val1: u16, val2: u16, res: u16) -> bool {
     matches!((sign_1, sign_2, sign_res), (0, 1, 1) | (1, 0, 0))
 }
 
+#[inline]
 fn check_s_16(res: u16) -> bool {
     res >> 15 == 1
 }
 
+#[inline]
 fn check_s_8(res: u8) -> bool {
     res >> 7 == 1
 }
 
+#[inline]
 fn check_z(res: u16) -> bool {
     res == 0
 }
 
+#[inline]
 fn check_a(val1: u16, val2: u16) -> bool {
     ((val1 as u8 & 0x0F) + (val2 as u8 & 0x0F)) & 0xF0 != 0
 }
 
+#[inline]
 fn check_c_add_16(val1: u16, val2: u16) -> bool {
     val1.overflowing_add(val2).1
 }
 
+#[inline]
 fn check_c_add_8(val1: u8, val2: u8) -> bool {
     val1.overflowing_add(val2).1
 }
 
+#[inline]
 fn check_c_sub_16(val1: u16, val2: u16) -> bool {
     val1.overflowing_sub(val2).1
 }
 
+#[inline]
 fn check_c_sub_8(val1: u8, val2: u8) -> bool {
     val1.overflowing_sub(val2).1
 }
 
+#[inline]
 fn check_p(val: u16) -> bool {
     val.count_ones() % 2 == 0
 }
@@ -299,27 +312,20 @@ impl Flags {
         if count == 0 {
             return;
         }
+
         match length {
             Length::Byte => {
-                if count < 8 {
-                    let mask = 1u8 << count;
-                    self.c = val as u8 & mask == mask;
-                } else {
-                    self.c = false;
-                }
+                let temp_res = val.wrapping_shl(count);
+                self.c = temp_res & 0x0100 > 0;
                 self.s = check_s_8(res as u8);
             },
             Length::Word => {
-                if count < 16 {
-                    let mask = 1u16 << count;
-                    self.c = val & mask == mask;
-                } else {
-                    self.c = false;
-                };
+                let temp_res = (val as u32).wrapping_shl(count);
+                self.c = temp_res & 0x00010000 > 0;
                 self.s = check_s_16(res);
             },
             _ => unreachable!(),
-        };
+        }
 
         if let OperandType::Immediate(_) = operand {
             self.o = get_msb(res, length) ^ self.c;
@@ -335,25 +341,20 @@ impl Flags {
 
         match length {
             Length::Byte => {
-                if count < 8 {
-                    let mask = 1u8 << (count - 1);
-                    self.c = val as u8 & mask == mask;
-                } else {
-                    self.c = false;
-                }
+                let val_temp = val << 8;
+                let temp_res = val_temp.wrapping_shr(count);
+                self.c = temp_res & 0x0080 > 0;
                 self.s = check_s_8(res as u8);
             },
             Length::Word => {
-                if count < 16 {
-                    let mask = 1u16 << (count - 1);
-                    self.c = val & mask == mask;
-                } else {
-                    self.c = false;
-                }
+                let val_temp = (val as u32) << 16;
+                let temp_res = val_temp.wrapping_shr(count);
+                self.c = temp_res & 0x00008000 > 0;
                 self.s = check_s_16(res);
             },
             _ => unreachable!(),
         };
+
         self.z = check_z(res);
         self.p = check_p(res);
 
@@ -366,6 +367,7 @@ impl Flags {
         if count == 0 {
             return;
         }
+
         match length {
             Length::Byte => {
                 if count < 8 {

@@ -1,5 +1,3 @@
-use ggez::event::ScanCode;
-
 use super::{Peripheral, pic_8259::{PIC8259, IRQs}};
 
 // IMPORTANTE: ESTAN AL REVES, LA POSICION 1 ES EL BIT 0.
@@ -63,13 +61,13 @@ impl PPI8255 {
         }
     }
 
-    pub fn key_up(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
-        self.key_input((keycode + 0x80) as u8, pic);
-    }
+    // pub fn key_up(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
+    //     self.key_input((keycode + 0x80) as u8, pic);
+    // }
 
-    pub fn key_down(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
-        self.key_input(keycode as u8, pic);
-    }
+    // pub fn key_down(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
+    //     self.key_input(keycode as u8, pic);
+    // }
     
     pub fn key_input(&mut self, key_code: u8, pic: &mut PIC8259) {
         self.key_code = key_code;

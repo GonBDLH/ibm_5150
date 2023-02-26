@@ -1,10 +1,11 @@
-use ggez::{Context, graphics::{Color, Image}};
+use notan::prelude::{Color, Texture, Graphics};
+
 
 pub mod ibm_mda;
 pub mod crtc6845;
 
 pub trait DisplayAdapter {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
+    fn create_frame(&mut self, gfx: &mut Graphics, texture: &mut Texture, vram: &[u8]);
     fn render_font(&mut self, char: Char, width: usize, height: usize);
 }
 

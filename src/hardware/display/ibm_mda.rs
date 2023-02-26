@@ -1,12 +1,15 @@
 use std::io::Read;
 
-use ggez::{graphics::{Image, ImageFormat}, Context};
+use notan::prelude::{Graphics, Texture};
 
 use crate::hardware::peripheral::Peripheral;
 
 use super::{DisplayAdapter, Char, crtc6845::CRTC6845};
 
 pub const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
+pub const IMG_WIDTH: usize = 720;
+pub const IMG_HEIGHT: usize = 350;
+
 // const IMG_SIZE: usize = 720 * 350;
 
 #[allow(dead_code)]
@@ -54,9 +57,12 @@ impl IbmMDA {
 }
 
 impl DisplayAdapter for IbmMDA {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image {
+    fn create_frame(&mut self, gfx: &mut Graphics, texture: &mut Texture, vram: &[u8]) {
         if !self.enabled() {
-            return Image::from_pixels(ctx , &[0x00; IMG_BUFF_SIZE], ImageFormat::Rgba8Unorm, 720, 350);
+            return gfx.update_texture(texture)
+                .with_data(&[0xFF; IMG_BUFF_SIZE])
+                .update()
+                .unwrap();
         }
 
         let iter = vram.chunks(2).enumerate();
@@ -66,7 +72,10 @@ impl DisplayAdapter for IbmMDA {
             self.render_font(character, v.0 % 80, v.0 / 80);
         }
 
-        Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350)
+        gfx.update_texture(texture)
+            .with_data(&self.img_buffer)
+            .update()
+            .unwrap()
     }
 
     fn render_font(&mut self, character: Char, width: usize, height: usize) {
@@ -87,15 +96,15 @@ impl DisplayAdapter for IbmMDA {
                 };
     
                 let color = if pixel > 0 { 
-                    character.foreground_color.to_rgba()
+                    character.foreground_color
                 } else {
-                    character.background_color.to_rgba()
+                    character.background_color
                 };
 
-                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = color.0;
-                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = color.1;
-                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = color.2;
-                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = color.3;
+                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = color.rgba_u8()[0];
+                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = color.rgba_u8()[1];
+                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = color.rgba_u8()[2];
+                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = color.rgba_u8()[3];
             }
         }
     }

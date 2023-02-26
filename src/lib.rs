@@ -1,74 +1,96 @@
 pub mod hardware;
 pub mod util;
 
-use ggez::graphics::{Image, ImageFormat};
-use ggez::{Context, timer};
-use ggez::glam::Vec2;
-use ggez::input::keyboard::KeyInput;
-// A
 use hardware::display::DisplayAdapter;
 use hardware::display::ibm_mda::IMG_BUFF_SIZE;
 pub use hardware::sys::System;
-
-pub use ggez::conf::WindowMode;
-pub use ggez::{GameError, GameResult};
-pub use ggez::event::{self, EventHandler};
-pub use ggez::input::keyboard::KeyCode;
-pub use ggez::graphics::{self, Color};
+use notan::AppState;
+use notan::draw::{CreateDraw, DrawImages};
+use notan::prelude::{Graphics, App, Texture};
 
 pub const DESIRED_FPS: f32 = 50.;
 
+#[derive(AppState)]
 pub struct IbmPc {
     pub sys: System,
-    img: Image,
+    
+    count: f32,
+    texture: Texture
 }
 
 impl IbmPc {
-    pub fn new(ctx: &Context) -> Self {
+    fn new(gfx: &mut Graphics) -> Self {
         IbmPc {
             sys: System::new(),
-            img: Image::from_pixels(ctx, &[0x00; IMG_BUFF_SIZE], ImageFormat::Rgba8Unorm, 720, 350)
+            
+            count: 0.0,
+            texture: gfx
+                .create_texture()
+                .from_bytes(&[0x00; IMG_BUFF_SIZE], 720, 350)
+                .build()
+                .unwrap()
         }
     }
 }
 
-impl EventHandler for IbmPc {
-    fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        // let mut veces = 0;
+pub fn setup(gfx: &mut Graphics) -> IbmPc {
+    IbmPc::new(gfx)
+}
 
-        while ctx.time.check_update_time(DESIRED_FPS as u32) {
-            self.sys.update();
-            // veces += 1;
-        }
+pub fn update(app: &mut App, ibm_pc: &mut IbmPc) {
+    ibm_pc.count += app.timer.delta_f32();
 
-        // println!("{}", ggez::timer::fps(ctx));
-
-        Ok(())
+    if ibm_pc.count >= 1. / DESIRED_FPS {
+        ibm_pc.count = 0.;
+        ibm_pc.sys.update();
     }
+}
 
-    fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
-        self.img = self.sys.bus.mda.create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB0FA0]);
+pub fn draw(gfx: &mut Graphics, ibm_pc: &mut IbmPc) {
+    ibm_pc.sys.bus.mda.create_frame(gfx, &mut ibm_pc.texture, &ibm_pc.sys.bus.memory[0xB0000..0xB0FA0]);
 
-        canvas.draw(&self.img, Vec2::new(0.0, 0.0));
-        canvas.finish(ctx)?;
+    let mut draw = gfx.create_draw();
+    draw.image(&ibm_pc.texture);
+    gfx.render(&draw);
+}
+
+// impl EventHandler for IbmPc {
+//     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
+//         // let mut veces = 0;
+
+//         while ctx.time.check_update_time(DESIRED_FPS as u32) {
+//             self.sys.update();
+//             // veces += 1;
+//         }
+
+//         // println!("{}", ggez::timer::fps(ctx));
+
+//         Ok(())
+//     }
+
+//     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
+//         let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
+//         self.img = self.sys.bus.mda.create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB0FA0]);
+
+//         canvas.draw(&self.img, Vec2::new(0.0, 0.0));
+//         canvas.finish(ctx)?;
         
 
-        timer::yield_now();
-        Ok(())
-    }
+//         timer::yield_now();
+//         Ok(())
+//     }
 
-    fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> Result<(), GameError> {
-        self.sys.bus.ppi.key_up(input.scancode, &mut self.sys.bus.pic);
+//     fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> Result<(), GameError> {
+//         self.sys.bus.ppi.key_up(input.scancode, &mut self.sys.bus.pic);
 
-        Ok(())
-    }
+//         Ok(())
+//     }
 
-    fn key_down_event(&mut self, _ctx: &mut Context, input: KeyInput, repeated: bool) -> Result<(), GameError> {
-        if !repeated {
-            self.sys.bus.ppi.key_down(input.scancode, &mut self.sys.bus.pic);
-        }
+//     fn key_down_event(&mut self, _ctx: &mut Context, input: KeyInput, repeated: bool) -> Result<(), GameError> {
+//         if !repeated {
+//             self.sys.bus.ppi.key_down(input.scancode, &mut self.sys.bus.pic);
+//         }
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }

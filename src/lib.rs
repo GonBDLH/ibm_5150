@@ -34,7 +34,9 @@ impl IbmPc {
 }
 
 pub fn setup(gfx: &mut Graphics) -> IbmPc {
-    IbmPc::new(gfx)
+    let mut ibm_pc = IbmPc::new(gfx);
+    ibm_pc.sys.load_roms();
+    ibm_pc
 }
 
 pub fn update(app: &mut App, ibm_pc: &mut IbmPc) {

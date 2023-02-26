@@ -1,5 +1,6 @@
 use ibm_5150::{*, hardware::display::ibm_mda::{IMG_WIDTH, IMG_HEIGHT}};
-use notan::{prelude::*, draw::DrawConfig}; 
+use notan::{prelude::*, draw::DrawConfig};
+use simplelog::*;
 
 // #[cfg(not(debug_assertions))]
 // fn main() -> GameResult {
@@ -35,6 +36,8 @@ use notan::{prelude::*, draw::DrawConfig};
 
 #[notan_main]
 fn main() -> Result<(), String> {
+    SimpleLogger::init(LevelFilter::Info, Config::default()).unwrap();
+    
     let win_cfg = WindowConfig::new().size(IMG_WIDTH as i32, IMG_HEIGHT as i32);
 
     notan::init_with(setup)

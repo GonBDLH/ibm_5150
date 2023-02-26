@@ -27,7 +27,8 @@ fn main() -> Result<(), Error> {
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
         Pixels::new(720, 350, surface_texture)?
     };
-    let state = IbmPc::new(pixels);
+    let mut state = IbmPc::new(pixels);
+    state.sys.load_roms();
 
     game_loop(
         event_loop,

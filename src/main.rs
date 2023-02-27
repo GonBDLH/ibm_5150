@@ -8,6 +8,7 @@ const HEIGHT: usize = 350;
 fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
     let mut sys = IbmPc::new();
+    sys.sys.load_roms();
 
     let mut window = Window::new(
         "Test - ESC to exit",

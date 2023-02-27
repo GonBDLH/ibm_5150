@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-notan = "0.9.3"
+notan = "0.9.4"
 mint = "0.5.9"
 rand = "0.8.5"
 lazy_static = "1.4.0"

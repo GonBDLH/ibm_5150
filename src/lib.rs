@@ -4,7 +4,8 @@ pub mod util;
 use hardware::display::DisplayAdapter;
 use hardware::display::ibm_mda::IMG_BUFF_SIZE;
 pub use hardware::sys::System;
-use notan::AppState;
+use notan::log::info;
+use notan::{AppState, Event};
 use notan::draw::{CreateDraw, DrawImages};
 use notan::prelude::{Graphics, App, Texture};
 
@@ -54,6 +55,16 @@ pub fn draw(gfx: &mut Graphics, ibm_pc: &mut IbmPc) {
     let mut draw = gfx.create_draw();
     draw.image(&ibm_pc.texture);
     gfx.render(&draw);
+}
+
+pub fn event(_ibm_pc: &mut IbmPc, event: Event) {
+    match event {
+        Event::KeyDown{key} => {
+            // ibm_pc.sys.bus.ppi.key_down
+            info!("{:?}", key);
+        },
+        _ => {},
+    }
 }
 
 // impl EventHandler for IbmPc {

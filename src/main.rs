@@ -45,5 +45,6 @@ fn main() -> Result<(), String> {
         .add_config(DrawConfig)
         .update(update)
         .draw(draw)
+        .event(event)
         .build()
 }

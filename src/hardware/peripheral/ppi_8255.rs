@@ -1,3 +1,5 @@
+use minifb::Key;
+
 use super::{Peripheral, pic_8259::{PIC8259, IRQs}};
 
 // IMPORTANTE: ESTAN AL REVES, LA POSICION 1 ES EL BIT 0.
@@ -49,38 +51,38 @@ impl Keyboard {
     }
 }
 
-// fn decode_key(keycode: KeyCode) -> u8 {
-//     println!("{:?}", keycode);
-//     match keycode {
-//         KeyCode::Escape => 1,
-//         KeyCode::Key1 => 2, 
-//         KeyCode::Key2 => 3,
-//         KeyCode::Key3 => 4,
-//         KeyCode::Key4 => 5,
-//         KeyCode::Key5 => 6,
-//         KeyCode::Key6 => 7,
-//         KeyCode::Key7 => 8,
-//         KeyCode::Key8 => 9,
-//         KeyCode::Key9 => 10,
-//         KeyCode::Key0 => 11,
-//         KeyCode::Minus => 12,
-//         KeyCode::Equals => 13,
-//         KeyCode::Back => 14,
-//         KeyCode::Tab => 15,
-//         KeyCode::Q => 16,
-//         KeyCode::W => 17,
-//         KeyCode::E => 18,
-//         KeyCode::R => 19,
-//         KeyCode::T => 20,
-//         KeyCode::Y => 21,
-//         KeyCode::U => 22,
-//         KeyCode::I => 23,
-//         KeyCode::O => 24,
-//         KeyCode::P => 25,
+fn decode_key(keycode: Key) -> u8 {
+    match keycode {
+        Key::Escape => 1,
+        Key::Key1 => 2, 
+        Key::Key2 => 3,
+        Key::Key3 => 4,
+        Key::Key4 => 5,
+        Key::Key5 => 6,
+        Key::Key6 => 7,
+        Key::Key7 => 8,
+        Key::Key8 => 9,
+        Key::Key9 => 10,
+        Key::Key0 => 11,
+        Key::Minus => 12,
+        Key::Equal => 13,
+        Key::Backspace => 14,
+        Key::Tab => 15,
+        Key::Q => 16,
+        Key::W => 17,
+        Key::E => 18,
+        Key::R => 19,
+        Key::T => 20,
+        Key::Y => 21,
+        Key::U => 22,
+        Key::I => 23,
+        Key::O => 24,
+        Key::P => 25,
 
-//         _ => 0,
-//     }
-// }
+
+        _ => 0,
+    }
+}
 
 impl PPI8255 {
     pub fn new() -> Self {
@@ -94,19 +96,15 @@ impl PPI8255 {
         }
     }
 
-    // pub fn key_up(&mut self, keycode: KeyCode, pic: &mut PIC8259) {
-    //     // if self.keyboard_enabled {
-    //     let key_code = decode_key(keycode) + 0x80;
-    //     self.key_input(key_code, pic);
-    //     // }
-    // }
+    pub fn key_up(&mut self, keycode: Key, pic: &mut PIC8259) {
+        let key_code = decode_key(keycode) + 0x80;
+        self.key_input(key_code, pic);
+    }
 
-    // pub fn key_down(&mut self, keycode: KeyCode, pic: &mut PIC8259) {
-    //     // if self.keyboard_enabled {
-    //     let key_code = decode_key(keycode);
-    //     self.key_input(key_code, pic);
-    //     // }
-    // }
+    pub fn key_down(&mut self, keycode: Key, pic: &mut PIC8259) {
+        let key_code = decode_key(keycode);
+        self.key_input(key_code, pic);
+    }
     
     pub fn key_input(&mut self, key_code: u8, pic: &mut PIC8259) {
         self.key_code = key_code;

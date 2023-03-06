@@ -23,6 +23,6 @@ impl IbmPc {
     }
 
     pub fn get_frame(&mut self, frame: &mut [u32]) {
-        self.sys.bus.mda.create_frame(&self.sys.bus.memory[0xB0000..0xB0AF0], frame);
+        self.sys.bus.mda.create_frame(&self.sys.bus.memory[0xB0000..0xB0FA0], frame);
     }
 }

@@ -1,6 +1,6 @@
 use ibm_5150::*; 
 
-use minifb::{Key, Window, WindowOptions};
+use minifb::{Window, WindowOptions};
 
 const WIDTH: usize = 720;
 const HEIGHT: usize = 350;
@@ -20,10 +20,20 @@ fn main() {
         panic!("{}", e);
     });
 
-    // Limit to max ~60 fps update rate
+    // Limit to max ~50 fps update rate
     window.limit_update_rate(Some(std::time::Duration::from_micros(20000)));
 
-    while window.is_open() && !window.is_key_down(Key::Escape) {
+    while window.is_open() {
+        let keys = window.get_keys_pressed(minifb::KeyRepeat::No);
+        for t in keys {
+            sys.sys.bus.ppi.key_down(t, &mut sys.sys.bus.pic);
+        }
+        
+        let keys = window.get_keys_released();
+        for t in keys {
+            sys.sys.bus.ppi.key_up(t, &mut sys.sys.bus.pic);
+        }
+
         sys.update();
         sys.get_frame(&mut buffer);
 

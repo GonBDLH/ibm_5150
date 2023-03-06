@@ -1,10 +1,13 @@
 use std::io::Read;
 
-use ggez::{graphics::{Image, ImageFormat}, Context};
+use ggez::{
+    graphics::{Image, ImageFormat},
+    Context,
+};
 
 use crate::hardware::peripheral::Peripheral;
 
-use super::{DisplayAdapter, Char, crtc6845::CRTC6845};
+use super::{crtc6845::CRTC6845, Char, DisplayAdapter};
 
 pub const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
 // const IMG_SIZE: usize = 720 * 350;
@@ -29,7 +32,8 @@ impl IbmMDA {
     pub fn new() -> IbmMDA {
         // let a: Vec<u8> = (0..IMG_BUFF_SIZE).map(|x| if x % 4 == 3 {0xFF} else {0x00}).collect();
         let a = vec![0x00; IMG_BUFF_SIZE];
-        let mut file = std::fs::File::open("roms/IBM_5788005_AM9264_1981_CGA_MDA_CARD.BIN").unwrap();
+        let mut file =
+            std::fs::File::open("roms/IBM_5788005_AM9264_1981_CGA_MDA_CARD.BIN").unwrap();
         let mut buf = Vec::new();
         file.read_to_end(&mut buf).unwrap();
 
@@ -47,7 +51,7 @@ impl IbmMDA {
             retrace: 0,
         }
     }
-    
+
     fn enabled(&self) -> bool {
         self.crtc_op1 & 0b00001000 > 0
     }
@@ -56,7 +60,13 @@ impl IbmMDA {
 impl DisplayAdapter for IbmMDA {
     fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image {
         if !self.enabled() {
-            return Image::from_pixels(ctx , &[0x00; IMG_BUFF_SIZE], ImageFormat::Rgba8Unorm, 720, 350);
+            return Image::from_pixels(
+                ctx,
+                &[0x00; IMG_BUFF_SIZE],
+                ImageFormat::Rgba8Unorm,
+                720,
+                350,
+            );
         }
 
         let iter = vram.chunks(2).enumerate();
@@ -76,7 +86,7 @@ impl DisplayAdapter for IbmMDA {
             } else {
                 self.font[0x800 + (i - 8) + character.index * 8]
             };
-    
+
             for j in 0..9 {
                 let pixel = if j < 8 {
                     char_ & (1 << (7 - j))
@@ -85,8 +95,8 @@ impl DisplayAdapter for IbmMDA {
                 } else {
                     0
                 };
-    
-                let color = if pixel > 0 { 
+
+                let color = if pixel > 0 {
                     character.foreground_color.to_rgba()
                 } else {
                     character.background_color.to_rgba()
@@ -113,24 +123,24 @@ impl Peripheral for IbmMDA {
                     1 => 0,
                     2 => 1,
                     3 => 0,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             }
 
             // 0x3B5 => self.crtc_registers[self.crtc_adddr_reg] as u16,
             0x3B5 => self.crtc.read_reg(self.crtc_adddr_reg) as u16,
 
-            _ => 0 //TODO
+            _ => 0, //TODO
         }
     }
 
     fn port_out(&mut self, val: u16, port: u16) {
         match port {
             0x3B8 => self.crtc_op1 = val as u8,
-            0x3B4 =>  self.crtc_adddr_reg = (val as u8) as usize,
+            0x3B4 => self.crtc_adddr_reg = (val as u8) as usize,
             // 0x3B5 =>  self.crtc_registers[self.crtc_adddr_reg] = val as u8,
             0x3B5 => self.crtc.reg_write(self.crtc_adddr_reg, val as u8),
-            _ => {}   
+            _ => {}
         }
     }
 }

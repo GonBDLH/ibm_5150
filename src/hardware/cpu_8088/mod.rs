@@ -1,8 +1,8 @@
-pub mod instr_utils;
 pub mod cpu_utils;
-pub mod regs;
 mod decode;
 mod execute;
+pub mod instr_utils;
+pub mod regs;
 
 pub mod dissasemble;
 
@@ -10,9 +10,9 @@ pub mod dissasemble;
 use std::collections::HashMap;
 
 use super::bus::Bus;
-use instr_utils::*;
-use regs::{GPReg, Flags};
 use cpu_utils::*;
+use instr_utils::*;
+use regs::{Flags, GPReg};
 
 pub struct CPU {
     // Registros de proposito general
@@ -38,7 +38,7 @@ pub struct CPU {
 
     // Instruction pointer
     pub ip: u16,
-    
+
     // Utilizado para guardar info de la operacion que se esta decodificando
     pub instr: Instruction,
 
@@ -149,11 +149,11 @@ impl CPU {
 
         self.ip = bus.read_16(0, ip_location);
         self.cs = bus.read_16(0, ip_location + 2);
-        
+
         self.flags.i = false;
         self.flags.t = false;
     }
-    
+
     pub fn nmi_out(&mut self, val: u16) {
         self.nmi_enabled = if val == 0x80 {
             true
@@ -191,16 +191,15 @@ impl CPU {
             Operand::BP => self.bp = val,
             Operand::SI => self.si = val,
             Operand::DI => self.di = val,
-            _ => unreachable!("Aqui no deberia entrar nunca")
+            _ => unreachable!("Aqui no deberia entrar nunca"),
         }
     }
 
     pub fn set_reg(&mut self, length: Length, reg: Operand, val: u16) {
-
         match length {
             Length::Byte => self.set_reg8(reg, val as u8),
             Length::Word => self.set_reg16(reg, val),
-            _ => unreachable!("Aqui no deberia entrar nunca")
+            _ => unreachable!("Aqui no deberia entrar nunca"),
         }
     }
 
@@ -222,7 +221,7 @@ impl CPU {
             Operand::CH => self.cx.high as u16,
             Operand::DH => self.dx.high as u16,
             Operand::BH => self.bx.high as u16,
-            _ => unreachable!("Aqui no deberia entrar nunca")
+            _ => unreachable!("Aqui no deberia entrar nunca"),
         }
     }
 
@@ -242,7 +241,7 @@ impl CPU {
             Segment::CS => self.cs = val,
             Segment::SS => self.ss = val,
             Segment::DS => self.ds = val,
-            _ => unreachable!("Aqui no deberia entrar nunca")
+            _ => unreachable!("Aqui no deberia entrar nunca"),
         }
     }
 
@@ -251,7 +250,12 @@ impl CPU {
             OperandType::Register(operand) => self.get_reg(operand),
             OperandType::SegmentRegister(operand) => self.get_segment(operand),
             OperandType::Immediate(imm) => imm,
-            OperandType::Memory(_operand) => bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length),
+            OperandType::Memory(_operand) => bus.read_length(
+                self,
+                self.instr.segment,
+                self.instr.offset,
+                self.instr.data_length,
+            ),
             _ => unreachable!(),
         }
     }
@@ -260,7 +264,13 @@ impl CPU {
         match operand {
             OperandType::Register(operand) => self.set_reg(self.instr.data_length, operand, val),
             OperandType::SegmentRegister(operand) => self.set_segment(operand, val),
-            OperandType::Memory(_operand) => bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, val),
+            OperandType::Memory(_operand) => bus.write_length(
+                self,
+                self.instr.data_length,
+                self.instr.segment,
+                self.instr.offset,
+                val,
+            ),
             _ => unreachable!(),
         }
     }
@@ -291,49 +301,51 @@ impl CPU {
     pub fn movs(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
         let offset_to = self.di;
-    
+
         let segment_from = if self.instr.segment == Segment::None {
             Segment::DS
         } else {
             self.instr.segment
         };
         let segment_to = Segment::ES;
-    
+
         let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         bus.write_length(self, self.instr.data_length, segment_to, offset_to, val);
     }
-    
+
     pub fn cmps(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
         let offset_to = self.di;
-    
+
         let segment_from = if self.instr.segment == Segment::None {
             Segment::DS
         } else {
             self.instr.segment
         };
         let segment_to = Segment::ES;
-    
+
         let val1 = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
         let res = val1.wrapping_sub(val2);
-        self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
+        self.flags
+            .set_sub_flags(self.instr.data_length, val1, val2, res);
     }
-    
+
     pub fn scas(&mut self, bus: &mut Bus) {
         let offset_to = self.di;
         let segment_to = Segment::ES;
-    
+
         let val1 = match self.instr.data_length {
             Length::Byte => self.ax.low as u16,
             Length::Word => self.ax.get_x(),
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
         let res = val1.wrapping_sub(val2);
-        self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
+        self.flags
+            .set_sub_flags(self.instr.data_length, val1, val2, res);
     }
-    
+
     pub fn lods(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
         let segment_from = if self.instr.segment == Segment::None {
@@ -341,58 +353,58 @@ impl CPU {
         } else {
             self.instr.segment
         };
-    
+
         let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
-    
+
         match self.instr.data_length {
             Length::Byte => self.ax.low = val as u8,
             Length::Word => self.ax.set_x(val),
-            _ => unreachable!()
+            _ => unreachable!(),
         };
     }
-    
+
     pub fn stos(&mut self, bus: &mut Bus) {
         let offset_to = self.di;
         let segment_to = Segment::ES;
-    
+
         let val = match self.instr.data_length {
             Length::Byte => self.ax.low as u16,
             Length::Word => self.ax.get_x(),
             _ => unreachable!(),
         };
-    
+
         bus.write_length(self, self.instr.data_length, segment_to, offset_to, val);
     }
-    
+
     pub fn adjust_string(&mut self) {
         let to_change = match self.instr.data_length {
             Length::Byte => 1,
             Length::Word => 2,
             _ => unreachable!(),
         };
-    
+
         match self.instr.opcode {
             Opcode::CMPSB | Opcode::CMPSW => {
                 self.adjust_string_di(to_change);
                 self.adjust_string_si(to_change);
-            },
+            }
             Opcode::SCASB | Opcode::SCASW => {
                 self.adjust_string_di(to_change);
-            },
+            }
             Opcode::LODSB | Opcode::LODSW => {
                 self.adjust_string_si(to_change);
-            },
+            }
             Opcode::STOSB | Opcode::STOSW => {
                 self.adjust_string_di(to_change);
-            },
+            }
             Opcode::MOVSB | Opcode::MOVSW => {
                 self.adjust_string_di(to_change);
                 self.adjust_string_si(to_change);
-            },
+            }
             _ => unreachable!(),
         }
     }
-    
+
     pub fn adjust_string_di(&mut self, to_change: u16) {
         if !self.flags.d {
             self.di = self.di.wrapping_add(to_change);
@@ -400,7 +412,7 @@ impl CPU {
             self.di = self.di.wrapping_sub(to_change);
         }
     }
-    
+
     pub fn adjust_string_si(&mut self, to_change: u16) {
         if !self.flags.d {
             self.si = self.si.wrapping_add(to_change);
@@ -408,19 +420,15 @@ impl CPU {
             self.si = self.si.wrapping_sub(to_change);
         }
     }
-    
+
     pub fn check_z_str(&mut self) -> bool {
         match self.instr.repetition_prefix {
-            RepetitionPrefix::REPEZ => {
-                self.flags.z
-            },
-            RepetitionPrefix::REPNEZ => {
-                !self.flags.z
-            },
-            _ => unreachable!()
+            RepetitionPrefix::REPEZ => self.flags.z,
+            RepetitionPrefix::REPNEZ => !self.flags.z,
+            _ => unreachable!(),
         }
     }
-    
+
     pub fn jump(&mut self, cond: bool) {
         if cond {
             if let JumpType::DirWithinSegmentShort(disp) = self.instr.jump_type {

@@ -4,11 +4,11 @@ use crate::hardware::cpu_8088::CPU;
 
 use super::cpu_8088::instr_utils::Segment;
 use super::display::ibm_mda::IbmMDA;
-use super::peripheral::Peripheral;
 use super::peripheral::dma_8237::DMA8237;
 use super::peripheral::pic_8259::PIC8259;
 use super::peripheral::ppi_8255::PPI8255;
 use super::peripheral::timer_8253::TIM8253;
+use super::peripheral::Peripheral;
 
 #[derive(Clone)]
 pub struct Bus {
@@ -35,9 +35,9 @@ impl Bus {
 
     pub fn update_peripherals(&mut self, cycles: u32) {
         self.update_timer();
-        self.update_ppi(cycles);        
+        self.update_ppi(cycles);
     }
-    
+
     fn update_timer(&mut self) {
         self.pit.update(&mut self.pic, &mut self.ppi);
     }
@@ -52,11 +52,14 @@ impl Bus {
             0x20..=0x21 => self.pic.port_in(port),
             0x40..=0x43 => self.pit.port_in(port),
             0x60..=0x63 => self.ppi.port_in(port),
-            0x80..=0x83 => {/* TODO Reg pagina DMA */ 0},
+            0x80..=0x83 => {
+                /* TODO Reg pagina DMA */
+                0
+            }
             0xA0..=0xAF => 0,
 
             0x3B0..=0x3BF => self.mda.port_in(port),
-            _ => {0},
+            _ => 0,
         }
     }
 
@@ -66,11 +69,11 @@ impl Bus {
             0x20..=0x21 => self.pic.port_out(val, port),
             0x40..=0x43 => self.pit.port_out(val, port),
             0x60..=0x63 => self.ppi.port_out(val, port),
-            0x80..=0x83 => {/* TODO Reg pagina DMA */ },
+            0x80..=0x83 => { /* TODO Reg pagina DMA */ }
             0xA0..=0xAF => cpu.nmi_out(val),
 
             0x3B0..=0x3BF => self.mda.port_out(val, port),
-            _ => {},
+            _ => {}
         };
     }
 
@@ -85,8 +88,10 @@ impl Bus {
     }
 
     pub fn read_16(&self, segment: u16, offset: u16) -> u16 {
-        to_u16(self.read_8(segment, offset), 
-              self.read_8(segment, offset.wrapping_add(1)))
+        to_u16(
+            self.read_8(segment, offset),
+            self.read_8(segment, offset.wrapping_add(1)),
+        )
     }
 
     pub fn write_8(&mut self, segment: u16, offset: u16, val: u8) {
@@ -113,7 +118,14 @@ impl Bus {
         self.write_8(segment, offset.wrapping_add(1), (val >> 8) as u8);
     }
 
-    pub fn write_length(&mut self, cpu: &mut CPU, length: Length, segment: Segment, offset: u16, val: u16) {
+    pub fn write_length(
+        &mut self,
+        cpu: &mut CPU,
+        length: Length,
+        segment: Segment,
+        offset: u16,
+        val: u16,
+    ) {
         let segment_u16 = cpu.get_segment(segment);
 
         match length {

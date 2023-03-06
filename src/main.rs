@@ -1,13 +1,12 @@
-use ibm_5150::*; 
+use ibm_5150::*;
 
 // #[cfg(not(debug_assertions))]
 fn main() -> GameResult {
     let win_mode = WindowMode::default()
-                            .dimensions(720., 350.)
-                            .resize_on_scale_factor_change(true);
+        .dimensions(720., 350.)
+        .resize_on_scale_factor_change(true);
 
     let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo").window_mode(win_mode);
- 
 
     let (ctx, event_loop) = cb.build()?;
 

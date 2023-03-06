@@ -1,7 +1,10 @@
-use ggez::{Context, graphics::{Color, Image}};
+use ggez::{
+    graphics::{Color, Image},
+    Context,
+};
 
-pub mod ibm_mda;
 pub mod crtc6845;
+pub mod ibm_mda;
 
 pub trait DisplayAdapter {
     fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
@@ -19,7 +22,7 @@ pub struct Char {
 
 impl Char {
     fn new(index: usize) -> Self {
-        Char { 
+        Char {
             index,
             ..Default::default()
         }
@@ -49,19 +52,19 @@ impl Char {
             (0b000, 0b111) => {
                 self.foreground_color = Color::WHITE;
                 self.background_color = Color::BLACK;
-            },
+            }
             (0b111, 0b000) => {
                 self.foreground_color = Color::BLACK;
                 self.background_color = Color::WHITE;
-            },
+            }
             (0b000, 0b000) => {
                 self.foreground_color = Color::BLACK;
                 self.background_color = Color::BLACK;
-            },
+            }
             (0b111, 0b111) => {
                 self.foreground_color = Color::WHITE;
                 self.background_color = Color::WHITE;
-            },
+            }
 
             _ => {
                 self.foreground_color = Color::WHITE;

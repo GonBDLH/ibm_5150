@@ -1,4 +1,8 @@
-use super::{Peripheral, pic_8259::{PIC8259, IRQs}, ppi_8255::PPI8255};
+use super::{
+    pic_8259::{IRQs, PIC8259},
+    ppi_8255::PPI8255,
+    Peripheral,
+};
 
 #[derive(Clone, Copy, PartialEq)]
 enum Mode {
@@ -7,7 +11,7 @@ enum Mode {
     Mode2,
     Mode3,
     Mode4,
-    Mode5
+    Mode5,
 }
 
 impl Default for Mode {
@@ -85,7 +89,7 @@ impl TIM8253 {
             } else {
                 self.count[i] = self.count[i].wrapping_sub(1);
             }
-            
+
             self.first_clk[i] = false;
         } else {
             self.count[i] = self.count[i].wrapping_sub(2);
@@ -101,13 +105,15 @@ impl TIM8253 {
     pub fn update(&mut self, pic: &mut PIC8259, _ppi: &mut PPI8255) {
         while self.cycles > 3 {
             for i in 0..3 {
-                if !self.active[i] { continue; }
+                if !self.active[i] {
+                    continue;
+                }
                 match self.mode[i] {
                     Mode::Mode0 => self.mode0(i, pic),
-                    Mode::Mode2 => self.mode2(i, pic), 
+                    Mode::Mode2 => self.mode2(i, pic),
                     Mode::Mode3 => self.mode3(i, pic),
 
-                    _ => {}, // TODO
+                    _ => {} // TODO
                 }
             }
 
@@ -133,11 +139,11 @@ impl Peripheral for TIM8253 {
                         // Invertir si latched esta activo
                         self.latched[channel] ^= self.latched[channel];
                         val as u8 as u16
-                    },
+                    }
                     0b10 => {
                         self.latched[channel] ^= self.latched[channel];
                         val >> 8
-                    },
+                    }
                     0b11 => {
                         if self.toggle[channel] {
                             self.toggle[channel] = false;
@@ -148,10 +154,10 @@ impl Peripheral for TIM8253 {
                             val >> 8
                         }
                     }
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
-            },
-            _ => 0
+            }
+            _ => 0,
         }
     }
 
@@ -159,14 +165,14 @@ impl Peripheral for TIM8253 {
         match port {
             0x40..=0x42 => {
                 let channel = (port & 0b11) as usize;
-                
+
                 match self.rl_mode[channel] {
                     0b01 => {
                         self.reload[channel] = self.reload[channel] & 0xFF00 | val & 0x00FF;
-                    },
+                    }
                     0b10 => {
                         self.reload[channel] = self.reload[channel] & 0x00FF | val & 0xFF00;
-                    },
+                    }
                     0b11 => {
                         if self.toggle[channel] {
                             self.toggle[channel] = false;
@@ -175,21 +181,22 @@ impl Peripheral for TIM8253 {
                             self.toggle[channel] = true;
                             self.reload[channel] = self.reload[channel] & 0x00FF | val & 0xFF00;
                         }
-                    },
-                    _ => unreachable!()
+                    }
+                    _ => unreachable!(),
                 }
 
                 if self.rl_mode[channel] < 0b11 || self.toggle[channel] {
                     self.count[channel] = self.reload[channel];
                     self.active[channel] = true;
-                    self.out[channel] = self.mode[channel] == Mode::Mode2 || self.mode[channel] == Mode::Mode3;
+                    self.out[channel] =
+                        self.mode[channel] == Mode::Mode2 || self.mode[channel] == Mode::Mode3;
                 }
-            },
+            }
             0x43 => {
                 self.mode_reg = val as u8;
                 let channel = ((self.mode_reg & 0b11000000) >> 6) as usize;
                 let access_mode = (self.mode_reg & 0b00110000) >> 4;
-                
+
                 if access_mode == 0b00 {
                     self.latch_val[channel] = self.count[channel];
                     self.latched[channel] = true;
@@ -207,7 +214,7 @@ impl Peripheral for TIM8253 {
                         _ => unreachable!(),
                     }
                 }
-            },
+            }
             _ => unreachable!(),
         }
     }

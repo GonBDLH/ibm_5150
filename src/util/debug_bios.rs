@@ -1,12 +1,12 @@
 use lazy_static::lazy_static;
 
-use crate::hardware::cpu_8088::{CPU, cpu_utils::get_address};
+use crate::hardware::cpu_8088::{cpu_utils::get_address, CPU};
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
-lazy_static!(
+lazy_static! {
     static ref IP_QUEUE: Mutex<VecDeque<u16>> = Mutex::new(VecDeque::with_capacity(4));
-);
+}
 
 pub fn debug_82(cpu: &mut CPU) {
     let mut ip_queue_lock = IP_QUEUE.lock().unwrap();
@@ -14,7 +14,7 @@ pub fn debug_82(cpu: &mut CPU) {
     if ip_queue_lock.len() == 4 {
         ip_queue_lock.pop_front();
     }
-    
+
     match get_address(cpu) {
         0xFE05B => println!("8088 TEST"),
         0xFE0AE => println!("ROS CHECKSUM TEST 1"),
@@ -40,7 +40,7 @@ pub fn debug_82(cpu: &mut CPU) {
         0xFE5CF => println!(" - ERROR BEEP SUBROUTINE: {:04X}", ip_queue_lock[1]),
 
         0xF6000 => println!("BASIC"),
-        _ => {},
+        _ => {}
     }
 }
 

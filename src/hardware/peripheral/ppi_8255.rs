@@ -1,6 +1,9 @@
 use ggez::event::ScanCode;
 
-use super::{Peripheral, pic_8259::{PIC8259, IRQs}};
+use super::{
+    pic_8259::{IRQs, PIC8259},
+    Peripheral,
+};
 
 // IMPORTANTE: ESTAN AL REVES, LA POSICION 1 ES EL BIT 0.
 //             ON = 0, OFF = 1
@@ -25,7 +28,7 @@ pub struct PPI8255 {
 #[derive(Clone)]
 pub struct Keyboard {
     clear: bool,
-    reset:bool,
+    reset: bool,
 
     clk_low: bool,
     counting_low: bool,
@@ -37,7 +40,7 @@ pub struct Keyboard {
 
 impl Keyboard {
     pub fn new() -> Self {
-        Self { 
+        Self {
             clear: false,
             reset: false,
 
@@ -53,7 +56,7 @@ impl Keyboard {
 
 impl PPI8255 {
     pub fn new() -> Self {
-        PPI8255 { 
+        PPI8255 {
             key_code: 0x00,
             port_b: 0x00,
             port_c: 0x00,
@@ -70,12 +73,12 @@ impl PPI8255 {
     pub fn key_down(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
         self.key_input(keycode as u8, pic);
     }
-    
+
     pub fn key_input(&mut self, key_code: u8, pic: &mut PIC8259) {
         self.key_code = key_code;
         pic.irq(IRQs::Irq1);
     }
-    
+
     fn read_pa(&mut self) -> u8 {
         if self.port_b & 0x80 == 0x80 {
             SW1
@@ -115,13 +118,11 @@ impl PPI8255 {
                 self.key_code = 0xAA;
                 pic.irq(IRQs::Irq1);
             }
-            
         }
     }
 }
 
 impl Peripheral for PPI8255 {
-    
     fn port_in(&mut self, port: u16) -> u16 {
         let port = port & 0x3;
         match port {
@@ -130,7 +131,7 @@ impl Peripheral for PPI8255 {
             1 => self.port_b as u16,
             0 => self.read_pa() as u16,
             _ => unreachable!(),
-        }    
+        }
     }
 
     fn port_out(&mut self, val: u16, port: u16) {
@@ -138,15 +139,15 @@ impl Peripheral for PPI8255 {
         let port = port & 0x3;
         match port {
             3 => self.mode_reg = val as u8,
-            2 => {},
+            2 => {}
             1 => {
                 let val = val as u8;
                 self.port_b = val;
-                
+
                 if val & 0x80 != 0 {
                     self.kbd.clear = true;
                 };
-            },
+            }
             0 => self.key_code = val as u8,
             _ => unreachable!(),
         };
@@ -156,7 +157,7 @@ impl Peripheral for PPI8255 {
             self.kbd.counting_low = true;
         } else if self.kbd.clk_low {
             self.kbd.clk_low = false;
-            
+
             if self.kbd.low_count > KBD_RESET_CYCLES {
                 self.kbd.reset = true;
                 self.kbd.low_count = 0;

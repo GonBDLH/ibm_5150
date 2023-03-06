@@ -16,7 +16,7 @@ pub struct DMA8237 {
 impl DMA8237 {
     pub fn new() -> Self {
         DMA8237 {
-            channels: [Channel::default(); 4]
+            channels: [Channel::default(); 4],
         }
     }
 
@@ -38,7 +38,7 @@ impl DMA8237 {
         }
 
         self.channels[channel].toggle = !self.channels[channel].toggle;
-    } 
+    }
 }
 
 impl Peripheral for DMA8237 {
@@ -46,7 +46,7 @@ impl Peripheral for DMA8237 {
         if port <= 0x07 {
             let channel = port >> 1;
             let opt = port & 1;
-    
+
             if opt == 0 {
                 self.channels[channel as usize].addr
             } else {
@@ -55,18 +55,15 @@ impl Peripheral for DMA8237 {
         } else {
             0
         }
-        
     }
 
     fn port_out(&mut self, val: u16, port: u16) {
         if port <= 0x07 {
             let channel = port >> 1;
             let opt = port & 1;
-    
+
             self.write(val, channel as usize, opt);
         } else {
-
         }
-
     }
 }

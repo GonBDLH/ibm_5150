@@ -7,7 +7,6 @@ pub struct PIC8259 {
     pub irr: u8,
 
     // max_prio: IRQs,
-
     icw: [u8; 4],
     icw_step: usize,
 }
@@ -26,13 +25,12 @@ pub enum IRQs {
 
 impl PIC8259 {
     pub fn new() -> Self {
-        Self { 
-            isr: 0,                 // In-Service Register
-            imr: 0xFF,              // Interrupt Mask Register
-            irr: 0,                 // Interrupt Request Register
+        Self {
+            isr: 0,    // In-Service Register
+            imr: 0xFF, // Interrupt Mask Register
+            irr: 0,    // Interrupt Request Register
 
             // max_prio: IRQs::Irq0,
-
             icw: [0; 4],
             icw_step: 0,
         }
@@ -68,12 +66,16 @@ impl PIC8259 {
 
 impl Peripheral for PIC8259 {
     fn port_in(&mut self, port: u16) -> u16 {
-        if port == 0x20 {self.irr as u16} else {self.imr as u16}
+        if port == 0x20 {
+            self.irr as u16
+        } else {
+            self.imr as u16
+        }
     }
 
     fn port_out(&mut self, val: u16, port: u16) {
         let val = val as u8;
-        
+
         if port == 0x20 {
             if val & 0x10 > 0 {
                 // ICW1
@@ -84,8 +86,8 @@ impl Peripheral for PIC8259 {
             // TODO OCW
             if val & 0x20 > 0 {
                 for i in 0..8 {
-                    if self.isr & 1 << (7  - i) > 0 {
-                        self.isr ^= 1 << (7  - i);
+                    if self.isr & 1 << (7 - i) > 0 {
+                        self.isr ^= 1 << (7 - i);
                     }
                 }
             }

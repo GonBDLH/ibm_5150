@@ -5,27 +5,53 @@ use ggez::{
     Context,
 };
 
+use rayon::prelude::*;
+
 use crate::hardware::peripheral::Peripheral;
 
-use super::{crtc6845::CRTC6845, Char, DisplayAdapter};
+use super::{crtc6845::CRTC6845, Char, DisplayAdapter, IMG_BUFF_SIZE};
 
-pub const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
 // const IMG_SIZE: usize = 720 * 350;
 
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct IbmMDA {
     pub img_buffer: Vec<u8>,
-    pub font: Vec<u8>,
+    pub font_rom: Vec<u8>,
 
-    crtc_op1: u8,
-    crtc_sp: u8,
+    font_map: [[[bool; 9]; 14]; 255], //IGUAL ESTO ESTA MAL NO SE: CARACTER / FILA / COLUMNA
 
-    crtc_adddr_reg: usize,
-    // crtc_registers: [u8; 18],
     crtc: CRTC6845,
 
     retrace: u8,
+}
+
+fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 255] {
+    let mut font_map = [[[false; 9]; 14]; 255];
+    
+    for character in 0..255 {
+        for row in 0..14 {
+            let byte = if row < 8 {
+                font_rom[row + character * 8]
+            } else {
+                font_rom[0x800 + (row - 8) + character * 8]
+            };
+
+            for col in 0..9 {
+                let pixel = if col < 8 {
+                    byte & (1 << (7 - col))
+                } else if character >= 0xC0 && character <= 0xDF {
+                    byte & 1
+                } else {
+                    0
+                };
+
+                font_map[character][row][col] = pixel > 0;
+            }
+        }
+    }
+
+    font_map
 }
 
 impl IbmMDA {
@@ -39,13 +65,9 @@ impl IbmMDA {
 
         IbmMDA {
             img_buffer: a,
-            font: buf,
+            font_rom: buf.clone(),
+            font_map: decode_font_map(&buf),
 
-            crtc_op1: 0b00001001,
-            crtc_sp: 0b11111110,
-
-            crtc_adddr_reg: 0,
-            // crtc_registers: [0x00; 18],
             crtc: CRTC6845::default(),
 
             retrace: 0,
@@ -53,8 +75,28 @@ impl IbmMDA {
     }
 
     fn enabled(&self) -> bool {
-        self.crtc_op1 & 0b00001000 > 0
+        self.crtc.op1 & 0b00001000 > 0
     }
+}
+
+fn decode_pixel_slice(font_map: &[[[bool; 9]; 14]; 255], row: usize, character: Char) -> [u8; 9 * 4] {
+    let character_slice = font_map[character.index][row];
+    let mut return_slice = [0x00; 9 * 4];
+
+    return_slice.chunks_mut(4).zip(character_slice.iter()).for_each(|(pixels, val)| {
+        let color = if *val {
+            character.foreground_color.to_rgba()
+        } else {
+            character.background_color.to_rgba()
+        };
+
+        pixels[0] = color.0;
+        pixels[1] = color.1;
+        pixels[2] = color.2;
+        pixels[3] = color.3;
+    });
+
+    return_slice
 }
 
 impl DisplayAdapter for IbmMDA {
@@ -69,52 +111,30 @@ impl DisplayAdapter for IbmMDA {
             );
         }
 
-        let iter = vram.chunks(2).enumerate();
-        for v in iter {
-            let character = Char::new(v.1[0] as usize).decode_colors(v.1[1]);
+        self.img_buffer.par_chunks_mut(9 * 4).enumerate().for_each(|(i, pixel_slice)| {
+            let col_index = i % 80;
+            let row_index = (i / 80) % 14;
+            let row_char_index = i / (80 * 14);
 
-            self.render_font(character, v.0 % 80, v.0 / 80);
-        }
+            let char_index = (row_char_index * 80 + col_index) * 2;
+
+            let vram_char = vram[char_index] as usize;
+            let vram_attr = vram[char_index + 1];
+
+            let character = Char::new(vram_char).decode_colors(vram_attr);
+
+            let new_pixel_slice = decode_pixel_slice(&self.font_map, row_index, character);
+            pixel_slice.copy_from_slice(&new_pixel_slice);
+        });
 
         Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350)
-    }
-
-    fn render_font(&mut self, character: Char, width: usize, height: usize) {
-        for i in 0..14 {
-            let char_ = if i < 8 {
-                self.font[i + character.index * 8]
-            } else {
-                self.font[0x800 + (i - 8) + character.index * 8]
-            };
-
-            for j in 0..9 {
-                let pixel = if j < 8 {
-                    char_ & (1 << (7 - j))
-                } else if character.index >= 0xC0 && character.index <= 0xDF {
-                    char_ & 1
-                } else {
-                    0
-                };
-
-                let color = if pixel > 0 {
-                    character.foreground_color.to_rgba()
-                } else {
-                    character.background_color.to_rgba()
-                };
-
-                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4] = color.0;
-                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 1] = color.1;
-                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 2] = color.2;
-                self.img_buffer[((height * 14 + i) * 720 + (width * 9 + j)) * 4 + 3] = color.3;
-            }
-        }
     }
 }
 
 impl Peripheral for IbmMDA {
     fn port_in(&mut self, port: u16) -> u16 {
         match port {
-            0x3B8 => self.crtc_op1 as u16,
+            0x3B8 => self.crtc.op1 as u16,
             // 0x3BA => self.crtc_sp as u16,
             0x3BA => {
                 self.retrace = (self.retrace + 1) % 4;
@@ -128,7 +148,7 @@ impl Peripheral for IbmMDA {
             }
 
             // 0x3B5 => self.crtc_registers[self.crtc_adddr_reg] as u16,
-            0x3B5 => self.crtc.read_reg(self.crtc_adddr_reg) as u16,
+            0x3B5 => self.crtc.read_reg(self.crtc.adddr_reg) as u16,
 
             _ => 0, //TODO
         }
@@ -136,10 +156,10 @@ impl Peripheral for IbmMDA {
 
     fn port_out(&mut self, val: u16, port: u16) {
         match port {
-            0x3B8 => self.crtc_op1 = val as u8,
-            0x3B4 => self.crtc_adddr_reg = (val as u8) as usize,
+            0x3B8 => self.crtc.op1 = val as u8,
+            0x3B4 => self.crtc.adddr_reg = (val as u8) as usize,
             // 0x3B5 =>  self.crtc_registers[self.crtc_adddr_reg] = val as u8,
-            0x3B5 => self.crtc.reg_write(self.crtc_adddr_reg, val as u8),
+            0x3B5 => self.crtc.reg_write(self.crtc.adddr_reg, val as u8),
             _ => {}
         }
     }

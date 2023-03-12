@@ -18,6 +18,10 @@ pub struct CRTC6845 {
     cursorl_reg: u8,                 // RW
     light_penh_reg: u8,              // R 00XXXXXX
     light_penl_reg: u8,              // R
+            
+    pub adddr_reg: usize,
+    pub op1: u8,
+    pub sp: u8,
 }
 
 impl CRTC6845 {

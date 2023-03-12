@@ -1,3 +1,5 @@
+pub const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
+
 use ggez::{
     graphics::{Color, Image},
     Context,
@@ -8,7 +10,6 @@ pub mod ibm_mda;
 
 pub trait DisplayAdapter {
     fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
-    fn render_font(&mut self, char: Char, width: usize, height: usize);
 }
 
 pub struct Char {

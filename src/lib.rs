@@ -6,7 +6,7 @@ use ggez::graphics::{Image, ImageFormat};
 use ggez::input::keyboard::KeyInput;
 use ggez::{timer, Context};
 // A
-use hardware::display::ibm_mda::IMG_BUFF_SIZE;
+use hardware::display::IMG_BUFF_SIZE;
 use hardware::display::DisplayAdapter;
 pub use hardware::sys::System;
 

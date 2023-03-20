@@ -63,17 +63,17 @@ impl System {
 
     #[inline]
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        if get_address(&mut self.cpu) == 0xFF123 {
+        if get_address(&mut self.cpu) == 0xFE5C0 {
             let _a = 0;
         }
 
         debug_82(&mut self.cpu);
-        let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
-        self.cycles_step = cycles;
+        let (mut cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
         // println!("{:04X}", _ip);
-
-        self.cpu.handle_interrupts(&mut self.bus);
-
+        
+        self.cpu.handle_interrupts(&mut self.bus, &mut cycles);
+        
+        self.cycles_step = cycles;
         // ACTUALIZAR PERIFERICOS
         self.bus.update_peripherals(cycles);
 

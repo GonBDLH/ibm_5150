@@ -48,14 +48,11 @@ impl CPU {
             }
             0xA0..=0xA3 => {
                 self.instr.opcode = Opcode::MOV;
-                self.instr.direction = if 0x02 & op == 0 {
-                    Direction::ToReg
-                } else {
-                    Direction::FromReg
-                };
                 self.instr.data_length = Length::new(op, 0);
+
                 read_imm_addres(self, bus);
-                if self.instr.direction == Direction::ToReg {
+
+                if 0x02 & op == 0 {
                     if self.instr.data_length == Length::Byte {
                         self.instr.operand1 = OperandType::Register(Operand::AL);
                     } else {
@@ -70,6 +67,7 @@ impl CPU {
                         self.instr.operand2 = OperandType::Register(Operand::AX);
                     }
                 }
+
                 self.cycles += 14;
             }
             0x8E | 0x8C => {
@@ -1150,21 +1148,21 @@ impl CPU {
             0xCC => {
                 self.instr.opcode = Opcode::INT;
 
-                self.sw_int_type = 3;
+                self.instr.sw_int_type = 3;
 
                 self.cycles += 72;
-            }
+           }
             0xCD => {
                 self.instr.opcode = Opcode::INT;
 
-                self.sw_int_type = self.fetch(bus);
+                self.instr.sw_int_type = self.fetch(bus);
 
                 self.cycles += 71;
             }
             0xCE => {
                 self.instr.opcode = Opcode::INTO;
 
-                self.sw_int_type = 4;
+                self.instr.sw_int_type = 4;
             }
             0xCF => {
                 self.instr.opcode = Opcode::IRET;
@@ -1207,7 +1205,7 @@ impl CPU {
 
             _ => {
                 // writeln!(&mut self.file, "Instrucción sin hacer: {:02X}", op).unwrap();
-
+                dbg!("ERROR: {:02X}", op);
                 self.cycles += 3
             } // _ => unreachable!(),
         }

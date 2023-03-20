@@ -49,6 +49,10 @@ impl Char {
         let back = attr >> 4 & 0x07;
         let front = attr & 0x07;
 
+        if attr != 0x07 {
+            let _a = 0;
+        }
+
         match (back, front) {
             (0b000, 0b111) => {
                 self.foreground_color = Color::WHITE;

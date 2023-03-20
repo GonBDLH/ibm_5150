@@ -2,11 +2,9 @@ pub mod hardware;
 pub mod util;
 
 use ggez::glam::Vec2;
-use ggez::graphics::{Image, ImageFormat};
 use ggez::input::keyboard::KeyInput;
 use ggez::{timer, Context};
 // A
-use hardware::display::IMG_BUFF_SIZE;
 use hardware::display::DisplayAdapter;
 pub use hardware::sys::System;
 
@@ -20,20 +18,21 @@ pub const DESIRED_FPS: f32 = 50.;
 
 pub struct IbmPc {
     pub sys: System,
-    img: Image,
+    // img: Image,
 }
 
 impl IbmPc {
-    pub fn new(ctx: &Context) -> Self {
+    // pub fn new(ctx: &Context) -> Self {
+    pub fn new() -> Self {
         IbmPc {
             sys: System::new(),
-            img: Image::from_pixels(
-                ctx,
-                &[0x00; IMG_BUFF_SIZE],
-                ImageFormat::Rgba8Unorm,
-                720,
-                350,
-            ),
+            // img: Image::from_pixels(
+            //     ctx,
+            //     &[0x00; IMG_BUFF_SIZE],
+            //     ImageFormat::Rgba8Unorm,
+            //     720,
+            //     350,
+            // ),
         }
     }
 }
@@ -54,13 +53,13 @@ impl EventHandler for IbmPc {
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
         let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
-        self.img = self
+        let img = self
             .sys
             .bus
             .mda
             .create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB0FA0]);
 
-        canvas.draw(&self.img, Vec2::new(0.0, 0.0));
+        canvas.draw(&img, Vec2::new(0.0, 0.0));
         canvas.finish(ctx)?;
 
         timer::yield_now();

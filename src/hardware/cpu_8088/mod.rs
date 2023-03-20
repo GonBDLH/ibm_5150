@@ -6,6 +6,7 @@ pub mod regs;
 
 pub mod dissasemble;
 
+use std::collections::BTreeMap;
 #[cfg(debug_assertions)]
 use std::collections::HashMap;
 
@@ -49,7 +50,6 @@ pub struct CPU {
     pub nmi_enabled: bool,
     // Controla de que tipo es la SW INT si existe
     pub sw_int: bool,
-    pub sw_int_type: u8,
 
     pub halted: bool,
 
@@ -58,6 +58,12 @@ pub struct CPU {
 
     #[cfg(debug_assertions)]
     instr_map: HashMap<Opcode, usize>,
+
+    #[cfg(debug_assertions)]
+    pub dissassemble_map: BTreeMap<usize, InstructionDbg>,
+            
+    #[cfg(debug_assertions)]
+    bytecode: String,
 }
 
 impl CPU {
@@ -89,7 +95,6 @@ impl CPU {
             nmi: false,
             nmi_enabled: false,
             sw_int: false,
-            sw_int_type: 0,
 
             halted: false,
 
@@ -97,6 +102,12 @@ impl CPU {
 
             #[cfg(debug_assertions)]
             instr_map: HashMap::new(),
+
+            #[cfg(debug_assertions)]
+            dissassemble_map: BTreeMap::new(),
+
+            #[cfg(debug_assertions)]
+            bytecode: String::new(),
         }
     }
 }
@@ -105,7 +116,12 @@ impl CPU {
     pub fn fetch(&mut self, bus: &mut Bus) -> u8 {
         let dir = get_address(self);
         self.ip = (self.ip as u32 + 1) as u16;
-        bus.read_dir(dir)
+        let val = bus.read_dir(dir);
+
+        #[cfg(debug_assertions)]
+        self.bytecode.push_str(&format!("{:02X}", val));
+
+        val        
     }
 
     // DEVUELVO LA IP PARA DEBUGEAR
@@ -114,9 +130,15 @@ impl CPU {
         let ip = self.ip;
 
         if self.to_decode {
+            #[cfg(debug_assertions)]
+            self.bytecode.clear();
+
             self.instr = Instruction::default();
             let op = self.fetch(bus);
             self.decode(bus, op);
+
+            // #[cfg(debug_assertions)]
+            // self.dissassemble_map.insert(((self.cs as usize) << 4) + ip as usize, InstructionDbg::new(&self.instr, self.bytecode.clone()));
         }
 
         self.execute(bus);
@@ -124,17 +146,19 @@ impl CPU {
         (self.cycles, ip)
     }
 
-    pub fn handle_interrupts(&mut self, bus: &mut Bus) {
+    pub fn handle_interrupts(&mut self, bus: &mut Bus, cycles: &mut u32) {
         if self.flags.i && self.sw_int {
-            self.interrupt(bus, self.sw_int_type as u16 * 0x04);
+            self.interrupt(bus, self.instr.sw_int_type as u16 * 0x04);
             self.sw_int = false;
         } else if self.nmi && self.nmi_enabled {
             // Si hay una NON-MASKABLE INTERRUPT
             self.interrupt(bus, 0x0008);
             self.nmi = false;
+            *cycles += 50;
         } else if self.flags.i && bus.pic.has_int() {
             let interruption = bus.pic.get_next();
             self.interrupt(bus, (interruption * 0x04) as u16);
+            *cycles += 61;
         } else {
             // TODO ESTO IGUAL ESTA MAL
             self.nmi = false;
@@ -231,7 +255,6 @@ impl CPU {
             Segment::CS => self.cs,
             Segment::SS => self.ss,
             Segment::DS => self.ds,
-            Segment::None => 0,
         }
     }
 
@@ -241,7 +264,6 @@ impl CPU {
             Segment::CS => self.cs = val,
             Segment::SS => self.ss = val,
             Segment::DS => self.ds = val,
-            _ => unreachable!("Aqui no deberia entrar nunca"),
         }
     }
 
@@ -302,11 +324,7 @@ impl CPU {
         let offset_from = self.si;
         let offset_to = self.di;
 
-        let segment_from = if self.instr.segment == Segment::None {
-            Segment::DS
-        } else {
-            self.instr.segment
-        };
+        let segment_from = self.instr.segment;
         let segment_to = Segment::ES;
 
         let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
@@ -317,11 +335,7 @@ impl CPU {
         let offset_from = self.si;
         let offset_to = self.di;
 
-        let segment_from = if self.instr.segment == Segment::None {
-            Segment::DS
-        } else {
-            self.instr.segment
-        };
+        let segment_from = self.instr.segment;
         let segment_to = Segment::ES;
 
         let val1 = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
@@ -348,11 +362,7 @@ impl CPU {
 
     pub fn lods(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
-        let segment_from = if self.instr.segment == Segment::None {
-            Segment::DS
-        } else {
-            self.instr.segment
-        };
+        let segment_from = self.instr.segment;
 
         let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
 
@@ -429,10 +439,12 @@ impl CPU {
         }
     }
 
-    pub fn jump(&mut self, cond: bool) {
+    pub fn jump_short(&mut self, cond: bool) {
         if cond {
             if let JumpType::DirWithinSegmentShort(disp) = self.instr.jump_type {
                 self.ip = self.ip.wrapping_add(sign_extend(disp))
+            } else {
+                unreachable!()
             }
             self.cycles += 16;
         } else {
@@ -470,9 +482,7 @@ impl CPU {
             self.adjust_string();
             self.cycles = cycles;
 
-            if !self.check_z_str() {
-                self.to_decode = true;
-            }
+            self.to_decode = !self.check_z_str();
         }
     }
 }

@@ -1,5 +1,4 @@
-use std::fmt::Debug;
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 
 use super::cpu_utils::*;
 use super::Bus;
@@ -32,6 +31,9 @@ pub struct Instruction {
     // Tipo de RET
     pub ret_type: RetType,
 
+    // INT
+    pub sw_int_type: u8,
+
     pub repetition_prefix: RepetitionPrefix,
 }
 
@@ -46,7 +48,7 @@ impl Default for Instruction {
             data_length: Length::None,
             addr_mode: AddrMode::None,
 
-            segment: Segment::None,
+            segment: Segment::DS,
             offset: 0x0000,
             ea_cycles: 0x00,
 
@@ -57,6 +59,8 @@ impl Default for Instruction {
 
             ret_type: RetType::None,
 
+            sw_int_type: 0,
+
             repetition_prefix: RepetitionPrefix::None,
         }
     }
@@ -64,7 +68,85 @@ impl Default for Instruction {
 
 impl Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {},{}", self.opcode, self.operand1, self.operand2)
+        let s = InstructionStrBuilder::new(self)
+            .add_opcode()
+            .add_op1()
+            .add_op2()
+            .build();
+
+        write!(f, "{}", s)
+    }
+}
+
+pub struct InstructionDbg {
+    instr: Instruction,
+    bytecode: String,
+}
+
+impl InstructionDbg {
+    pub fn new(instr: &Instruction, bytecode: String) -> Self {
+        Self { 
+            instr: instr.clone(),
+            bytecode,
+        }
+    }
+}
+
+impl Display for InstructionDbg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:>10}: {}", self.bytecode, self.instr)
+    }
+}
+
+struct InstructionStrBuilder<'a>{
+    s: String,
+    instr: &'a Instruction,
+}
+
+impl<'a> InstructionStrBuilder<'a> {
+    pub fn new(instr: &'a Instruction) -> Self {
+        InstructionStrBuilder {
+            s: String::new(),
+            instr,
+        }
+    }
+
+    pub fn add_opcode(mut self) -> Self {
+        self.s.push_str(&format!("{}", self.instr.opcode));
+        self
+    }
+
+    pub fn add_op1(mut self) -> Self {
+        if self.instr.operand1 == OperandType::None {
+            if self.instr.port != 0 {
+                self.s.push_str(&format!(" {}", self.instr.port));
+            } else if self.instr.jump_type != JumpType::None {
+                self.s.push_str(&format!(" {}", self.instr.jump_type));
+            } else if self.instr.sw_int_type != 0 {
+                self.s.push_str(&format!(" {:02X}", self.instr.sw_int_type));
+            }
+        } else {
+            match self.instr.operand1 {
+                OperandType::Memory(a) => {
+                    self.s.push_str(&format!(" {}[{}]", self.instr.segment, a));
+                },
+                _ => self.s.push_str(&format!(" {}", self.instr.operand1)),
+            }
+        }
+
+        self
+    }
+
+    pub fn add_op2(mut self) -> Self {
+        if self.instr.operand2 != OperandType::None {
+            self.s.push_str(&format!(", {}", self.instr.operand2));
+        }
+
+        self
+    }
+
+    pub fn build(self) -> String {
+        self.s
     }
 }
 
@@ -204,7 +286,7 @@ impl Display for Opcode {
             Opcode::None => "NONE",
             Opcode::MOV => "MOV",
             Opcode::PUSH => "PUSH",
-            Opcode::POP => "OP",
+            Opcode::POP => "POP",
             Opcode::XCHG => "XCHG",
             Opcode::IN => "IN",
             Opcode::OUT => "OUT",
@@ -370,7 +452,6 @@ impl Display for Operand {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Segment {
-    None,
     CS,
     DS,
     ES,
@@ -380,7 +461,6 @@ pub enum Segment {
 impl Display for Segment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let val = match self {
-            Segment::None => String::from("None"),
             Segment::CS => String::from("CS"),
             Segment::DS => String::from("DS"),
             Segment::ES => String::from("ES"),
@@ -390,7 +470,7 @@ impl Display for Segment {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum OperandType {
     Register(Operand),
     SegmentRegister(Segment),
@@ -406,7 +486,7 @@ impl Display for OperandType {
             OperandType::SegmentRegister(r) => write!(f, "{}", r),
             OperandType::Memory(r) => write!(f, "[{}]", r),
             OperandType::Immediate(r) => write!(f, "{:X}", r),
-            OperandType::None => write!(f, "None"),
+            OperandType::None => write!(f, ""),
         }
     }
 }
@@ -418,7 +498,7 @@ impl Debug for OperandType {
             OperandType::SegmentRegister(r) => write!(f, "{}", r),
             OperandType::Memory(r) => write!(f, "[{}]", r),
             OperandType::Immediate(r) => write!(f, "{:X}", r),
-            OperandType::None => write!(f, "None"),
+            OperandType::None => write!(f, ""),
         }
     }
 }
@@ -449,7 +529,7 @@ pub enum RetType {
     None,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum JumpType {
     DirIntersegment(u16, u16),
     DirWithinSegment(u16),
@@ -457,6 +537,19 @@ pub enum JumpType {
     IndIntersegment,
     IndWithinSegment,
     None,
+}
+
+impl Display for JumpType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JumpType::None => write!(f, ""),
+            JumpType::DirIntersegment(a, b) => write!(f, "{:04X}:{:04X}", b, a),
+            JumpType::DirWithinSegment(a) =>  write!(f, "CS:{:04X}", a),
+            JumpType::DirWithinSegmentShort(a) =>  write!(f, "{:02X}", a),
+            JumpType::IndIntersegment => write!(f, "II"),
+            JumpType::IndWithinSegment => write!(f, "IWS"),
+        }
+    }
 }
 
 pub fn decode_mod(operand: u8) -> AddrMode {
@@ -531,49 +624,31 @@ pub fn decode_mem(
     match mode {
         AddrMode::Mode0 => match rm {
             0b000 => {
-                if cpu.instr.segment == Segment::None {
-                    cpu.instr.segment = Segment::DS
-                };
                 cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si);
                 cpu.instr.ea_cycles = 7;
                 OperandType::Memory(Operand::BXSI)
             }
             0b001 => {
-                if cpu.instr.segment == Segment::None {
-                    cpu.instr.segment = Segment::DS
-                };
                 cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di);
                 cpu.instr.ea_cycles = 8;
                 OperandType::Memory(Operand::BXDI)
             }
             0b010 => {
-                if cpu.instr.segment == Segment::None {
-                    cpu.instr.segment = Segment::SS
-                };
                 cpu.instr.offset = cpu.bp.wrapping_add(cpu.si);
                 cpu.instr.ea_cycles = 8;
                 OperandType::Memory(Operand::BPSI)
             }
             0b011 => {
-                if cpu.instr.segment == Segment::None {
-                    cpu.instr.segment = Segment::SS
-                };
                 cpu.instr.offset = cpu.bp.wrapping_add(cpu.di);
                 cpu.instr.ea_cycles = 7;
                 OperandType::Memory(Operand::BPDI)
             }
             0b100 => {
-                if cpu.instr.segment == Segment::None {
-                    cpu.instr.segment = Segment::DS
-                };
                 cpu.instr.offset = cpu.si;
                 cpu.instr.ea_cycles = 5;
                 OperandType::Memory(Operand::SI)
             }
             0b101 => {
-                if cpu.instr.segment == Segment::None {
-                    cpu.instr.segment = Segment::DS
-                };
                 cpu.instr.offset = cpu.di;
                 cpu.instr.ea_cycles = 5;
                 OperandType::Memory(Operand::DI)
@@ -581,17 +656,15 @@ pub fn decode_mem(
             0b110 => {
                 let disp_low = cpu.fetch(bus);
                 let disp_high = cpu.fetch(bus);
-                if cpu.instr.segment == Segment::None {
-                    cpu.instr.segment = Segment::DS
-                };
+
+                // cpu.instr.segment = Segment::Dir(disp_high as u16 + ds);
                 cpu.instr.offset = to_u16(disp_low, disp_high);
                 cpu.instr.ea_cycles = 6;
+
+                // TODO Esto no se si estara mal
                 OperandType::Memory(Operand::Disp(to_u16(disp_low, disp_high)))
             }
             0b111 => {
-                if cpu.instr.segment == Segment::None {
-                    cpu.instr.segment = Segment::DS
-                };
                 cpu.instr.offset = cpu.bx.get_x();
                 cpu.instr.ea_cycles = 5;
                 OperandType::Memory(Operand::BX)
@@ -614,65 +687,41 @@ pub fn decode_mem(
 
             match rm {
                 0b000 => {
-                    if cpu.instr.segment == Segment::None {
-                        cpu.instr.segment = Segment::DS
-                    };
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
                     OperandType::Memory(Operand::DispBXSI(disp))
                 }
                 0b001 => {
-                    if cpu.instr.segment == Segment::None {
-                        cpu.instr.segment = Segment::DS
-                    };
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
                     OperandType::Memory(Operand::DispBXDI(disp))
                 }
                 0b010 => {
-                    if cpu.instr.segment == Segment::None {
-                        cpu.instr.segment = Segment::SS
-                    };
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
                     OperandType::Memory(Operand::DispBPSI(disp))
                 }
                 0b011 => {
-                    if cpu.instr.segment == Segment::None {
-                        cpu.instr.segment = Segment::SS
-                    };
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
                     OperandType::Memory(Operand::DispBPDI(disp))
                 }
                 0b100 => {
-                    if cpu.instr.segment == Segment::None {
-                        cpu.instr.segment = Segment::DS
-                    };
                     cpu.instr.offset = cpu.si.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     OperandType::Memory(Operand::DispSI(disp))
                 }
                 0b101 => {
-                    if cpu.instr.segment == Segment::None {
-                        cpu.instr.segment = Segment::DS
-                    };
                     cpu.instr.offset = cpu.di.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     OperandType::Memory(Operand::DispDI(disp))
                 }
                 0b110 => {
-                    if cpu.instr.segment == Segment::None {
-                        cpu.instr.segment = Segment::SS
-                    };
                     cpu.instr.offset = cpu.bp.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     OperandType::Memory(Operand::DispBP(disp))
                 }
                 0b111 => {
-                    if cpu.instr.segment == Segment::None {
-                        cpu.instr.segment = Segment::DS
-                    };
                     cpu.instr.offset = cpu.bx.get_x().wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
                     OperandType::Memory(Operand::DispBX(disp))

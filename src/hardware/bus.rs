@@ -80,10 +80,6 @@ impl Bus {
     pub fn read_8(&self, segment: u16, offset: u16) -> u8 {
         let ea = ((segment as usize) << 4) + offset as usize;
 
-        if ea == 0xFAC9B {
-            let _a = 0;
-        }
-
         self.memory[ea % 0x100000]
     }
 
@@ -96,14 +92,6 @@ impl Bus {
 
     pub fn write_8(&mut self, segment: u16, offset: u16, val: u8) {
         let ea = ((segment as usize) << 4) + offset as usize;
-
-        if val == 'T' as u8 {
-            let _a = 0;
-        }
-
-        if ea >= 0xB0000 && ea < 0xB1000 {
-            let _a = 0;
-        }
 
         // NO ESCRIBIR EN ROM
         if ea >= 0xC0000 {

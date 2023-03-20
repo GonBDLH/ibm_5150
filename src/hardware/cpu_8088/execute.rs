@@ -44,14 +44,8 @@ impl CPU {
                 bus.port_out(self, val, self.instr.port);
             }
             Opcode::XLAT => {
-                let segment = if self.instr.segment == Segment::None {
-                    Segment::DS
-                } else {
-                    self.instr.segment
-                };
-
                 let val = bus.read_8(
-                    self.get_segment(segment),
+                    self.get_segment(self.instr.segment),
                     self.get_reg(Operand::BX) + self.get_reg(Operand::AL),
                 );
                 self.set_reg8(Operand::AL, val);
@@ -121,20 +115,20 @@ impl CPU {
             Opcode::ADD => {
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
-                let res = val1.wrapping_add(val2);
-                self.set_val(bus, self.instr.operand1, res);
+                let res = val1.overflowing_add(val2);
+                self.set_val(bus, self.instr.operand1, res.0);
                 self.flags
-                    .set_add_flags(self.instr.data_length, val1, val2, res)
+                    .set_add_flags(self.instr.data_length, val1, val2, res.0, res.1)
             }
             Opcode::ADC => {
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self
                     .get_val(bus, self.instr.operand2)
-                    .wrapping_add(self.flags.c as u16);
-                let res = val1.wrapping_add(val2);
-                self.set_val(bus, self.instr.operand1, res);
+                    .overflowing_add(self.flags.c as u16);
+                let res = val1.overflowing_add(val2.0);
+                self.set_val(bus, self.instr.operand1, res.0);
                 self.flags
-                    .set_add_flags(self.instr.data_length, val1, val2, res)
+                    .set_add_flags(self.instr.data_length, val1, val2.0, res.0, res.1 | val2.1)
             }
             Opcode::INC => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -184,8 +178,8 @@ impl CPU {
             }
             Opcode::SBB => {
                 let val1 = self.get_val(bus, self.instr.operand1);
-                let val2 = self.get_val(bus, self.instr.operand2);
-                let res = val1.wrapping_sub(val2).wrapping_sub(self.flags.c as u16);
+                let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
+                let res = val1.wrapping_sub(val2);
                 self.set_val(bus, self.instr.operand1, res);
                 self.flags
                     .set_sub_flags(self.instr.data_length, val1, val2, res);
@@ -243,11 +237,11 @@ impl CPU {
             }
             Opcode::MUL => {
                 let val1 = match self.instr.data_length {
-                    Length::Byte => self.ax.low as u32,
-                    Length::Word => self.ax.get_x() as u32,
+                    Length::Byte => self.ax.low as u64,
+                    Length::Word => self.ax.get_x() as u64,
                     _ => unreachable!(),
                 };
-                let val2 = self.get_val(bus, self.instr.operand1) as u32;
+                let val2 = self.get_val(bus, self.instr.operand1) as u64;
                 let res = val1.wrapping_mul(val2);
 
                 match self.instr.data_length {
@@ -302,7 +296,7 @@ impl CPU {
                 if val2 == 0 {
                     // self.interrupt(bus, 0);
                     self.sw_int = true;
-                    self.sw_int_type = 0;
+                    self.instr.sw_int_type = 0;
                     return;
                 }
 
@@ -326,7 +320,7 @@ impl CPU {
                 if val2 == 0 {
                     // self.interrupt(bus, 0);
                     self.sw_int = true;
-                    self.sw_int_type = 0;
+                    self.instr.sw_int_type = 0;
                     return;
                 }
 
@@ -337,7 +331,7 @@ impl CPU {
                         if res > 0x7F || -res > 0x80 {
                             // self.interrupt(bus, 0);
                             self.sw_int = true;
-                            self.sw_int_type = 0;
+                            self.instr.sw_int_type = 0;
                         } else {
                             self.set_reg(self.instr.data_length, Operand::AL, res as u16);
                             self.set_reg(
@@ -353,7 +347,7 @@ impl CPU {
                         if res > 0x7FFF || -res > 0x8000 {
                             // self.interrupt(bus, 0);
                             self.sw_int = true;
-                            self.sw_int_type = 0;
+                            self.instr.sw_int_type = 0;
                         } else {
                             self.set_reg(self.instr.data_length, Operand::AX, res as u16);
                             self.set_reg(
@@ -371,7 +365,7 @@ impl CPU {
                 let temp_ah = self.ax.high;
                 self.ax.high = 0;
                 let val = self.get_val(bus, self.instr.operand1);
-                self.ax.low = temp_al + (temp_ah.wrapping_add(val as u8));
+                self.ax.low = (temp_al as u32 + (temp_ah as u32 * val as u32)) as u8;
 
                 self.flags.set_aam_flags(self.ax.low);
             }
@@ -396,13 +390,7 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_salshl_flags(
-                    self.instr.data_length,
-                    self.instr.operand2,
-                    count,
-                    val,
-                    res,
-                );
+                self.flags.set_shift_flags(val, count, res, self.instr.data_length, self.instr.opcode);
             }
             Opcode::SHR => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -412,35 +400,17 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_shr_flags(
-                    self.instr.data_length,
-                    self.instr.operand2,
-                    count,
-                    val,
-                    res,
-                );
+                self.flags.set_shift_flags(val, count, res, self.instr.data_length, self.instr.opcode);
             }
             Opcode::SAR => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let mask = if count < 16 {
-                    0xFFFFu16 << (16 - count)
-                } else {
-                    0xFFFF
-                };
-
-                let res = val.wrapping_shr(count) | mask;
+                let res = (val as i16).wrapping_shr(count) as u16;
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_sar_flags(
-                    self.instr.data_length,
-                    self.instr.operand2,
-                    count,
-                    val,
-                    res,
-                );
+                self.flags.set_shift_flags(val, count, res, self.instr.data_length, self.instr.opcode);
             }
             Opcode::ROL => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -450,8 +420,7 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
-                self.flags
-                    .set_rot_flags(res.1, count, res.0, val, self.instr.data_length);
+                self.flags.set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
             }
             Opcode::ROR => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -461,8 +430,7 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
-                self.flags
-                    .set_rot_flags(res.1, count, res.0, val, self.instr.data_length);
+                self.flags.set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
             }
             Opcode::RCL => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -471,8 +439,8 @@ impl CPU {
                 let res = rotate_left_carry(self, val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
-                self.flags
-                    .set_rc_flags(count, res, val, self.instr.data_length);
+
+                self.flags.set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
             }
             Opcode::RCR => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -481,8 +449,8 @@ impl CPU {
                 let res = rotate_right_carry(self, val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
-                self.flags
-                    .set_rc_flags(count, res, val, self.instr.data_length);
+                
+                self.flags.set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
             }
             Opcode::AND => {
                 let val1 = self.get_val(bus, self.instr.operand1);
@@ -609,47 +577,47 @@ impl CPU {
                 }
                 _ => unreachable!(),
             },
-            Opcode::JEJZ => self.jump(self.flags.z),
-            Opcode::JLJNGE => self.jump(self.flags.s ^ self.flags.o),
-            Opcode::JLEJNG => self.jump((self.flags.s ^ self.flags.o) | self.flags.z),
-            Opcode::JBJNAE => self.jump(self.flags.c),
-            Opcode::JBEJNA => self.jump(self.flags.c | self.flags.z),
-            Opcode::JPJPE => self.jump(self.flags.p),
-            Opcode::JO => self.jump(self.flags.o),
-            Opcode::JS => self.jump(self.flags.s),
-            Opcode::JNEJNZ => self.jump(!self.flags.z),
-            Opcode::JNLJGE => self.jump(!(self.flags.s ^ self.flags.o)),
-            Opcode::JNLEJG => self.jump(!((self.flags.s ^ self.flags.o) | self.flags.z)),
-            Opcode::JNBJAE => self.jump(!self.flags.c),
-            Opcode::JNBEJA => self.jump(!self.flags.c & !self.flags.z),
-            Opcode::JNPJPO => self.jump(!self.flags.p),
-            Opcode::JNO => self.jump(!self.flags.o),
-            Opcode::JNS => self.jump(!self.flags.s),
+            Opcode::JEJZ => self.jump_short(self.flags.z),
+            Opcode::JLJNGE => self.jump_short(self.flags.s ^ self.flags.o),
+            Opcode::JLEJNG => self.jump_short((self.flags.s ^ self.flags.o) | self.flags.z),
+            Opcode::JBJNAE => self.jump_short(self.flags.c),
+            Opcode::JBEJNA => self.jump_short(self.flags.c | self.flags.z),
+            Opcode::JPJPE => self.jump_short(self.flags.p),
+            Opcode::JO => self.jump_short(self.flags.o),
+            Opcode::JS => self.jump_short(self.flags.s),
+            Opcode::JNEJNZ => self.jump_short(!self.flags.z),
+            Opcode::JNLJGE => self.jump_short(!(self.flags.s ^ self.flags.o)),
+            Opcode::JNLEJG => self.jump_short(!((self.flags.s ^ self.flags.o) | self.flags.z)),
+            Opcode::JNBJAE => self.jump_short(!self.flags.c),
+            Opcode::JNBEJA => self.jump_short(!self.flags.c & !self.flags.z),
+            Opcode::JNPJPO => self.jump_short(!self.flags.p),
+            Opcode::JNO => self.jump_short(!self.flags.o),
+            Opcode::JNS => self.jump_short(!self.flags.s),
             Opcode::LOOP => {
                 let cx = self.cx.get_x().wrapping_sub(1);
                 self.cx.set_x(cx);
-                self.jump(cx != 0);
+                self.jump_short(cx != 0);
 
-                self.cycles += 1; // jump() ya suma lo demas
+                self.cycles += 1; // jump_short() ya suma lo demas
             }
             Opcode::LOOPZE => {
                 let cx = self.cx.get_x().wrapping_sub(1);
                 self.cx.set_x(cx);
-                self.jump((cx != 0) & self.flags.z);
+                self.jump_short((cx != 0) & self.flags.z);
 
-                self.cycles += 2; // jump() ya suma lo demas
+                self.cycles += 2; // jump_short() ya suma lo demas
             }
             Opcode::LOOPNZNE => {
                 let cx = self.cx.get_x().wrapping_sub(1);
                 self.cx.set_x(cx);
-                self.jump((cx != 0) & !self.flags.z);
+                self.jump_short((cx != 0) & !self.flags.z);
 
-                self.cycles += 2; // jump() ya suma lo demas
+                self.cycles += 2; // jump_short() ya suma lo demas
             }
             Opcode::JCXZ => {
-                self.jump(self.cx.get_x() == 0);
+                self.jump_short(self.cx.get_x() == 0);
 
-                self.cycles += 2; // jump() ya suma lo demas
+                self.cycles += 2; // jump_short() ya suma lo demas
             }
             Opcode::INT => {
                 self.sw_int = true;
@@ -697,5 +665,6 @@ impl CPU {
 
             _ => {} // _ => unreachable!(),
         }
+
     }
 }

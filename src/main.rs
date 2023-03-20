@@ -1,6 +1,6 @@
 use ibm_5150::*;
 
-// #[cfg(not(debug_assertions))]
+#[cfg(not(debug_assertions))]
 fn main() -> GameResult {
     let win_mode = WindowMode::default()
         .dimensions(720., 350.)
@@ -10,7 +10,7 @@ fn main() -> GameResult {
 
     let (ctx, event_loop) = cb.build()?;
 
-    let mut app = IbmPc::new(&ctx);
+    let mut app = IbmPc::new();
     //graphics::set_mode(&mut ctx, win_mode)?;
 
     app.sys.rst();
@@ -19,14 +19,28 @@ fn main() -> GameResult {
     event::run(ctx, event_loop, app);
 }
 
-// #[cfg(debug_assertions)]
-// fn main() {
-//     let mut app = IbmPc::new();
+#[cfg(debug_assertions)]
+fn main() {
+    use std::{time::Instant, fs::File};
+    use std::io::prelude::*;
 
-//     app.sys.rst();
-//     app.sys.load_roms();
+    let mut file = File::create("dissassemble.txt").unwrap();
+    let mut app = IbmPc::new();
 
-//     loop {
-//         app.sys.update();
-//     }
-// }
+    app.sys.rst();
+    app.sys.load_roms();
+
+    let now = Instant::now();
+
+    loop {
+        app.sys.update();
+
+        let t = now.elapsed();
+
+        if t.as_secs_f64() > 60. {
+            break;
+        }
+    }
+
+    app.sys.cpu.dissassemble_map.iter().for_each(|x| writeln!(file, "{:05X} {}", x.0, x.1).unwrap());
+}

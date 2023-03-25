@@ -24,7 +24,7 @@ fn main() {
     use std::{time::Instant, fs::File};
     use std::io::prelude::*;
 
-    let mut file = File::create("dissassemble.txt").unwrap();
+    let mut file = File::create("disassemble.txt").unwrap();
     let mut app = IbmPc::new();
 
     app.sys.rst();

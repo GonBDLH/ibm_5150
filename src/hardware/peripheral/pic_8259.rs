@@ -37,6 +37,12 @@ impl PIC8259 {
     }
 }
 
+impl Default for PIC8259 {
+    fn default() -> Self {
+        PIC8259::new()
+    }
+}
+
 impl PIC8259 {
     pub fn get_next(&mut self) -> u8 {
         let requested_ints = self.irr & !self.imr;

@@ -37,6 +37,12 @@ impl IbmPc {
     }
 }
 
+impl Default for IbmPc {
+    fn default() -> Self {
+        IbmPc::new()
+    }
+}
+
 impl EventHandler for IbmPc {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
         // let mut veces = 0;
@@ -58,6 +64,7 @@ impl EventHandler for IbmPc {
             .bus
             .mda
             .create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB0FA0]);
+            // .create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB1000]);
 
         canvas.draw(&img, Vec2::new(0.0, 0.0));
         canvas.finish(ctx)?;

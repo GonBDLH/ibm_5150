@@ -86,7 +86,7 @@ pub struct InstructionDbg {
 impl InstructionDbg {
     pub fn new(instr: &Instruction, bytecode: String) -> Self {
         Self { 
-            instr: instr.clone(),
+            instr: *instr,
             bytecode,
         }
     }

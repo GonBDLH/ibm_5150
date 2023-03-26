@@ -137,3 +137,9 @@ impl Bus {
         }
     }
 }
+
+impl Default for Bus {
+    fn default() -> Self {
+        Self::new()
+    }
+}

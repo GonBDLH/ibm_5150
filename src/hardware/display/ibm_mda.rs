@@ -19,15 +19,15 @@ pub struct IbmMDA {
     pub img_buffer: Vec<u8>,
     pub font_rom: Vec<u8>,
 
-    font_map: [[[bool; 9]; 14]; 255], //IGUAL ESTO ESTA MAL NO SE: CARACTER / FILA / COLUMNA
+    font_map: [[[bool; 9]; 14]; 256], //IGUAL ESTO ESTA MAL NO SE: CARACTER / FILA / COLUMNA
 
     crtc: CRTC6845,
 
     retrace: u8,
 }
 
-fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 255] {
-    let mut font_map = [[[false; 9]; 14]; 255];
+fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 256] {
+    let mut font_map = [[[false; 9]; 14]; 256];
     
     for character in 0..255 {
         for row in 0..14 {
@@ -40,7 +40,7 @@ fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 255] {
             for col in 0..9 {
                 let pixel = if col < 8 {
                     byte & (1 << (7 - col))
-                } else if character >= 0xC0 && character <= 0xDF {
+                } else if (0xC0..=0xDF).contains(&character) {
                     byte & 1
                 } else {
                     0
@@ -79,7 +79,13 @@ impl IbmMDA {
     }
 }
 
-fn decode_pixel_slice(font_map: &[[[bool; 9]; 14]; 255], row: usize, character: Char) -> [u8; 9 * 4] {
+impl Default for IbmMDA {
+    fn default() -> Self {
+        IbmMDA::new()
+    }
+}
+
+fn decode_pixel_slice(font_map: &[[[bool; 9]; 14]; 256], row: usize, character: Char) -> [u8; 9 * 4] {
     let character_slice = font_map[character.index][row];
     let mut return_slice = [0x00; 9 * 4];
 
@@ -150,7 +156,10 @@ impl Peripheral for IbmMDA {
             // 0x3B5 => self.crtc_registers[self.crtc_adddr_reg] as u16,
             0x3B5 => self.crtc.read_reg(self.crtc.adddr_reg) as u16,
 
-            _ => 0, //TODO
+            _ => {
+                println!("{}", port);
+                0
+            }, //TODO
         }
     }
 

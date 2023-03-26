@@ -36,6 +36,12 @@ impl System {
     }
 }
 
+impl Default for System {
+    fn default() -> Self {
+        System::new()
+    }
+}
+
 use crate::{util::debug_bios::debug_82, DESIRED_FPS};
 
 impl System {
@@ -63,7 +69,7 @@ impl System {
 
     #[inline]
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        if get_address(&mut self.cpu) == 0xFE5C0 {
+        if get_address(&mut self.cpu) == 0xF6000 {
             let _a = 0;
         }
 

@@ -35,11 +35,11 @@ fn main() {
     loop {
         app.sys.update();
 
-        let t = now.elapsed();
+        // let t = now.elapsed();
 
-        if t.as_secs_f64() > 60. {
-            break;
-        }
+        // if t.as_secs_f64() > 60. {
+        //     break;
+        // }
     }
 
     app.sys.cpu.dissassemble_map.iter().for_each(|x| writeln!(file, "{:05X} {}", x.0, x.1).unwrap());

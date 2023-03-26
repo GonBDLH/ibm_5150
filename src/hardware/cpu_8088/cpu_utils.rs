@@ -18,7 +18,7 @@ pub fn to_u16(low: u8, high: u8) -> u16 {
 
 pub fn to_2u8(val: u16) -> (u8, u8) {
     let low = val as u8;
-    let high = ((val & 0xFF00) >> 8) as u8;
+    let high = (val >> 8) as u8;
 
     (low, high)
 }
@@ -29,7 +29,7 @@ pub fn to_u32(low: u16, high: u16) -> u32 {
 
 pub fn to_2u16(val: u32) -> (u16, u16) {
     let low = val as u16;
-    let high = ((val & 0xFFFF0000) >> 16) as u16;
+    let high = (val >> 16) as u16;
 
     (low, high)
 }
@@ -66,7 +66,7 @@ pub fn rotate_left(val: u16, count: u32, len: Length) -> (u16, bool) {
     }
 }
 
-pub fn rotate_rigth(val: u16, count: u32, len: Length) -> (u16, bool) {
+pub fn rotate_right(val: u16, count: u32, len: Length) -> (u16, bool) {
     match len {
         Length::Byte => {
             let res = (val as u8).rotate_right(count);

@@ -15,7 +15,7 @@ const SW2: u8 = 0b11100000;
 const KBD_RESET_CYCLES: u32 = 47700; // 20 ms
 const KBD_RESET_CYCLE_DELAY: u32 = 100;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PPI8255 {
     key_code: u8,
     pub port_b: u8,
@@ -51,6 +51,12 @@ impl Keyboard {
             count_until_reset: 0,
             resets_counter: 0,
         }
+    }
+}
+
+impl Default for Keyboard {
+    fn default() -> Self {
+        Keyboard::new()
     }
 }
 

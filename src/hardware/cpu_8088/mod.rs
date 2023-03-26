@@ -6,6 +6,7 @@ pub mod regs;
 
 pub mod dissasemble;
 
+#[cfg(debug_assertions)]
 use std::collections::BTreeMap;
 #[cfg(debug_assertions)]
 use std::collections::HashMap;
@@ -112,16 +113,22 @@ impl CPU {
     }
 }
 
+impl Default for CPU {
+    fn default() -> Self {
+        CPU::new()
+    }
+}
+
 impl CPU {
     pub fn fetch(&mut self, bus: &mut Bus) -> u8 {
         let dir = get_address(self);
-        self.ip = (self.ip as u32 + 1) as u16;
+        self.ip = self.ip.wrapping_add(1);
         let val = bus.read_dir(dir);
 
         #[cfg(debug_assertions)]
         self.bytecode.push_str(&format!("{:02X}", val));
 
-        val        
+        val
     }
 
     // DEVUELVO LA IP PARA DEBUGEAR

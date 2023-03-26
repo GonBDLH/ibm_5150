@@ -30,6 +30,12 @@ impl GPReg {
     }
 }
 
+impl Default for GPReg {
+    fn default() -> Self {
+        GPReg::new()
+    }
+}
+
 impl Debug for GPReg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:02X}{:02X}", self.high, self.low)
@@ -85,8 +91,14 @@ impl Flags {
         let z = ((self.z as u16) << 6) & 0b0000000001000000;
         let a = ((self.a as u16) << 4) & 0b0000000000010000;
         let p = ((self.p as u16) << 2) & 0b0000000000000100;
-        let c = ((self.c as u16) << 0) & 0b0000000000000001;
+        let c = (self.c as u16) & 0b0000000000000001;
         o + d + i + t + s + z + a + p + c
+    }
+}
+
+impl Default for Flags {
+    fn default() -> Self {
+        Flags::new()
     }
 }
 
@@ -185,7 +197,7 @@ fn check_c_salshl(val: u16, count: u32, len: Length) -> bool {
         },
         Length::Word => {
             let mask = (0x010000 >> count) as u16;
-            mask & val as u16 > 0
+            mask & val > 0
         },
         _ => unreachable!()
     }
@@ -199,7 +211,7 @@ fn check_c_shr(val: u16, count: u32, len: Length) -> bool {
         },
         Length::Word => {
             let mask = ((1 << count) >> 1) as u16;
-            mask & val as u16 > 0
+            mask & val > 0
         },
         _ => unreachable!()
     }
@@ -222,7 +234,7 @@ fn check_c_sar(val: u16, count: u32, len: Length) -> bool {
             }
 
             let mask = ((1 << count) >> 1) as u16;
-            mask & val as u16 > 0
+            mask & val > 0
         },
         _ => unreachable!()
     }

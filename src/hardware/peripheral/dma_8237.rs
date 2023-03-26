@@ -41,6 +41,12 @@ impl DMA8237 {
     }
 }
 
+impl Default for DMA8237 {
+    fn default() -> Self {
+        DMA8237::new()
+    }
+}
+
 impl Peripheral for DMA8237 {
     fn port_in(&mut self, port: u16) -> u16 {
         if port <= 0x07 {

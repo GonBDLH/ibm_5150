@@ -426,7 +426,7 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate_rigth(val, count, self.instr.data_length);
+                let res = rotate_right(val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
@@ -663,7 +663,11 @@ impl CPU {
                 self.halted = true;
             }
 
-            _ => {} // _ => unreachable!(),
+            Opcode::NOP => {}
+
+            _ => {
+                println!("SOY TONTO????");
+            } // _ => unreachable!(),
         }
 
     }

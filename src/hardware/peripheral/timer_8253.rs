@@ -4,20 +4,15 @@ use super::{
     Peripheral,
 };
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 enum Mode {
+    #[default]
     Mode0,
     Mode1,
     Mode2,
     Mode3,
     Mode4,
     Mode5,
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Mode::Mode0
-    }
 }
 
 #[derive(Default, Clone)]

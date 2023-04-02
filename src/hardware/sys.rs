@@ -1,8 +1,8 @@
 // use std::fs::File;
 use std::fs::File;
 
-use super::cpu_8088::{CPU, cpu_utils::get_address};
 use super::bus::Bus;
+use super::cpu_8088::{cpu_utils::get_address, CPU};
 
 use std::fs::OpenOptions;
 
@@ -18,21 +18,31 @@ pub struct System {
 
 impl System {
     pub fn new() -> Self {
-        let sys = System { 
+        let sys = System {
             cpu: CPU::new(),
             bus: Bus::new(),
 
             running: false,
 
-            file: OpenOptions::new().create(true).write(true).open("logs/logs.txt").unwrap(),
+            file: OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open("logs/logs.txt")
+                .unwrap(),
             cycles_step: 0,
         };
-      
+
         sys
     }
 }
 
-use crate::{DESIRED_FPS, util::debug_bios::debug_82};
+impl Default for System {
+    fn default() -> Self {
+        System::new()
+    }
+}
+
+use crate::{util::debug_bios::debug_82, DESIRED_FPS};
 
 impl System {
     pub fn rst(&mut self) {
@@ -59,17 +69,17 @@ impl System {
 
     #[inline]
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        if get_address(&mut self.cpu) == 0xFF123 {
+        if get_address(&mut self.cpu) == 0xF6000 {
             let _a = 0;
         }
-        
+
         debug_82(&mut self.cpu);
-        let (cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
-        self.cycles_step = cycles;
+        let (mut cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
         // println!("{:04X}", _ip);
         
-        self.cpu.handle_interrupts(&mut self.bus);
+        self.cpu.handle_interrupts(&mut self.bus, &mut cycles);
         
+        self.cycles_step = cycles;
         // ACTUALIZAR PERIFERICOS
         self.bus.update_peripherals(cycles);
 
@@ -78,24 +88,44 @@ impl System {
 
     pub fn load_roms(&mut self) {
         // BASIC
-        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U29-5000019.bin").unwrap().into_iter().enumerate() {
+        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U29-5000019.bin")
+            .unwrap()
+            .into_iter()
+            .enumerate()
+        {
             self.bus.memory[0xF6000 + idx] = element;
         }
 
-        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U30-5000021.bin").unwrap().into_iter().enumerate() {
+        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U30-5000021.bin")
+            .unwrap()
+            .into_iter()
+            .enumerate()
+        {
             self.bus.memory[0xF8000 + idx] = element;
         }
-        
-        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U31-5000022.bin").unwrap().into_iter().enumerate() {
+
+        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U31-5000022.bin")
+            .unwrap()
+            .into_iter()
+            .enumerate()
+        {
             self.bus.memory[0xFA000 + idx] = element;
         }
-        
-        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U32-5000023.bin").unwrap().into_iter().enumerate() {
+
+        for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U32-5000023.bin")
+            .unwrap()
+            .into_iter()
+            .enumerate()
+        {
             self.bus.memory[0xFC000 + idx] = element;
         }
-        
+
         // BIOS
-        for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN").unwrap().into_iter().enumerate() {
+        for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
+            .unwrap()
+            .into_iter()
+            .enumerate()
+        {
             self.bus.memory[0xFE000 + idx] = element;
         }
     }

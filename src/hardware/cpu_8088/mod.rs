@@ -1,18 +1,20 @@
-pub mod instr_utils;
 pub mod cpu_utils;
-pub mod regs;
 mod decode;
 mod execute;
+pub mod instr_utils;
+pub mod regs;
 
 pub mod dissasemble;
 
 #[cfg(debug_assertions)]
+use std::collections::BTreeMap;
+#[cfg(debug_assertions)]
 use std::collections::HashMap;
 
 use super::bus::Bus;
-use instr_utils::*;
-use regs::{GPReg, Flags};
 use cpu_utils::*;
+use instr_utils::*;
+use regs::{Flags, GPReg};
 
 pub struct CPU {
     // Registros de proposito general
@@ -38,7 +40,7 @@ pub struct CPU {
 
     // Instruction pointer
     pub ip: u16,
-    
+
     // Utilizado para guardar info de la operacion que se esta decodificando
     pub instr: Instruction,
 
@@ -49,7 +51,6 @@ pub struct CPU {
     pub nmi_enabled: bool,
     // Controla de que tipo es la SW INT si existe
     pub sw_int: bool,
-    pub sw_int_type: u8,
 
     pub halted: bool,
 
@@ -58,6 +59,12 @@ pub struct CPU {
 
     #[cfg(debug_assertions)]
     instr_map: HashMap<Opcode, usize>,
+
+    #[cfg(debug_assertions)]
+    pub dissassemble_map: BTreeMap<usize, InstructionDbg>,
+            
+    #[cfg(debug_assertions)]
+    bytecode: String,
 }
 
 impl CPU {
@@ -89,7 +96,6 @@ impl CPU {
             nmi: false,
             nmi_enabled: false,
             sw_int: false,
-            sw_int_type: 0,
 
             halted: false,
 
@@ -97,15 +103,32 @@ impl CPU {
 
             #[cfg(debug_assertions)]
             instr_map: HashMap::new(),
+
+            #[cfg(debug_assertions)]
+            dissassemble_map: BTreeMap::new(),
+
+            #[cfg(debug_assertions)]
+            bytecode: String::new(),
         }
+    }
+}
+
+impl Default for CPU {
+    fn default() -> Self {
+        CPU::new()
     }
 }
 
 impl CPU {
     pub fn fetch(&mut self, bus: &mut Bus) -> u8 {
         let dir = get_address(self);
-        self.ip = (self.ip as u32 + 1) as u16;
-        bus.read_dir(dir)
+        self.ip = self.ip.wrapping_add(1);
+        let val = bus.read_dir(dir);
+
+        #[cfg(debug_assertions)]
+        self.bytecode.push_str(&format!("{:02X}", val));
+
+        val
     }
 
     // DEVUELVO LA IP PARA DEBUGEAR
@@ -114,9 +137,15 @@ impl CPU {
         let ip = self.ip;
 
         if self.to_decode {
+            #[cfg(debug_assertions)]
+            self.bytecode.clear();
+
             self.instr = Instruction::default();
             let op = self.fetch(bus);
             self.decode(bus, op);
+
+            // #[cfg(debug_assertions)]
+            // self.dissassemble_map.insert(((self.cs as usize) << 4) + ip as usize, InstructionDbg::new(&self.instr, self.bytecode.clone()));
         }
 
         self.execute(bus);
@@ -124,17 +153,19 @@ impl CPU {
         (self.cycles, ip)
     }
 
-    pub fn handle_interrupts(&mut self, bus: &mut Bus) {
+    pub fn handle_interrupts(&mut self, bus: &mut Bus, cycles: &mut u32) {
         if self.flags.i && self.sw_int {
-            self.interrupt(bus, self.sw_int_type as u16 * 0x04);
+            self.interrupt(bus, self.instr.sw_int_type as u16 * 0x04);
             self.sw_int = false;
         } else if self.nmi && self.nmi_enabled {
             // Si hay una NON-MASKABLE INTERRUPT
             self.interrupt(bus, 0x0008);
             self.nmi = false;
+            *cycles += 50;
         } else if self.flags.i && bus.pic.has_int() {
             let interruption = bus.pic.get_next();
             self.interrupt(bus, (interruption * 0x04) as u16);
+            *cycles += 61;
         } else {
             // TODO ESTO IGUAL ESTA MAL
             self.nmi = false;
@@ -149,11 +180,11 @@ impl CPU {
 
         self.ip = bus.read_16(0, ip_location);
         self.cs = bus.read_16(0, ip_location + 2);
-        
+
         self.flags.i = false;
         self.flags.t = false;
     }
-    
+
     pub fn nmi_out(&mut self, val: u16) {
         self.nmi_enabled = if val == 0x80 {
             true
@@ -191,16 +222,15 @@ impl CPU {
             Operand::BP => self.bp = val,
             Operand::SI => self.si = val,
             Operand::DI => self.di = val,
-            _ => unreachable!("Aqui no deberia entrar nunca")
+            _ => unreachable!("Aqui no deberia entrar nunca"),
         }
     }
 
     pub fn set_reg(&mut self, length: Length, reg: Operand, val: u16) {
-
         match length {
             Length::Byte => self.set_reg8(reg, val as u8),
             Length::Word => self.set_reg16(reg, val),
-            _ => unreachable!("Aqui no deberia entrar nunca")
+            _ => unreachable!("Aqui no deberia entrar nunca"),
         }
     }
 
@@ -222,7 +252,7 @@ impl CPU {
             Operand::CH => self.cx.high as u16,
             Operand::DH => self.dx.high as u16,
             Operand::BH => self.bx.high as u16,
-            _ => unreachable!("Aqui no deberia entrar nunca")
+            _ => unreachable!("Aqui no deberia entrar nunca"),
         }
     }
 
@@ -232,7 +262,6 @@ impl CPU {
             Segment::CS => self.cs,
             Segment::SS => self.ss,
             Segment::DS => self.ds,
-            Segment::None => 0,
         }
     }
 
@@ -242,7 +271,6 @@ impl CPU {
             Segment::CS => self.cs = val,
             Segment::SS => self.ss = val,
             Segment::DS => self.ds = val,
-            _ => unreachable!("Aqui no deberia entrar nunca")
         }
     }
 
@@ -251,7 +279,12 @@ impl CPU {
             OperandType::Register(operand) => self.get_reg(operand),
             OperandType::SegmentRegister(operand) => self.get_segment(operand),
             OperandType::Immediate(imm) => imm,
-            OperandType::Memory(_operand) => bus.read_length(self, self.instr.segment, self.instr.offset, self.instr.data_length),
+            OperandType::Memory(_operand) => bus.read_length(
+                self,
+                self.instr.segment,
+                self.instr.offset,
+                self.instr.data_length,
+            ),
             _ => unreachable!(),
         }
     }
@@ -260,7 +293,13 @@ impl CPU {
         match operand {
             OperandType::Register(operand) => self.set_reg(self.instr.data_length, operand, val),
             OperandType::SegmentRegister(operand) => self.set_segment(operand, val),
-            OperandType::Memory(_operand) => bus.write_length(self, self.instr.data_length, self.instr.segment, self.instr.offset, val),
+            OperandType::Memory(_operand) => bus.write_length(
+                self,
+                self.instr.data_length,
+                self.instr.segment,
+                self.instr.offset,
+                val,
+            ),
             _ => unreachable!(),
         }
     }
@@ -291,108 +330,98 @@ impl CPU {
     pub fn movs(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
         let offset_to = self.di;
-    
-        let segment_from = if self.instr.segment == Segment::None {
-            Segment::DS
-        } else {
-            self.instr.segment
-        };
+
+        let segment_from = self.instr.segment;
         let segment_to = Segment::ES;
-    
+
         let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         bus.write_length(self, self.instr.data_length, segment_to, offset_to, val);
     }
-    
+
     pub fn cmps(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
         let offset_to = self.di;
-    
-        let segment_from = if self.instr.segment == Segment::None {
-            Segment::DS
-        } else {
-            self.instr.segment
-        };
+
+        let segment_from = self.instr.segment;
         let segment_to = Segment::ES;
-    
+
         let val1 = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
         let res = val1.wrapping_sub(val2);
-        self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
+        self.flags
+            .set_sub_flags(self.instr.data_length, val1, val2, res);
     }
-    
+
     pub fn scas(&mut self, bus: &mut Bus) {
         let offset_to = self.di;
         let segment_to = Segment::ES;
-    
+
         let val1 = match self.instr.data_length {
             Length::Byte => self.ax.low as u16,
             Length::Word => self.ax.get_x(),
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
         let res = val1.wrapping_sub(val2);
-        self.flags.set_sub_flags(self.instr.data_length, val1, val2, res);
+        self.flags
+            .set_sub_flags(self.instr.data_length, val1, val2, res);
     }
-    
+
     pub fn lods(&mut self, bus: &mut Bus) {
         let offset_from = self.si;
-        let segment_from = if self.instr.segment == Segment::None {
-            Segment::DS
-        } else {
-            self.instr.segment
-        };
-    
+        let segment_from = self.instr.segment;
+
         let val = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
-    
+
         match self.instr.data_length {
             Length::Byte => self.ax.low = val as u8,
             Length::Word => self.ax.set_x(val),
-            _ => unreachable!()
+            _ => unreachable!(),
         };
     }
-    
+
     pub fn stos(&mut self, bus: &mut Bus) {
         let offset_to = self.di;
         let segment_to = Segment::ES;
-    
+
         let val = match self.instr.data_length {
             Length::Byte => self.ax.low as u16,
             Length::Word => self.ax.get_x(),
             _ => unreachable!(),
         };
-    
+
         bus.write_length(self, self.instr.data_length, segment_to, offset_to, val);
     }
-    
+
     pub fn adjust_string(&mut self) {
         let to_change = match self.instr.data_length {
             Length::Byte => 1,
             Length::Word => 2,
             _ => unreachable!(),
         };
-    
+
         match self.instr.opcode {
             Opcode::CMPSB | Opcode::CMPSW => {
                 self.adjust_string_di(to_change);
                 self.adjust_string_si(to_change);
-            },
+            }
             Opcode::SCASB | Opcode::SCASW => {
                 self.adjust_string_di(to_change);
-            },
+            }
             Opcode::LODSB | Opcode::LODSW => {
                 self.adjust_string_si(to_change);
-            },
+            }
             Opcode::STOSB | Opcode::STOSW => {
                 self.adjust_string_di(to_change);
-            },
+            }
             Opcode::MOVSB | Opcode::MOVSW => {
                 self.adjust_string_di(to_change);
                 self.adjust_string_si(to_change);
-            },
+            }
             _ => unreachable!(),
         }
     }
-    
+
     pub fn adjust_string_di(&mut self, to_change: u16) {
         if !self.flags.d {
             self.di = self.di.wrapping_add(to_change);
@@ -400,7 +429,7 @@ impl CPU {
             self.di = self.di.wrapping_sub(to_change);
         }
     }
-    
+
     pub fn adjust_string_si(&mut self, to_change: u16) {
         if !self.flags.d {
             self.si = self.si.wrapping_add(to_change);
@@ -408,23 +437,21 @@ impl CPU {
             self.si = self.si.wrapping_sub(to_change);
         }
     }
-    
+
     pub fn check_z_str(&mut self) -> bool {
         match self.instr.repetition_prefix {
-            RepetitionPrefix::REPEZ => {
-                self.flags.z
-            },
-            RepetitionPrefix::REPNEZ => {
-                !self.flags.z
-            },
-            _ => unreachable!()
+            RepetitionPrefix::REPEZ => self.flags.z,
+            RepetitionPrefix::REPNEZ => !self.flags.z,
+            _ => unreachable!(),
         }
     }
-    
-    pub fn jump(&mut self, cond: bool) {
+
+    pub fn jump_short(&mut self, cond: bool) {
         if cond {
             if let JumpType::DirWithinSegmentShort(disp) = self.instr.jump_type {
                 self.ip = self.ip.wrapping_add(sign_extend(disp))
+            } else {
+                unreachable!()
             }
             self.cycles += 16;
         } else {
@@ -462,9 +489,7 @@ impl CPU {
             self.adjust_string();
             self.cycles = cycles;
 
-            if !self.check_z_str() {
-                self.to_decode = true;
-            }
+            self.to_decode = !self.check_z_str();
         }
     }
 }

@@ -18,8 +18,8 @@ pub fn to_u16(low: u8, high: u8) -> u16 {
 
 pub fn to_2u8(val: u16) -> (u8, u8) {
     let low = val as u8;
-    let high = ((val & 0xFF00) >> 8) as u8;
-    
+    let high = (val >> 8) as u8;
+
     (low, high)
 }
 
@@ -29,8 +29,8 @@ pub fn to_u32(low: u16, high: u16) -> u32 {
 
 pub fn to_2u16(val: u32) -> (u16, u16) {
     let low = val as u16;
-    let high = ((val & 0xFFFF0000) >> 16) as u16;
-    
+    let high = (val >> 16) as u16;
+
     (low, high)
 }
 
@@ -54,31 +54,31 @@ pub fn rotate_left(val: u16, count: u32, len: Length) -> (u16, bool) {
     match len {
         Length::Byte => {
             let res = (val as u8).rotate_left(count);
-            let last = (0x01 & res) != 0;
+            let last = get_lsb(res as u16, len);
             (res as u16, last)
-        },
+        }
         Length::Word => {
             let res = val.rotate_left(count);
-            let last = (0x0001 & res) != 0;
+            let last = get_lsb(res, len);
             (res, last)
-        },
-        _ => unreachable!()
+        }
+        _ => unreachable!(),
     }
 }
 
-pub fn rotate_rigth(val: u16, count: u32, len: Length) -> (u16, bool) {
+pub fn rotate_right(val: u16, count: u32, len: Length) -> (u16, bool) {
     match len {
         Length::Byte => {
             let res = (val as u8).rotate_right(count);
-            let last = (0x80 & res) != 0;
+            let last = get_msb(res as u16, len);
             (res as u16, last)
-        },
+        }
         Length::Word => {
             let res = val.rotate_right(count);
-            let last = (0x8000 & res) != 0;
+            let last = get_msb(res, len);
             (res, last)
-        },
-        _ => unreachable!()
+        }
+        _ => unreachable!(),
     }
 }
 
@@ -88,7 +88,7 @@ pub fn rotate_left_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -
             let mut res = val as u8;
 
             while count > 0 {
-                let to_carry = (0x80 & res) != 0;
+                let to_carry = get_msb(res as u16, len);
                 let from_carry = cpu.flags.c;
 
                 cpu.flags.c = to_carry;
@@ -99,12 +99,12 @@ pub fn rotate_left_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -
             }
 
             res as u16
-        },
+        }
         Length::Word => {
             let mut res = val;
 
             while count > 0 {
-                let to_carry = (0x8000 & res) != 0;
+                let to_carry = get_msb(res, len);
                 let from_carry = cpu.flags.c;
 
                 cpu.flags.c = to_carry;
@@ -115,8 +115,8 @@ pub fn rotate_left_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -
             }
 
             res
-        },
-        _ => unreachable!()
+        }
+        _ => unreachable!(),
     }
 }
 
@@ -126,7 +126,7 @@ pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) 
             let mut res = val as u8;
 
             while count > 0 {
-                let to_carry = (0x01 & res) != 0;
+                let to_carry = get_lsb(res as u16, len);
                 let from_carry = cpu.flags.c;
 
                 cpu.flags.c = to_carry;
@@ -137,12 +137,12 @@ pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) 
             }
 
             res as u16
-        },
+        }
         Length::Word => {
             let mut res = val;
 
             while count > 0 {
-                let to_carry = (0x0001 & res) != 0;
+                let to_carry = get_lsb(res, len);
                 let from_carry = cpu.flags.c;
 
                 cpu.flags.c = to_carry;
@@ -153,7 +153,7 @@ pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) 
             }
 
             res
-        },
-        _ => unreachable!()
+        }
+        _ => unreachable!(),
     }
 }

@@ -1,11 +1,15 @@
-use ggez::{Context, graphics::{ImageGeneric, GlBackendSpec, Color}};
+pub const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
 
-pub mod ibm_mda;
+use ggez::{
+    graphics::{Color, Image},
+    Context,
+};
+
 pub mod crtc6845;
+pub mod ibm_mda;
 
 pub trait DisplayAdapter {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> ImageGeneric<GlBackendSpec>;
-    fn render_font(&mut self, char: Char, width: usize, height: usize);
+    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
 }
 
 pub struct Char {
@@ -19,7 +23,7 @@ pub struct Char {
 
 impl Char {
     fn new(index: usize) -> Self {
-        Char { 
+        Char {
             index,
             ..Default::default()
         }
@@ -45,23 +49,27 @@ impl Char {
         let back = attr >> 4 & 0x07;
         let front = attr & 0x07;
 
+        if attr != 0x07 {
+            let _a = 0;
+        }
+
         match (back, front) {
             (0b000, 0b111) => {
                 self.foreground_color = Color::WHITE;
                 self.background_color = Color::BLACK;
-            },
+            }
             (0b111, 0b000) => {
                 self.foreground_color = Color::BLACK;
                 self.background_color = Color::WHITE;
-            },
+            }
             (0b000, 0b000) => {
                 self.foreground_color = Color::BLACK;
                 self.background_color = Color::BLACK;
-            },
+            }
             (0b111, 0b111) => {
                 self.foreground_color = Color::WHITE;
                 self.background_color = Color::WHITE;
-            },
+            }
 
             _ => {
                 self.foreground_color = Color::WHITE;

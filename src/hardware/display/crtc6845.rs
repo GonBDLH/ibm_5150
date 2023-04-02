@@ -1,25 +1,27 @@
 #[derive(Default, Clone)]
 pub struct CRTC6845 {
-    horizontal_total_reg: u8,               // W
-    horizontal_displayed_reg: u8,           // W
-    horizontal_sync_pos_reg: u8,            // W
-    sync_width_reg: u8,                     // W
-    vertical_total_reg: u8,                 // W 7 bit
-    vertical_total_adjust_reg: u8,          // W 5 bit
-    vertical_displayed_reg: u8,             // W 7 bit
-    vertical_sync_pos_reg: u8,              // W 7 bit
-    interlace_mode_and_skew_reg: u8,        // W 2 bit
-    max_scan_line_address: u8,              // W 5 bit
-    cursor_start_reg: u8,                   // W 7 bit
-    cursor_end_reg: u8,                     // W 5 bit
-    start_addressh_reg: u8,                 // W 00XXXXXX
-    start_addressl_reg: u8,                 // W
-    cursorh_reg: u8,                        // RW 00XXXXXX
-    cursorl_reg: u8,                        // RW
-    light_penh_reg: u8,                     // R 00XXXXXX
-    light_penl_reg: u8,                     // R
-
-
+    horizontal_total_reg: u8,        // W
+    horizontal_displayed_reg: u8,    // W
+    horizontal_sync_pos_reg: u8,     // W
+    sync_width_reg: u8,              // W
+    vertical_total_reg: u8,          // W 7 bit
+    vertical_total_adjust_reg: u8,   // W 5 bit
+    vertical_displayed_reg: u8,      // W 7 bit
+    vertical_sync_pos_reg: u8,       // W 7 bit
+    interlace_mode_and_skew_reg: u8, // W 2 bit
+    max_scan_line_address: u8,       // W 5 bit
+    cursor_start_reg: u8,            // W 7 bit
+    cursor_end_reg: u8,              // W 5 bit
+    start_addressh_reg: u8,          // W 00XXXXXX
+    start_addressl_reg: u8,          // W
+    cursorh_reg: u8,                 // RW 00XXXXXX
+    cursorl_reg: u8,                 // RW
+    light_penh_reg: u8,              // R 00XXXXXX
+    light_penl_reg: u8,              // R
+            
+    pub adddr_reg: usize,
+    pub op1: u8,
+    pub sp: u8,
 }
 
 impl CRTC6845 {
@@ -53,7 +55,7 @@ impl CRTC6845 {
             16 => self.light_penh_reg,
             17 => self.light_penl_reg,
 
-            _ => 0
+            _ => 0,
         }
     }
 }

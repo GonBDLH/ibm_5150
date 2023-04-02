@@ -4,12 +4,8 @@ mod execute;
 pub mod instr_utils;
 pub mod regs;
 
-pub mod dissasemble;
-
 #[cfg(debug_assertions)]
 use std::collections::BTreeMap;
-#[cfg(debug_assertions)]
-use std::collections::HashMap;
 
 use super::bus::Bus;
 use cpu_utils::*;
@@ -58,9 +54,6 @@ pub struct CPU {
     pub to_decode: bool,
 
     #[cfg(debug_assertions)]
-    instr_map: HashMap<Opcode, usize>,
-
-    #[cfg(debug_assertions)]
     pub dissassemble_map: BTreeMap<usize, InstructionDbg>,
             
     #[cfg(debug_assertions)]
@@ -100,9 +93,6 @@ impl CPU {
             halted: false,
 
             to_decode: true,
-
-            #[cfg(debug_assertions)]
-            instr_map: HashMap::new(),
 
             #[cfg(debug_assertions)]
             dissassemble_map: BTreeMap::new(),

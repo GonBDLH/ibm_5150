@@ -157,7 +157,6 @@ impl Peripheral for IbmMDA {
             0x3B5 => self.crtc.read_reg(self.crtc.adddr_reg) as u16,
 
             _ => {
-                println!("{}", port);
                 0
             }, //TODO
         }

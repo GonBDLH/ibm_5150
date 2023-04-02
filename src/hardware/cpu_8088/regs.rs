@@ -181,12 +181,13 @@ fn check_c_sub_8(val1: u8, val2: u8) -> bool {
 }
 
 #[inline]
-fn check_p(val: u16, len: Length) -> bool {
-    match len {
-        Length::Byte => (val as u8).count_ones() % 2 == 0,
-        Length::Word => val.count_ones() % 2 == 0,
-        _ => unreachable!()
-    }
+fn check_p(val: u16) -> bool {
+    // match len {
+    //     Length::Byte => (val as u8).count_ones() % 2 == 0,
+    //     Length::Word => val.count_ones() % 2 == 0,
+    //     _ => unreachable!()
+    // }
+    (val as u8).count_ones() % 2 == 0
 }
     
 fn check_c_salshl(val: u16, count: u32, len: Length) -> bool {
@@ -242,11 +243,11 @@ fn check_c_sar(val: u16, count: u32, len: Length) -> bool {
 
 impl Flags {
     pub fn set_add_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16, of: bool) {
-        self.o = check_o_add(val1, val2, res, length) | of;
+        self.o = check_o_add(val1, val2, res, length);
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val1, val2);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
         self.c = of;
     }
 
@@ -255,14 +256,14 @@ impl Flags {
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val, 1);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
     }
 
     pub fn set_sub_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16) {
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val1, val2);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
 
         match length {
             Length::Word => {
@@ -281,7 +282,7 @@ impl Flags {
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val, 1);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
         
         match length {
             Length::Word => {
@@ -297,7 +298,7 @@ impl Flags {
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val1, val2);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
 
         match length {
             Length::Word => {
@@ -352,7 +353,7 @@ impl Flags {
 
     pub fn set_shift_flags(&mut self, val: u16, count: u32, res: u16, len: Length, opcode: Opcode) {
         self.z = check_z(res, len);
-        self.p = check_p(res, len);
+        self.p = check_p(res);
         self.s = check_s(res, len);
 
         self.c = match opcode {
@@ -380,6 +381,6 @@ impl Flags {
         self.c = false;
         self.s = check_s(res, length);
         self.z = check_z(res, length);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
     }
 }

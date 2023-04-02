@@ -5,12 +5,6 @@ use super::CPU;
 
 impl CPU {
     pub fn execute(&mut self, bus: &mut Bus) {
-        #[cfg(debug_assertions)]
-        self.instr_map
-            .entry(self.instr.opcode)
-            .and_modify(|e| *e += 1)
-            .or_default();
-
         match self.instr.opcode {
             Opcode::MOV => {
                 let val = self.get_val(bus, self.instr.operand2);
@@ -115,20 +109,27 @@ impl CPU {
             Opcode::ADD => {
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
-                let res = val1.overflowing_add(val2);
+                let res = add(val1, val2, self.instr.data_length);
                 self.set_val(bus, self.instr.operand1, res.0);
                 self.flags
                     .set_add_flags(self.instr.data_length, val1, val2, res.0, res.1)
             }
             Opcode::ADC => {
+                // let val1 = self.get_val(bus, self.instr.operand1);
+                // let val2 = self
+                //     .get_val(bus, self.instr.operand2)
+                //     .overflowing_add(self.flags.c as u16);
+                // let res = val1.overflowing_add(val2.0);
+                // self.set_val(bus, self.instr.operand1, res.0);
+                // self.flags
+                //     .set_add_flags(self.instr.data_length, val1, val2.0, res.0, res.1 | val2.1)
                 let val1 = self.get_val(bus, self.instr.operand1);
-                let val2 = self
-                    .get_val(bus, self.instr.operand2)
-                    .overflowing_add(self.flags.c as u16);
-                let res = val1.overflowing_add(val2.0);
+                let val2 = self.get_val(bus, self.instr.operand2);
+                let cflag = self.flags.c as u16;
+                let res = adc(val1, val2, cflag, self.instr.data_length);
                 self.set_val(bus, self.instr.operand1, res.0);
                 self.flags
-                    .set_add_flags(self.instr.data_length, val1, val2.0, res.0, res.1 | val2.1)
+                    .set_add_flags(self.instr.data_length, val1, val2.wrapping_add(cflag), res.0, res.1)
             }
             Opcode::INC => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -666,7 +667,7 @@ impl CPU {
             Opcode::NOP => {}
 
             _ => {
-                println!("SOY TONTO????");
+                println!("SOY TONTO???? {}", self.instr.opcode);
             } // _ => unreachable!(),
         }
 

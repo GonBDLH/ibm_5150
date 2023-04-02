@@ -121,14 +121,6 @@ impl CPU {
                     .set_add_flags(self.instr.data_length, val1, val2, res.0, res.1)
             }
             Opcode::ADC => {
-                // let val1 = self.get_val(bus, self.instr.operand1);
-                // let val2 = self
-                //     .get_val(bus, self.instr.operand2)
-                //     .overflowing_add(self.flags.c as u16);
-                // let res = val1.overflowing_add(val2.0);
-                // self.set_val(bus, self.instr.operand1, res.0);
-                // self.flags
-                //     .set_add_flags(self.instr.data_length, val1, val2.0, res.0, res.1 | val2.1)
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
                 let cflag = self.flags.c as u16;
@@ -137,24 +129,6 @@ impl CPU {
                 self.flags
                     .set_add_flags(self.instr.data_length, val1, val2.wrapping_add(cflag), res.0, res.1)
             }
-            // Opcode::ADD => {
-            //     let val1 = self.get_val(bus, self.instr.operand1);
-            //     let val2 = self.get_val(bus, self.instr.operand2);
-            //     let res = val1.overflowing_add(val2);
-            //     self.set_val(bus, self.instr.operand1, res.0);
-            //     self.flags
-            //         .set_add_flags(self.instr.data_length, val1, val2, res.0, res.1)
-            // }
-            // Opcode::ADC => {
-            //     let val1 = self.get_val(bus, self.instr.operand1);
-            //     let val2 = self
-            //         .get_val(bus, self.instr.operand2)
-            //         .overflowing_add(self.flags.c as u16);
-            //     let res = val1.overflowing_add(val2.0);
-            //     self.set_val(bus, self.instr.operand1, res.0);
-            //     self.flags
-            //         .set_add_flags(self.instr.data_length, val1, val2.0, res.0, res.1 | val2.1)
-            // }
             Opcode::INC => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let res = val.wrapping_add(1);

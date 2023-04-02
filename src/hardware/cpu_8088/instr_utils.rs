@@ -794,3 +794,37 @@ pub fn decode_jmp(cpu: &mut CPU, opcode: Opcode, jump_type: JumpType) {
     cpu.instr.opcode = opcode;
     cpu.instr.jump_type = jump_type;
 }
+
+pub fn add(val1: u16, val2: u16, length: Length) -> (u16, bool) {
+    match length {
+        Length::Byte => {
+            let val1 = val1 as u8;
+            let val2 = val2 as u8;
+            let res = val1.overflowing_add(val2);
+            (res.0 as u16, res.1)
+        },
+        Length::Word => {
+            val1.overflowing_add(val2)
+        }
+        _ => unreachable!(),
+    }
+}
+
+pub fn adc(val1: u16, val2: u16, cflag: u16, length: Length) -> (u16, bool) {
+    match length {
+        Length::Byte => {
+            let val1 = val1 as u8;
+            let val2 = val2 as u8;
+            let cflag = cflag as u8;
+            let res_temp = val1.overflowing_add(val2);
+            let res = res_temp.0.overflowing_add(cflag);
+            (res.0 as u16, res.1 | res_temp.1)
+        },
+        Length::Word => {
+            let res_temp = val1.overflowing_add(val2);
+            let res = res_temp.0.overflowing_add(cflag);
+            (res.0, res.1 | res_temp.1)
+        }
+        _ => unreachable!(),
+    }
+}

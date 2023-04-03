@@ -856,3 +856,17 @@ pub fn shr(val1: u16, val2: u32, length: Length) -> u16 {
         _ => unreachable!()
     }
 }
+
+pub fn salshl(val1: u16, count: u32, length: Length) -> u16 {
+    match length {
+        Length::Byte => {
+            let val = val1 as u8;
+            let res = val.wrapping_shl(count);
+            res as u16
+        }, 
+        Length::Word => {
+            val1.wrapping_shl(count)
+        }
+        _ => unreachable!()
+    }
+}

@@ -387,7 +387,7 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = val.wrapping_shl(count);
+                let res = salshl(val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
 

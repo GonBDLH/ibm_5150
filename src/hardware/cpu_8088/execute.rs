@@ -397,7 +397,7 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = val.wrapping_shr(count);
+                let res = shr(val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
 
@@ -407,7 +407,7 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = (val as i16).wrapping_shr(count) as u16;
+                let res = sar(val, count, self.instr.data_length); 
 
                 self.set_val(bus, self.instr.operand1, res);
 

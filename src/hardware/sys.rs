@@ -140,7 +140,7 @@ impl System {
     }
 
     pub fn load_test(&mut self) {
-        for (idx, element) in std::fs::read("roms/tests/add.bin")
+        for (idx, element) in std::fs::read("roms/tests/shifts.bin")
             .unwrap()
             .into_iter()
             .enumerate()

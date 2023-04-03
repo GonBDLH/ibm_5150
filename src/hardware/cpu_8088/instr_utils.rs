@@ -828,3 +828,31 @@ pub fn adc(val1: u16, val2: u16, cflag: u16, length: Length) -> (u16, bool) {
         _ => unreachable!(),
     }
 }
+
+pub fn sar(val1: u16, val2: u32, length: Length) -> u16 {
+    match length {
+        Length::Byte => {
+            let val = val1 as u8 as i8;
+            let res = val.wrapping_shr(val2);
+            res as u8 as u16
+        }, 
+        Length::Word => {
+            (val1 as i16).wrapping_shr(val2) as u16
+        }
+        _ => unreachable!()
+    }
+}
+
+pub fn shr(val1: u16, val2: u32, length: Length) -> u16 {
+    match length {
+        Length::Byte => {
+            let val = val1 as u8;
+            let res = val.wrapping_shr(val2);
+            res as u16
+        }, 
+        Length::Word => {
+            val1.wrapping_shr(val2)
+        }
+        _ => unreachable!()
+    }
+}

@@ -112,48 +112,17 @@ fn check_o_add(val1: u16, val2: u16, res: u16, len: Length) -> bool {
 }
 
 #[inline]
-fn check_o_sub_8(val1: u8, val2: u8, res: u8) -> bool {
-    let sign_1 = val1 >> 7;
-    let sign_2 = val2 >> 7;
-    let sign_res = res >> 7;
+fn check_o_sub(val1: u16, val2: u16, res: u16, len: Length) -> bool {
+    let sign1 = get_msb(val1, len);
+    let sign2 = get_msb(val2, len);
+    let sign_res = get_msb(res, len);
 
-    // match (sign_1, sign_2, sign_res) {
-    //     (0, 1, 1) | (1, 0, 0) => true,
-    //     _ => false,
-    // }
-    matches!((sign_1, sign_2, sign_res), (0, 1, 1) | (1, 0, 0))
-}
-
-#[inline]
-fn check_o_sub_16(val1: u16, val2: u16, res: u16) -> bool {
-    let sign_1 = val1 >> 15;
-    let sign_2 = val2 >> 15;
-    let sign_res = res >> 15;
-
-    // match (sign_1, sign_2, sign_res) {
-    //     (0, 1, 1) | (1, 0, 0) => true,
-    //     _ => false,
-    // }
-    matches!((sign_1, sign_2, sign_res), (0, 1, 1) | (1, 0, 0))
-}
-
-#[inline]
-fn check_s_16(res: u16) -> bool {
-    res & 0x8000 > 0
-}
-
-#[inline]
-fn check_s_8(res: u8) -> bool {
-    res & 0x80 > 0
+    matches!((sign1, sign2, sign_res), (false, true, true) | (true, false, false))
 }
 
 #[inline]
 fn check_s(val: u16, len: Length) -> bool {
-    match len {
-        Length::Byte => check_s_8(val as u8),
-        Length::Word => check_s_16(val),
-        _ => unreachable!()
-    }
+    get_msb(val, len)
 }
 
 #[inline]
@@ -170,23 +139,19 @@ fn check_a(val1: u16, val2: u16) -> bool {
     ((val1 as u8 & 0x0F) + (val2 as u8 & 0x0F)) & 0xF0 != 0
 }
 
-#[inline]
-fn check_c_sub_16(val1: u16, val2: u16) -> bool {
-    val1.overflowing_sub(val2).1
-}
+// #[inline]
+// fn check_c_sub_16(val1: u16, val2: u16) -> bool {
+//     val1.overflowing_sub(val2).1
+// }
+
+// #[inline]
+// fn check_c_sub_8(val1: u8, val2: u8) -> bool {
+//     val1.overflowing_sub(val2).1
+// }
 
 #[inline]
-fn check_c_sub_8(val1: u8, val2: u8) -> bool {
-    val1.overflowing_sub(val2).1
-}
-
-#[inline]
-fn check_p(val: u16, len: Length) -> bool {
-    match len {
-        Length::Byte => (val as u8).count_ones() % 2 == 0,
-        Length::Word => val.count_ones() % 2 == 0,
-        _ => unreachable!()
-    }
+fn check_p(val: u16) -> bool {
+    (val as u8).count_ones() % 2 == 0
 }
     
 fn check_c_salshl(val: u16, count: u32, len: Length) -> bool {
@@ -241,13 +206,13 @@ fn check_c_sar(val: u16, count: u32, len: Length) -> bool {
 }
 
 impl Flags {
-    pub fn set_add_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16, of: bool) {
-        self.o = check_o_add(val1, val2, res, length) | of;
+    pub fn set_add_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16, cf: bool) {
+        self.o = check_o_add(val1, val2, res, length);
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val1, val2);
-        self.p = check_p(res, length);
-        self.c = of;
+        self.p = check_p(res);
+        self.c = cf;
     }
 
     pub fn set_inc_flags(&mut self, length: Length, val: u16, res: u16) {
@@ -255,57 +220,38 @@ impl Flags {
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val, 1);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
     }
 
-    pub fn set_sub_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16) {
+    pub fn set_sub_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16, cf: bool) {
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val1, val2);
-        self.p = check_p(res, length);
-
-        match length {
-            Length::Word => {
-                self.o = check_o_sub_16(val1, val2, res);
-                self.c = check_c_sub_16(val1, val2);
-            }
-            Length::Byte => {
-                self.o = check_o_sub_8(val1 as u8, val2 as u8, res as u8);
-                self.c = check_c_sub_8(val1 as u8, val2 as u8);
-            }
-            _ => unreachable!(),
-        }
+        self.p = check_p(res);
+        self.o = check_o_sub(val1, val2, res, length);
+        self.c = cf;
     }
 
     pub fn set_dec_flags(&mut self, length: Length, val: u16, res: u16) {
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val, 1);
-        self.p = check_p(res, length);
-        
-        match length {
-            Length::Word => {
-                self.o = check_o_sub_16(val, 1, res);
-            }
-            Length::Byte => {
-                self.o = check_o_sub_8(val as u8, 1, res as u8);
-            }
-            _ => unreachable!(),
-        }
+        self.p = check_p(res);
+        self.o = check_o_sub(val, 1, res, length)
     }
+
     pub fn set_neg_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16) {
         self.s = check_s(res, length);
         self.z = check_z(res, length);
         self.a = check_a(val1, val2);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
+        self.o = check_o_sub(val1, val2, res, length);
 
         match length {
             Length::Word => {
-                self.o = check_o_sub_16(val1, val2, res);
                 self.c = val2 != 0;
             }
             Length::Byte => {
-                self.o = check_o_sub_8(val1 as u8, val2 as u8, res as u8);
                 self.c = val2 as u8 != 0;
             }
             _ => unreachable!(),
@@ -345,14 +291,14 @@ impl Flags {
     }
 
     pub fn set_aam_flags(&mut self, val1: u8) {
-        self.s = check_s_8(val1);
+        self.s = check_s(val1 as u16, Length::Byte);
         self.z = val1 == 0;
         self.p = val1.count_ones() % 2 == 0;
     }
 
     pub fn set_shift_flags(&mut self, val: u16, count: u32, res: u16, len: Length, opcode: Opcode) {
         self.z = check_z(res, len);
-        self.p = check_p(res, len);
+        self.p = check_p(res);
         self.s = check_s(res, len);
 
         self.c = match opcode {
@@ -380,6 +326,6 @@ impl Flags {
         self.c = false;
         self.s = check_s(res, length);
         self.z = check_z(res, length);
-        self.p = check_p(res, length);
+        self.p = check_p(res);
     }
 }

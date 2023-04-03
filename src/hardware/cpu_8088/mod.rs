@@ -347,9 +347,9 @@ impl CPU {
 
         let val1 = bus.read_length(self, segment_from, offset_from, self.instr.data_length);
         let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
-        let res = val1.wrapping_sub(val2);
+        let res = sub(val1, val2, self.instr.data_length);
         self.flags
-            .set_sub_flags(self.instr.data_length, val1, val2, res);
+            .set_sub_flags(self.instr.data_length, val1, val2, res.0, res.1);
     }
 
     pub fn scas(&mut self, bus: &mut Bus) {
@@ -362,9 +362,9 @@ impl CPU {
             _ => unreachable!(),
         };
         let val2 = bus.read_length(self, segment_to, offset_to, self.instr.data_length);
-        let res = val1.wrapping_sub(val2);
+        let res = sub(val1, val2, self.instr.data_length);
         self.flags
-            .set_sub_flags(self.instr.data_length, val1, val2, res);
+            .set_sub_flags(self.instr.data_length, val1, val2, res.0, res.1);
     }
 
     pub fn lods(&mut self, bus: &mut Bus) {

@@ -170,18 +170,20 @@ impl CPU {
             Opcode::SUB => {
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
-                let res = val1.wrapping_sub(val2);
-                self.set_val(bus, self.instr.operand1, res);
+                let res = sub(val1, val2, self.instr.data_length);
+                // let res = val1.wrapping_sub(val2);
+                self.set_val(bus, self.instr.operand1, res.0);
                 self.flags
-                    .set_sub_flags(self.instr.data_length, val1, val2, res);
+                    .set_sub_flags(self.instr.data_length, val1, val2, res.0, res.1);
             }
             Opcode::SBB => {
                 let val1 = self.get_val(bus, self.instr.operand1);
-                let val2 = self.get_val(bus, self.instr.operand2).wrapping_add(self.flags.c as u16);
-                let res = val1.wrapping_sub(val2);
-                self.set_val(bus, self.instr.operand1, res);
+                let val2 = self.get_val(bus, self.instr.operand2);
+                let cflag = self.flags.c as u16;
+                let res = sbb(val1, 1, cflag, self.instr.data_length);
+                self.set_val(bus, self.instr.operand1, res.0);
                 self.flags
-                    .set_sub_flags(self.instr.data_length, val1, val2, res);
+                    .set_sub_flags(self.instr.data_length, val1, val2, res.0, res.1);
             }
             Opcode::DEC => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -199,9 +201,9 @@ impl CPU {
             Opcode::CMP => {
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
-                let res = val1.wrapping_sub(val2);
+                let res = sub(val1, val2, self.instr.data_length);
                 self.flags
-                    .set_sub_flags(self.instr.data_length, val1, val2, res);
+                    .set_sub_flags(self.instr.data_length, val1, val2, res.0, res.1);
             }
             Opcode::AAS => {
                 if (self.ax.low & 0x0F) > 9 || self.flags.a {

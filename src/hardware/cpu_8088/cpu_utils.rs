@@ -42,24 +42,20 @@ pub fn get_msb(val: u16, len: Length) -> bool {
     }
 }
 
-pub fn get_lsb(val: u16, length: Length) -> bool {
-    match length {
-        Length::Byte => val as u8 & 0x01 != 0,
-        Length::Word => val & 0x0001 != 0,
-        _ => unreachable!(),
-    }
+pub fn get_lsb(val: u8) -> bool {
+    val & 0x01 > 0
 }
 
 pub fn rotate_left(val: u16, count: u32, len: Length) -> (u16, bool) {
     match len {
         Length::Byte => {
             let res = (val as u8).rotate_left(count);
-            let last = get_lsb(res as u16, len);
+            let last = get_lsb(res);
             (res as u16, last)
         }
         Length::Word => {
             let res = val.rotate_left(count);
-            let last = get_lsb(res, len);
+            let last = get_lsb(res as u8);
             (res, last)
         }
         _ => unreachable!(),
@@ -126,7 +122,7 @@ pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) 
             let mut res = val as u8;
 
             while count > 0 {
-                let to_carry = get_lsb(res as u16, len);
+                let to_carry = get_lsb(res);
                 let from_carry = cpu.flags.c;
 
                 cpu.flags.c = to_carry;
@@ -142,7 +138,7 @@ pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) 
             let mut res = val;
 
             while count > 0 {
-                let to_carry = get_lsb(res, len);
+                let to_carry = get_lsb(res as u8);
                 let from_carry = cpu.flags.c;
 
                 cpu.flags.c = to_carry;
@@ -155,5 +151,115 @@ pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) 
             res
         }
         _ => unreachable!(),
+    }
+}
+
+pub fn add(val1: u16, val2: u16, length: Length) -> (u16, bool) {
+    match length {
+        Length::Byte => {
+            let val1 = val1 as u8;
+            let val2 = val2 as u8;
+            let res = val1.overflowing_add(val2);
+            (res.0 as u16, res.1)
+        },
+        Length::Word => {
+            val1.overflowing_add(val2)
+        }
+        _ => unreachable!(),
+    }
+}
+
+pub fn adc(val1: u16, val2: u16, cflag: u16, length: Length) -> (u16, bool) {
+    match length {
+        Length::Byte => {
+            let val1 = val1 as u8;
+            let val2 = val2 as u8;
+            let cflag = cflag as u8;
+            let res_temp = val1.overflowing_add(val2);
+            let res = res_temp.0.overflowing_add(cflag);
+            (res.0 as u16, res.1 | res_temp.1)
+        },
+        Length::Word => {
+            let res_temp = val1.overflowing_add(val2);
+            let res = res_temp.0.overflowing_add(cflag);
+            (res.0, res.1 | res_temp.1)
+        }
+        _ => unreachable!(),
+    }
+}
+
+pub fn sub(val1: u16, val2: u16, length: Length) -> (u16, bool) {
+    match length {
+        Length::Byte => {
+            let val1 = val1 as u8;
+            let val2 = val2 as u8;
+            let res = val1.overflowing_sub(val2);
+            (res.0 as u16, res.1)
+        },
+        Length::Word => {
+            val1.overflowing_sub(val2)
+        }
+        _ => unreachable!(),
+    }
+}
+
+pub fn sbb(val1: u16, val2: u16, cflag: u16, length: Length) -> (u16, bool) {
+    match length {
+        Length::Byte => {
+            let val1 = val1 as u8;
+            let val2 = val2 as u8;
+            let cflag = cflag as u8;
+            let res_temp = val1.overflowing_sub(val2);
+            let res = res_temp.0.overflowing_sub(cflag);
+            (res.0 as u16, res.1 | res_temp.1)
+        },
+        Length::Word => {
+            let res_temp = val1.overflowing_sub(val2);
+            let res = res_temp.0.overflowing_sub(cflag);
+            (res.0, res.1 | res_temp.1)
+        }
+        _ => unreachable!(),
+    }
+}
+
+pub fn sar(val1: u16, count: u32, length: Length) -> u16 {
+    match length {
+        Length::Byte => {
+            let val = val1 as u8 as i8;
+            let res = val.wrapping_shr(count);
+            res as u8 as u16
+        }, 
+        Length::Word => {
+            (val1 as i16).wrapping_shr(count) as u16
+        }
+        _ => unreachable!()
+    }
+}
+
+pub fn shr(val1: u16, count: u32, length: Length) -> u16 {
+    match length {
+        Length::Byte => {
+            let val = val1 as u8;
+            let res = val.wrapping_shr(count);
+            res as u16
+        }, 
+        Length::Word => {
+            val1.wrapping_shr(count)
+        }
+        _ => unreachable!()
+    }
+}
+
+pub fn salshl(val1: u16, count: u32, length: Length) -> u16 {
+    match length {
+        Length::Byte => {
+            let val = val1 as u8;
+            let res = val.wrapping_shl(count);
+            res as u16
+        }, 
+        Length::Word => {
+            val1.wrapping_shl(count)
+        }
+        _ => unreachable!()
     }
 }

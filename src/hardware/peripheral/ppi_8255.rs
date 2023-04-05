@@ -8,9 +8,9 @@ use super::{
 // IMPORTANTE: ESTAN AL REVES, LA POSICION 1 ES EL BIT 0.
 //             ON = 0, OFF = 1
 // const SW1: u8 = 0b00110000;
-const SW1: u8 = 0b00110100;
+const SW1: u8 = 0b00111100;
 // const SW2: u8 = 0b00001111;
-const SW2: u8 = 0b11100000;
+const SW2: u8 = 0b11111111;
 
 const KBD_RESET_CYCLES: u32 = 47700; // 20 ms
 const KBD_RESET_CYCLE_DELAY: u32 = 100;

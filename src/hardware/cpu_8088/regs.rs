@@ -221,6 +221,7 @@ impl Flags {
         self.z = check_z(res, length);
         self.a = check_a(val, 1);
         self.p = check_p(res);
+        self.p = check_p(res);
     }
 
     pub fn set_sub_flags(&mut self, length: Length, val1: u16, val2: u16, res: u16, cf: bool) {

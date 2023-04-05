@@ -1,6 +1,6 @@
 use super::{instr_utils::*, CPU};
 
-pub fn get_address(cpu: &mut CPU) -> usize {
+pub fn get_address(cpu: &CPU) -> usize {
     ((cpu.cs as usize) << 4) + cpu.ip as usize
 }
 

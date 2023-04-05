@@ -63,11 +63,20 @@ impl System {
                 cycles_ran += 1;
                 continue;
             }
+
+            if !self.running || self.cpu.halted {
+                break;
+            }
+
             self.step(&mut cycles_ran);
+
+            if get_address(&self.cpu) == 0xF6000 {
+                self.running = false;
+                break;
+            }
         }
     }
 
-    #[inline]
     pub fn step(&mut self, cycles_ran: &mut u32) {
         if get_address(&mut self.cpu) == 0xF6000 {
             let _a = 0;
@@ -127,6 +136,16 @@ impl System {
             .enumerate()
         {
             self.bus.memory[0xFE000 + idx] = element;
+        }
+    }
+
+    pub fn load_test(&mut self) {
+        for (idx, element) in std::fs::read("roms/tests/shifts.bin")
+            .unwrap()
+            .into_iter()
+            .enumerate()
+        {
+            self.bus.memory[0xF0000 + idx] = element;
         }
     }
 }

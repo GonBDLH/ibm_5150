@@ -1066,83 +1066,83 @@ impl CPU {
             }
             0x74 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JEJZ, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JEJZ, JumpType::DirWithinSegmentShort(val));
             }
             0x7C => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JLJNGE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JLJNGE, JumpType::DirWithinSegmentShort(val));
             }
             0x7E => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JLEJNG, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JLEJNG, JumpType::DirWithinSegmentShort(val));
             }
             0x72 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JBJNAE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JBJNAE, JumpType::DirWithinSegmentShort(val));
             }
             0x76 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JBEJNA, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JBEJNA, JumpType::DirWithinSegmentShort(val));
             }
             0x7A => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JPJPE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JPJPE, JumpType::DirWithinSegmentShort(val));
             }
             0x70 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JO, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JO, JumpType::DirWithinSegmentShort(val));
             }
             0x78 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JS, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JS, JumpType::DirWithinSegmentShort(val));
             }
             0x75 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JNEJNZ, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JNEJNZ, JumpType::DirWithinSegmentShort(val));
             }
             0x7D => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JNLJGE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JNLJGE, JumpType::DirWithinSegmentShort(val));
             }
             0x7F => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JNLEJG, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JNLEJG, JumpType::DirWithinSegmentShort(val));
             }
             0x73 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JNBJAE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JNBJAE, JumpType::DirWithinSegmentShort(val));
             }
             0x77 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JNBEJA, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JNBEJA, JumpType::DirWithinSegmentShort(val));
             }
             0x7B => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JNPJPO, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JNPJPO, JumpType::DirWithinSegmentShort(val));
             }
             0x71 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JNO, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JNO, JumpType::DirWithinSegmentShort(val));
             }
             0x79 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JNS, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JNS, JumpType::DirWithinSegmentShort(val));
             }
             0xE2 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::LOOP, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::LOOP, JumpType::DirWithinSegmentShort(val));
             }
             0xE1 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::LOOPZE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::LOOPZE, JumpType::DirWithinSegmentShort(val));
             }
             0xE0 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::LOOPNZNE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::LOOPNZNE, JumpType::DirWithinSegmentShort(val));
             }
             0xE3 => {
                 let val = self.fetch(bus);
-                decode_jmp(self, Opcode::JCXZ, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(&mut self.instr, Opcode::JCXZ, JumpType::DirWithinSegmentShort(val));
             }
 
             0xCC => {

@@ -392,7 +392,7 @@ fn special_char(chr: &u8) -> char {
     }
 }
 
-fn main() -> Result<(), eframe::Error> {
+fn main_debugger() -> Result<(), eframe::Error> {
     let mut options = eframe::NativeOptions::default();
 
     options.resizable = false;
@@ -405,4 +405,41 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
     )
+}
+
+fn main_view() -> GameResult {
+    let win_mode = WindowMode::default()
+        .dimensions(720., 350.)
+        .resize_on_scale_factor_change(true);
+
+    let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo").window_mode(win_mode);
+
+    let (ctx, event_loop) = cb.build()?;
+
+    let mut app = IbmPc::new();
+    //graphics::set_mode(&mut ctx, win_mode)?;
+
+    app.sys.rst();
+    app.sys.load_roms();
+
+    event::run(ctx, event_loop, app);
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    match args.len() {
+        1 => {
+            main_view();
+        },
+        2 => {
+            match args[1].as_str() {
+                "debugger" => {
+                    main_debugger();
+                },
+                _ => panic!("Wrong arguments"),
+            }
+        }
+        _ => panic!("Wrong arguments")
+    }
 }

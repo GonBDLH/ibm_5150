@@ -28,7 +28,7 @@ pub struct IbmMDA {
 
 fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 256] {
     let mut font_map = [[[false; 9]; 14]; 256];
-    
+
     for character in 0..255 {
         for row in 0..14 {
             let byte = if row < 8 {
@@ -85,22 +85,29 @@ impl Default for IbmMDA {
     }
 }
 
-fn decode_pixel_slice(font_map: &[[[bool; 9]; 14]; 256], row: usize, character: Char) -> [u8; 9 * 4] {
+fn decode_pixel_slice(
+    font_map: &[[[bool; 9]; 14]; 256],
+    row: usize,
+    character: Char,
+) -> [u8; 9 * 4] {
     let character_slice = font_map[character.index][row];
     let mut return_slice = [0x00; 9 * 4];
 
-    return_slice.chunks_mut(4).zip(character_slice.iter()).for_each(|(pixels, val)| {
-        let color = if *val {
-            character.foreground_color.to_rgba()
-        } else {
-            character.background_color.to_rgba()
-        };
+    return_slice
+        .chunks_mut(4)
+        .zip(character_slice.iter())
+        .for_each(|(pixels, val)| {
+            let color = if *val {
+                character.foreground_color.to_rgba()
+            } else {
+                character.background_color.to_rgba()
+            };
 
-        pixels[0] = color.0;
-        pixels[1] = color.1;
-        pixels[2] = color.2;
-        pixels[3] = color.3;
-    });
+            pixels[0] = color.0;
+            pixels[1] = color.1;
+            pixels[2] = color.2;
+            pixels[3] = color.3;
+        });
 
     return_slice
 }
@@ -117,21 +124,24 @@ impl DisplayAdapter for IbmMDA {
             );
         }
 
-        self.img_buffer.par_chunks_mut(9 * 4).enumerate().for_each(|(i, pixel_slice)| {
-            let col_index = i % 80;
-            let row_index = (i / 80) % 14;
-            let row_char_index = i / (80 * 14);
+        self.img_buffer
+            .par_chunks_mut(9 * 4)
+            .enumerate()
+            .for_each(|(i, pixel_slice)| {
+                let col_index = i % 80;
+                let row_index = (i / 80) % 14;
+                let row_char_index = i / (80 * 14);
 
-            let char_index = (row_char_index * 80 + col_index) * 2;
+                let char_index = (row_char_index * 80 + col_index) * 2;
 
-            let vram_char = vram[char_index] as usize;
-            let vram_attr = vram[char_index + 1];
+                let vram_char = vram[char_index] as usize;
+                let vram_attr = vram[char_index + 1];
 
-            let character = Char::new(vram_char).decode_colors(vram_attr);
+                let character = Char::new(vram_char).decode_colors(vram_attr);
 
-            let new_pixel_slice = decode_pixel_slice(&self.font_map, row_index, character);
-            pixel_slice.copy_from_slice(&new_pixel_slice);
-        });
+                let new_pixel_slice = decode_pixel_slice(&self.font_map, row_index, character);
+                pixel_slice.copy_from_slice(&new_pixel_slice);
+            });
 
         Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350)
     }
@@ -156,9 +166,7 @@ impl Peripheral for IbmMDA {
             // 0x3B5 => self.crtc_registers[self.crtc_adddr_reg] as u16,
             0x3B5 => self.crtc.read_reg(self.crtc.adddr_reg) as u16,
 
-            _ => {
-                0
-            }, //TODO
+            _ => 0, //TODO
         }
     }
 

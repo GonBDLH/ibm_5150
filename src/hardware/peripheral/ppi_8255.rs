@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use ggez::event::ScanCode;
 
 use super::{
@@ -8,9 +10,9 @@ use super::{
 // IMPORTANTE: ESTAN AL REVES, LA POSICION 1 ES EL BIT 0.
 //             ON = 0, OFF = 1
 // const SW1: u8 = 0b00110000;
-const SW1: u8 = 0b00111100;
+const SW1: u8 = 0b00110101;
 // const SW2: u8 = 0b00001111;
-const SW2: u8 = 0b11111111;
+const SW2: u8 = 0b11100000;
 
 const KBD_RESET_CYCLES: u32 = 47700; // 20 ms
 const KBD_RESET_CYCLE_DELAY: u32 = 100;
@@ -36,6 +38,8 @@ pub struct Keyboard {
 
     count_until_reset: u32,
     resets_counter: u32,
+
+    key_queue: VecDeque<u8>,
 }
 
 impl Keyboard {
@@ -50,6 +54,8 @@ impl Keyboard {
 
             count_until_reset: 0,
             resets_counter: 0,
+
+            key_queue: VecDeque::with_capacity(50),
         }
     }
 }
@@ -72,17 +78,19 @@ impl PPI8255 {
         }
     }
 
-    pub fn key_up(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
-        self.key_input((keycode + 0x80) as u8, pic);
+    pub fn key_up(&mut self, keycode: ScanCode) {
+        self.kbd.key_queue.push_front(keycode as u8 + 0x80);
     }
 
-    pub fn key_down(&mut self, keycode: ScanCode, pic: &mut PIC8259) {
-        self.key_input(keycode as u8, pic);
+    pub fn key_down(&mut self, keycode: ScanCode) {
+        self.kbd.key_queue.push_front(keycode as u8);
     }
 
-    pub fn key_input(&mut self, key_code: u8, pic: &mut PIC8259) {
-        self.key_code = key_code;
-        pic.irq(IRQs::Irq1);
+    pub fn key_input(&mut self, pic: &mut PIC8259) {
+        if let Some(key_code) = self.kbd.key_queue.pop_back() {
+            self.key_code = key_code as u8;
+            pic.irq(IRQs::Irq1);
+        }
     }
 
     fn read_pa(&mut self) -> u8 {
@@ -101,7 +109,7 @@ impl PPI8255 {
         }
     }
 
-    // ESTO SIRVE PARA EL KBD_RESET
+    // ESTO SIRVE PARA EL KBD_RESET Y LEER EL TECLADO
     pub fn update(&mut self, pic: &mut PIC8259, cycles: u32) {
         if self.kbd.clear {
             self.kbd.clear = false;

@@ -4,10 +4,7 @@ mod execute;
 pub mod instr_utils;
 pub mod regs;
 
-#[cfg(debug_assertions)]
-use std::collections::BTreeMap;
-
-use super::bus::Bus;
+use super::{bus::Bus, casette::CasetteController};
 use cpu_utils::*;
 use instr_utils::*;
 use regs::{Flags, GPReg};
@@ -52,12 +49,6 @@ pub struct CPU {
 
     // Usado en instrucciones de Strings cuando tengan que repetirse
     pub to_decode: bool,
-
-    #[cfg(debug_assertions)]
-    pub dissassemble_map: BTreeMap<usize, InstructionDbg>,
-            
-    #[cfg(debug_assertions)]
-    bytecode: String,
 }
 
 impl CPU {
@@ -75,11 +66,17 @@ impl CPU {
 
             flags: Flags::new(),
 
+            #[cfg(feature = "tests")]
+            cs: 0xF000,
+            #[cfg(not(feature = "tests"))]
             cs: 0xFFFF,
             ds: 0x0000,
             es: 0x0000,
             ss: 0x0000,
 
+            #[cfg(feature = "tests")]
+            ip: 0xFFF0,
+            #[cfg(not(feature = "tests"))]
             ip: 0x0000,
 
             instr: Instruction::default(),
@@ -93,12 +90,6 @@ impl CPU {
             halted: false,
 
             to_decode: true,
-
-            #[cfg(debug_assertions)]
-            dissassemble_map: BTreeMap::new(),
-
-            #[cfg(debug_assertions)]
-            bytecode: String::new(),
         }
     }
 }
@@ -113,12 +104,7 @@ impl CPU {
     pub fn fetch(&mut self, bus: &mut Bus) -> u8 {
         let dir = get_address(self);
         self.ip = self.ip.wrapping_add(1);
-        let val = bus.read_dir(dir);
-
-        #[cfg(debug_assertions)]
-        self.bytecode.push_str(&format!("{:02X}", val));
-
-        val
+        bus.read_dir(dir)
     }
 
     // DEVUELVO LA IP PARA DEBUGEAR
@@ -127,15 +113,9 @@ impl CPU {
         let ip = self.ip;
 
         if self.to_decode {
-            #[cfg(debug_assertions)]
-            self.bytecode.clear();
-
             self.instr = Instruction::default();
             let op = self.fetch(bus);
             self.decode(bus, op);
-
-            // #[cfg(debug_assertions)]
-            // self.dissassemble_map.insert(((self.cs as usize) << 4) + ip as usize, InstructionDbg::new(&self.instr, self.bytecode.clone()));
         }
 
         self.execute(bus);
@@ -143,9 +123,20 @@ impl CPU {
         (self.cycles, ip)
     }
 
-    pub fn handle_interrupts(&mut self, bus: &mut Bus, cycles: &mut u32) {
+    pub fn handle_interrupts(
+        &mut self,
+        bus: &mut Bus,
+        disk_ctrl: &mut CasetteController,
+        cycles: &mut u32,
+    ) {
         if self.flags.i && self.sw_int {
-            self.interrupt(bus, self.instr.sw_int_type as u16 * 0x04);
+            if self.instr.sw_int_type == 0x13 {
+                disk_ctrl.int13(self, bus);
+            // } else if self.instr.sw_int_type == 0x19 {
+            //     disk_ctrl.int19(self, bus);
+            } else {
+                self.interrupt(bus, self.instr.sw_int_type as u16 * 0x04);
+            }
             self.sw_int = false;
         } else if self.nmi && self.nmi_enabled {
             // Si hay una NON-MASKABLE INTERRUPT
@@ -224,7 +215,7 @@ impl CPU {
         }
     }
 
-    pub fn get_reg(&mut self, reg: Operand) -> u16 {
+    pub fn get_reg(&self, reg: Operand) -> u16 {
         match reg {
             Operand::AX => self.ax.get_x(),
             Operand::CX => self.cx.get_x(),

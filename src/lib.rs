@@ -1,4 +1,5 @@
 pub mod hardware;
 pub mod util;
 
-pub const DESIRED_FPS: f32 = 50.;
+pub mod debugger;
+pub mod screen;

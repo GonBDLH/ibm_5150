@@ -1,8 +1,14 @@
 use super::Disassembler;
-use crate::hardware::cpu_8088::{instr_utils::{Instruction, Opcode, Direction, Length, OperandType, Operand, JumpType, decode_jmp, decode_reg, decode_mod, decode_segment, Segment, RepetitionPrefix, RetType}, cpu_utils::{to_u16, sign_extend}};
+use crate::hardware::cpu_8088::{
+    cpu_utils::{sign_extend, to_u16},
+    instr_utils::{
+        decode_jmp, decode_mod, decode_reg, decode_segment, Direction, Instruction, JumpType,
+        Length, Opcode, Operand, OperandType, RepetitionPrefix, RetType, Segment,
+    }, CPU,
+};
 
 impl Disassembler {
-    pub fn decode(&mut self, instr: &mut Instruction, mem: &[u8], op: u8) {
+    pub fn decode(&mut self, instr: &mut Instruction, mem: &[u8], op: u8, cpu: &CPU) {
         match op {
             0x88..=0x8B => {
                 instr.opcode = Opcode::MOV;
@@ -88,28 +94,58 @@ impl Disassembler {
                         instr.data_length = Length::Word;
                         self.decode_mod_n_rm(instr, mem, operand);
 
-                        instr.jump_type = JumpType::IndWithinSegment;
+                        let ip = self.get_val(cpu, instr, mem);
+                        instr.jump_type = JumpType::IndWithinSegment(ip);
                     }
                     0x18 => {
                         instr.opcode = Opcode::CALL;
                         instr.data_length = Length::Word;
                         self.decode_mod_n_rm(instr, mem, operand);
 
-                        instr.jump_type = JumpType::IndIntersegment;
+                        let ip = self.read_length(
+                            instr,
+                            mem,
+                            cpu.get_segment(instr.segment),
+                            instr.offset,
+                        );
+                        let cs = self.read_length(
+                            instr,
+                            mem,
+                            cpu.get_segment(instr.segment),
+                            instr.offset.wrapping_add(2),
+                        );
+
+                        instr.jump_type = JumpType::IndIntersegment(cs, ip);
                     }
                     0x20 => {
                         instr.opcode = Opcode::JMP;
                         instr.data_length = Length::Word;
                         self.decode_mod_n_rm(instr, mem, operand);
 
-                        instr.jump_type = JumpType::IndWithinSegment;
+                        let ip = self.get_val(cpu, instr, mem);
+
+                        instr.jump_type = JumpType::IndWithinSegment(ip);
                     }
                     0x28 => {
                         instr.opcode = Opcode::JMP;
                         instr.data_length = Length::Word;
                         self.decode_mod_n_rm(instr, mem, operand);
 
-                        instr.jump_type = JumpType::IndIntersegment;
+                        let ip = self.read_length(
+                            instr,
+                            mem,
+                            cpu.get_segment(instr.segment),
+                            instr.offset,
+                        );
+                        let cs = self.read_length(
+                            instr,
+                            mem,
+                            cpu.get_segment(instr.segment),
+                            instr.offset.wrapping_add(2),
+                        );
+
+
+                        instr.jump_type = JumpType::IndIntersegment(cs, ip);
                     }
                     0x30 => {
                         instr.opcode = Opcode::PUSH;
@@ -434,7 +470,7 @@ impl Disassembler {
             0xD4 => {
                 instr.opcode = Opcode::AAM;
                 instr.data_length = Length::Byte;
-                instr.operand1 = OperandType::Immediate(self.read_imm(mem, instr));
+                // instr.operand1 = OperandType::Immediate(self.read_imm(mem, instr));
             }
             0xD5 => {
                 instr.opcode = Opcode::AAD;
@@ -478,7 +514,6 @@ impl Disassembler {
                 instr.data_length = Length::new(op, 0);
                 let operand = self.fetch(mem);
                 self.decode_mod_reg_rm(instr, mem, operand);
-
             }
             0x24 | 0x25 => {
                 instr.opcode = Opcode::AND;
@@ -552,7 +587,7 @@ impl Disassembler {
                 };
 
                 let new_op = self.fetch(mem);
-                self.decode(instr, mem, new_op);
+                self.decode(instr, mem, new_op, cpu);
             }
 
             0xF2 | 0xF3 => {
@@ -563,7 +598,7 @@ impl Disassembler {
                 };
 
                 let new_op = self.fetch(mem);
-                self.decode(instr, mem, new_op);
+                self.decode(instr, mem, new_op, cpu);
             }
 
             0xEA => {
@@ -742,7 +777,11 @@ impl Disassembler {
             }
             0xE0 => {
                 let val = self.fetch(mem);
-                decode_jmp(instr, Opcode::LOOPNZNE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    instr,
+                    Opcode::LOOPNZNE,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0xE3 => {
                 let val = self.fetch(mem);
@@ -753,7 +792,7 @@ impl Disassembler {
                 instr.opcode = Opcode::INT;
 
                 instr.sw_int_type = 3;
-           }
+            }
             0xCD => {
                 instr.opcode = Opcode::INT;
 
@@ -798,5 +837,8 @@ impl Disassembler {
                 log::info!("ERROR: {:02X}", op);
             } // _ => unreachable!(),
         }
+
+        instr.ip = self.ip as u16;
+        instr.cs = self.cs as u16;
     }
 }

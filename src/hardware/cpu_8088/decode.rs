@@ -136,7 +136,9 @@ impl CPU {
                         self.instr.data_length = Length::Word;
                         decode_mod_n_rm(self, bus, operand);
 
-                        self.instr.jump_type = JumpType::IndWithinSegment;
+                        let ip = self.get_val(bus, self.instr.operand1);
+
+                        self.instr.jump_type = JumpType::IndWithinSegment(ip);
 
                         self.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 24,
@@ -149,7 +151,20 @@ impl CPU {
                         self.instr.data_length = Length::Word;
                         decode_mod_n_rm(self, bus, operand);
 
-                        self.instr.jump_type = JumpType::IndIntersegment;
+                        let ip = bus.read_length(
+                            self,
+                            self.instr.segment,
+                            self.instr.offset,
+                            self.instr.data_length,
+                        );
+                        let cs = bus.read_length(
+                            self,
+                            self.instr.segment,
+                            self.instr.offset.wrapping_add(2),
+                            self.instr.data_length,
+                        );
+
+                        self.instr.jump_type = JumpType::IndIntersegment(cs, ip);
 
                         self.cycles += match self.instr.operand1 {
                             OperandType::Memory(_) => 53 + self.instr.ea_cycles,
@@ -161,7 +176,9 @@ impl CPU {
                         self.instr.data_length = Length::Word;
                         decode_mod_n_rm(self, bus, operand);
 
-                        self.instr.jump_type = JumpType::IndWithinSegment;
+                        let ip = self.get_val(bus, self.instr.operand1);
+
+                        self.instr.jump_type = JumpType::IndWithinSegment(ip);
 
                         self.cycles += match self.instr.operand1 {
                             OperandType::Register(_) => 11,
@@ -174,7 +191,20 @@ impl CPU {
                         self.instr.data_length = Length::Word;
                         decode_mod_n_rm(self, bus, operand);
 
-                        self.instr.jump_type = JumpType::IndIntersegment;
+                        let ip = bus.read_length(
+                            self,
+                            self.instr.segment,
+                            self.instr.offset,
+                            self.instr.data_length,
+                        );
+                        let cs = bus.read_length(
+                            self,
+                            self.instr.segment,
+                            self.instr.offset.wrapping_add(2),
+                            self.instr.data_length,
+                        );
+
+                        self.instr.jump_type = JumpType::IndIntersegment(cs, ip);
 
                         self.cycles += match self.instr.operand1 {
                             OperandType::Memory(_) => 24 + self.instr.ea_cycles,
@@ -703,7 +733,7 @@ impl CPU {
             0xD4 => {
                 self.instr.opcode = Opcode::AAM;
                 self.instr.data_length = Length::Byte;
-                self.instr.operand1 = OperandType::Immediate(read_imm(self, bus));
+                // self.instr.operand1 = OperandType::Immediate(read_imm(self, bus));
                 self.cycles += 83;
             }
             0xD5 => {
@@ -850,7 +880,7 @@ impl CPU {
                 };
             }
             0xA8 | 0xA9 => {
-                self.instr.opcode = Opcode::AND;
+                self.instr.opcode = Opcode::TEST;
                 self.instr.data_length = Length::new(op, 0);
                 self.instr.operand1 = match self.instr.data_length {
                     Length::Byte => OperandType::Register(Operand::AL),
@@ -1066,83 +1096,163 @@ impl CPU {
             }
             0x74 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JEJZ, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JEJZ,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x7C => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JLJNGE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JLJNGE,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x7E => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JLEJNG, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JLEJNG,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x72 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JBJNAE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JBJNAE,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x76 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JBEJNA, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JBEJNA,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x7A => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JPJPE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JPJPE,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x70 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JO, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JO,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x78 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JS, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JS,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x75 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JNEJNZ, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JNEJNZ,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x7D => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JNLJGE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JNLJGE,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x7F => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JNLEJG, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JNLEJG,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x73 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JNBJAE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JNBJAE,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x77 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JNBEJA, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JNBEJA,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x7B => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JNPJPO, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JNPJPO,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x71 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JNO, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JNO,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0x79 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JNS, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JNS,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0xE2 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::LOOP, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::LOOP,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0xE1 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::LOOPZE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::LOOPZE,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0xE0 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::LOOPNZNE, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::LOOPNZNE,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
             0xE3 => {
                 let val = self.fetch(bus);
-                decode_jmp(&mut self.instr, Opcode::JCXZ, JumpType::DirWithinSegmentShort(val));
+                decode_jmp(
+                    &mut self.instr,
+                    Opcode::JCXZ,
+                    JumpType::DirWithinSegmentShort(val),
+                );
             }
 
             0xCC => {
@@ -1151,7 +1261,7 @@ impl CPU {
                 self.instr.sw_int_type = 3;
 
                 self.cycles += 72;
-           }
+            }
             0xCD => {
                 self.instr.opcode = Opcode::INT;
 
@@ -1209,5 +1319,7 @@ impl CPU {
                 self.cycles += 3
             } // _ => unreachable!(),
         }
+        self.instr.ip = self.ip;
+        self.instr.cs = self.cs;
     }
 }

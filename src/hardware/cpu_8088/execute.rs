@@ -45,14 +45,14 @@ impl CPU {
                 self.set_reg8(Operand::AL, val);
             }
             Opcode::LEA => {
-                let val = bus.read_length(
-                    self,
-                    self.instr.segment,
-                    self.instr.offset,
-                    self.instr.data_length,
-                );
-                self.set_val(bus, self.instr.operand1, val);
-                // self.set_val(bus, self.instr.operand1, self.instr.offset);
+                // let val = bus.read_length(
+                //     self,
+                //     self.instr.segment,
+                //     self.instr.offset,
+                //     self.instr.data_length,
+                // );
+                // self.set_val(bus, self.instr.operand1, val);
+                self.set_val(bus, self.instr.operand1, self.instr.offset);
             }
             Opcode::LDS => {
                 let val = bus.read_length(
@@ -129,7 +129,7 @@ impl CPU {
                 let res = adc(val1, val2, cflag, self.instr.data_length);
                 self.set_val(bus, self.instr.operand1, res.0);
                 self.flags
-                    .set_add_flags(self.instr.data_length, val1, val2.wrapping_add(cflag), res.0, res.1)
+                    .set_add_flags(self.instr.data_length, val1, val2, res.0, res.1)
             }
             Opcode::INC => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -182,7 +182,7 @@ impl CPU {
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
                 let cflag = self.flags.c as u16;
-                let res = sbb(val1, 1, cflag, self.instr.data_length);
+                let res = sbb(val1, val2, cflag, self.instr.data_length);
                 self.set_val(bus, self.instr.operand1, res.0);
                 self.flags
                     .set_sub_flags(self.instr.data_length, val1, val2, res.0, res.1);
@@ -237,6 +237,7 @@ impl CPU {
                     self.ax.low = self.ax.low.wrapping_sub(0x60);
                     self.flags.c = true;
                 }
+                self.flags.set_das_flags(Length::Byte, self.ax.low as u16);
             }
             Opcode::MUL => {
                 let val1 = match self.instr.data_length {
@@ -287,7 +288,8 @@ impl CPU {
             }
             Opcode::AAM => {
                 let temp_al = self.ax.low;
-                let val = self.get_val(bus, self.instr.operand1);
+                // let val = self.get_val(bus, self.instr.operand1);
+                let val = 10;
                 self.ax.high = temp_al / val as u8;
                 self.ax.low = temp_al % val as u8;
 
@@ -306,13 +308,30 @@ impl CPU {
                 match self.instr.data_length {
                     Length::Byte => {
                         let val1 = self.ax.low as u16;
-                        self.set_reg(self.instr.data_length, Operand::AL, val1.wrapping_div(val2));
+                        let res_div = val1.wrapping_div(val2);
+                        if res_div > 0xFF {
+                            self.sw_int = true;
+                            self.instr.sw_int_type = 0;
+                            return;
+                        }
+
+                        self.set_reg(self.instr.data_length, Operand::AL, res_div);
                         self.set_reg(self.instr.data_length, Operand::AH, val1.wrapping_rem(val2));
                     }
                     Length::Word => {
-                        let val1 = self.ax.get_x();
-                        self.set_reg(self.instr.data_length, Operand::AX, val1.wrapping_div(val2));
-                        self.set_reg(self.instr.data_length, Operand::DX, val1.wrapping_rem(val2));
+                        let val1 = self.ax.get_x() as u32;
+                        let res_div = val1.wrapping_div(val2 as u32);
+                        if res_div > 0xFFFF {
+                            self.sw_int = true;
+                            self.instr.sw_int_type = 0;
+                            return;
+                        }
+                        self.set_reg(self.instr.data_length, Operand::AX, res_div as u16);
+                        self.set_reg(
+                            self.instr.data_length,
+                            Operand::DX,
+                            (val1 as u16).wrapping_rem(val2),
+                        );
                     }
                     _ => unreachable!(),
                 };
@@ -393,7 +412,13 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_shift_flags(val, count, res, self.instr.data_length, self.instr.opcode);
+                self.flags.set_shift_flags(
+                    val,
+                    count,
+                    res,
+                    self.instr.data_length,
+                    self.instr.opcode,
+                );
             }
             Opcode::SHR => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -403,17 +428,29 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_shift_flags(val, count, res, self.instr.data_length, self.instr.opcode);
+                self.flags.set_shift_flags(
+                    val,
+                    count,
+                    res,
+                    self.instr.data_length,
+                    self.instr.opcode,
+                );
             }
             Opcode::SAR => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = sar(val, count, self.instr.data_length); 
+                let res = sar(val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_shift_flags(val, count, res, self.instr.data_length, self.instr.opcode);
+                self.flags.set_shift_flags(
+                    val,
+                    count,
+                    res,
+                    self.instr.data_length,
+                    self.instr.opcode,
+                );
             }
             Opcode::ROL => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -423,7 +460,8 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
-                self.flags.set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
+                self.flags
+                    .set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
             }
             Opcode::ROR => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -433,7 +471,8 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
-                self.flags.set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
+                self.flags
+                    .set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
             }
             Opcode::RCL => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -443,7 +482,8 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
+                self.flags
+                    .set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
             }
             Opcode::RCR => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -452,8 +492,9 @@ impl CPU {
                 let res = rotate_right_carry(self, val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
-                
-                self.flags.set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
+
+                self.flags
+                    .set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
             }
             Opcode::AND => {
                 let val1 = self.get_val(bus, self.instr.operand1);
@@ -494,72 +535,49 @@ impl CPU {
             Opcode::STOSB => self.string_op(bus, CPU::stos, 13),
             Opcode::STOSW => self.string_op(bus, CPU::stos, 17),
 
-            Opcode::CALL => match self.instr.jump_type {
-                JumpType::DirWithinSegment(disp) => {
-                    self.push_stack_16(bus, self.ip);
-                    self.ip = self.ip.wrapping_add(disp);
+            Opcode::CALL => {
+                match self.instr.jump_type {
+                    JumpType::DirWithinSegment(disp) => {
+                        self.push_stack_16(bus, self.ip);
+                        self.ip = self.ip.wrapping_add(disp);
+                    }
+                    JumpType::IndWithinSegment(new_ip) => {
+                        self.push_stack_16(bus, self.ip);
+                        self.ip = new_ip;
+                    }
+                    JumpType::DirIntersegment(offset, segment) => {
+                        self.push_stack_16(bus, self.cs);
+                        self.push_stack_16(bus, self.ip);
+                        self.ip = offset;
+                        self.cs = segment;
+                    }
+                    JumpType::IndIntersegment(new_cs, new_ip) => {
+                        self.push_stack_16(bus, self.cs);
+                        self.push_stack_16(bus, self.ip);
+                        self.ip = new_ip;
+                        self.cs = new_cs;
+                    }
+                    _ => unreachable!(),
                 }
-                JumpType::IndWithinSegment => {
-                    self.push_stack_16(bus, self.ip);
-                    let val = self.get_val(bus, self.instr.operand1);
-                    self.ip = val;
-                }
-                JumpType::DirIntersegment(offset, segment) => {
-                    self.push_stack_16(bus, self.cs);
-                    self.push_stack_16(bus, self.ip);
-                    self.ip = offset;
-                    self.cs = segment;
-                }
-                JumpType::IndIntersegment => {
-                    self.push_stack_16(bus, self.cs);
-                    self.push_stack_16(bus, self.ip);
-                    let ip = bus.read_length(
-                        self,
-                        self.instr.segment,
-                        self.instr.offset,
-                        self.instr.data_length,
-                    );
-                    let cs = bus.read_length(
-                        self,
-                        self.instr.segment,
-                        self.instr.offset.wrapping_add(2),
-                        self.instr.data_length,
-                    );
-                    self.ip = ip;
-                    self.cs = cs;
-                }
-                _ => unreachable!(),
             },
-            Opcode::JMP => match self.instr.jump_type {
-                JumpType::DirWithinSegment(disp) => self.ip = self.ip.wrapping_add(disp),
-                JumpType::DirWithinSegmentShort(disp) => {
-                    self.ip = self.ip.wrapping_add(sign_extend(disp))
+            Opcode::JMP => {
+                match self.instr.jump_type {
+                    JumpType::DirWithinSegment(disp) => self.ip = self.ip.wrapping_add(disp),
+                    JumpType::DirWithinSegmentShort(disp) => {
+                        self.ip = self.ip.wrapping_add(sign_extend(disp))
+                    }
+                    JumpType::IndWithinSegment(imm) => self.ip = imm,
+                    JumpType::IndIntersegment(new_cs, new_ip) => {
+                        self.ip = new_ip;
+                        self.cs = new_cs;
+                    }
+                    JumpType::DirIntersegment(offset, segment) => {
+                        self.cs = segment;
+                        self.ip = offset;
+                        let _a = 0;
+                    }
+                    _ => unreachable!(),
                 }
-                JumpType::IndWithinSegment => {
-                    self.ip = self.get_val(bus, self.instr.operand1);
-                }
-                JumpType::IndIntersegment => {
-                    let ip = bus.read_length(
-                        self,
-                        self.instr.segment,
-                        self.instr.offset,
-                        self.instr.data_length,
-                    );
-                    let cs = bus.read_length(
-                        self,
-                        self.instr.segment,
-                        self.instr.offset.wrapping_add(2),
-                        self.instr.data_length,
-                    );
-                    self.ip = ip;
-                    self.cs = cs;
-                }
-                JumpType::DirIntersegment(offset, segment) => {
-                    self.cs = segment;
-                    self.ip = offset;
-                    let _a = 0;
-                }
-                _ => unreachable!(),
             },
             Opcode::RET => match self.instr.ret_type {
                 RetType::NearAdd(val) => {
@@ -672,6 +690,5 @@ impl CPU {
                 println!("SOY TONTO???? {}", self.instr.opcode);
             } // _ => unreachable!(),
         }
-
     }
 }

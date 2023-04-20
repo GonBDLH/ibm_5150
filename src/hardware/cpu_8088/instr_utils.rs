@@ -1,4 +1,4 @@
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug, Display};
 
 use super::cpu_utils::*;
 use super::Bus;
@@ -27,6 +27,8 @@ pub struct Instruction {
 
     // Tipo de JMP/CALL
     pub jump_type: JumpType,
+    pub ip: u16,
+    pub cs: u16,
 
     // Tipo de RET
     pub ret_type: RetType,
@@ -56,6 +58,8 @@ impl Default for Instruction {
             port: 0,
 
             jump_type: JumpType::None,
+            ip: 0,
+            cs: 0,
 
             ret_type: RetType::None,
 
@@ -85,7 +89,7 @@ pub struct InstructionDbg {
 
 impl InstructionDbg {
     pub fn new(instr: &Instruction, bytecode: String) -> Self {
-        Self { 
+        Self {
             instr: *instr,
             bytecode,
         }
@@ -98,7 +102,7 @@ impl Display for InstructionDbg {
     }
 }
 
-struct InstructionStrBuilder<'a>{
+struct InstructionStrBuilder<'a> {
     s: String,
     instr: &'a Instruction,
 }
@@ -121,15 +125,30 @@ impl<'a> InstructionStrBuilder<'a> {
             if self.instr.port != 0 {
                 self.s.push_str(&format!(" {}", self.instr.port));
             } else if self.instr.jump_type != JumpType::None {
-                self.s.push_str(&format!(" {}", self.instr.jump_type));
+                let dir = match self.instr.jump_type {
+                    JumpType::DirIntersegment(off, seg) => format!(" {:05X}", ((seg as usize) << 4) + off as usize),
+                    JumpType::DirWithinSegment(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + (self.instr.ip.wrapping_add(off) as usize)),
+                    JumpType::DirWithinSegmentShort(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + (self.instr.ip.wrapping_add(sign_extend(off)) as usize)),
+                    JumpType::IndIntersegment(seg, off) => format!(" {:05X}", ((seg as usize) << 4) + off as usize),
+                    JumpType::IndWithinSegment(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + off as usize),
+                    _ => unreachable!(),
+                };
+
+                self.s.push_str(&dir);
             } else if self.instr.sw_int_type != 0 {
                 self.s.push_str(&format!(" {:02X}", self.instr.sw_int_type));
             }
         } else {
+            let segm = if self.instr.segment == Segment::DS {
+                String::from("")
+            } else {
+                format!("{}", self.instr.segment)
+            };
+
             match self.instr.operand1 {
                 OperandType::Memory(a) => {
-                    self.s.push_str(&format!(" {}[{}]", self.instr.segment, a));
-                },
+                    self.s.push_str(&format!(" {}[{}]", segm, a));
+                }
                 _ => self.s.push_str(&format!(" {}", self.instr.operand1)),
             }
         }
@@ -139,7 +158,18 @@ impl<'a> InstructionStrBuilder<'a> {
 
     pub fn add_op2(mut self) -> Self {
         if self.instr.operand2 != OperandType::None {
-            self.s.push_str(&format!(", {}", self.instr.operand2));
+            let segm = if self.instr.segment == Segment::DS {
+                String::from("")
+            } else {
+                format!("{}", self.instr.segment)
+            };
+
+            match self.instr.operand2 {
+                OperandType::Memory(a) => {
+                    self.s.push_str(&format!(",{}[{}]", segm, a));
+                }
+                _ => self.s.push_str(&format!(",{}", self.instr.operand2)),
+            }
         }
 
         self
@@ -534,8 +564,8 @@ pub enum JumpType {
     DirIntersegment(u16, u16),
     DirWithinSegment(u16),
     DirWithinSegmentShort(u8),
-    IndIntersegment,
-    IndWithinSegment,
+    IndIntersegment(u16, u16),
+    IndWithinSegment(u16),
     None,
 }
 
@@ -544,10 +574,10 @@ impl Display for JumpType {
         match self {
             JumpType::None => write!(f, ""),
             JumpType::DirIntersegment(a, b) => write!(f, "{:04X}:{:04X}", b, a),
-            JumpType::DirWithinSegment(a) =>  write!(f, "CS:{:04X}", a),
-            JumpType::DirWithinSegmentShort(a) =>  write!(f, "{:02X}", a),
-            JumpType::IndIntersegment => write!(f, "II"),
-            JumpType::IndWithinSegment => write!(f, "IWS"),
+            JumpType::DirWithinSegment(a) => write!(f, "CS:{:04X}", a),
+            JumpType::DirWithinSegmentShort(a) => write!(f, "{:02X}", a),
+            JumpType::IndIntersegment(_, _) => write!(f, "II"),
+            JumpType::IndWithinSegment(_) => write!(f, "IWS"),
         }
     }
 }
@@ -787,7 +817,6 @@ pub fn read_imm(cpu: &mut CPU, bus: &mut Bus) -> u16 {
 
 pub fn read_imm_addres(cpu: &mut CPU, bus: &mut Bus) {
     cpu.instr.offset = to_u16(cpu.fetch(bus), cpu.fetch(bus));
-    cpu.instr.segment = Segment::DS;
 }
 
 pub fn decode_jmp(instr: &mut Instruction, opcode: Opcode, jump_type: JumpType) {

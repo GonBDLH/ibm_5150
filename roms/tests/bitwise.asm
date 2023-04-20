@@ -199,7 +199,7 @@ mov dx,0bfa5h
 mov word[22],04be6h
 mov word[24],0e9d2h
 
-mov ax,012b1h
+mov ax,02b1h
 push ax
 popf
 

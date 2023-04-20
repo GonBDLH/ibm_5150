@@ -78,37 +78,37 @@ pub fn rotate_right(val: u16, count: u32, len: Length) -> (u16, bool) {
     }
 }
 
-pub fn rotate_left_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -> u16 {
+pub fn rotate_left_carry(cpu: &mut CPU, val: u16, count: u32, len: Length) -> u16 {
+    if count == 0 {
+        return val;
+    }
+
+    let count = if count > 0x1F {
+        0x1F
+    } else {
+        count
+    };
+
     match len {
         Length::Byte => {
-            let mut res = val as u8;
+            // let mut res = val as u8;
 
-            while count > 0 {
-                let to_carry = get_msb(res as u16, len);
-                let from_carry = cpu.flags.c;
+            let count = count % 9;
 
-                cpu.flags.c = to_carry;
-                res <<= 1;
-                res |= from_carry as u8;
+            let res_temp = ((val as u8 as u32) | (cpu.flags.c as u32) << 8) << count;
 
-                count -= 1;
-            }
+            let res = res_temp as u8 | (res_temp >> 9) as u8;
+            cpu.flags.c = res_temp & 0x100 > 0;
 
             res as u16
         }
         Length::Word => {
-            let mut res = val;
+            let count = count % 17;
 
-            while count > 0 {
-                let to_carry = get_msb(res, len);
-                let from_carry = cpu.flags.c;
+            let res_temp = ((val as u64) | (cpu.flags.c as u64) << 16) << count;
 
-                cpu.flags.c = to_carry;
-                res <<= 1;
-                res |= from_carry as u16;
-
-                count -= 1;
-            }
+            let res = res_temp as u16 | (res_temp >> 17) as u16;
+            cpu.flags.c = res_temp & 0x10000 > 0;
 
             res
         }
@@ -116,9 +116,20 @@ pub fn rotate_left_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -
     }
 }
 
-pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -> u16 {
+pub fn rotate_right_carry(cpu: &mut CPU, val: u16, count: u32, len: Length) -> u16 {
+    if count == 0 {
+        return val;
+    }
+
+    let mut count = if count > 0x1F {
+        0x1F
+    } else {
+        count
+    };
+    
     match len {
         Length::Byte => {
+            count %= 9;
             let mut res = val as u8;
 
             while count > 0 {
@@ -135,6 +146,7 @@ pub fn rotate_right_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) 
             res as u16
         }
         Length::Word => {
+            count %= 17;
             let mut res = val;
 
             while count > 0 {
@@ -161,10 +173,8 @@ pub fn add(val1: u16, val2: u16, length: Length) -> (u16, bool) {
             let val2 = val2 as u8;
             let res = val1.overflowing_add(val2);
             (res.0 as u16, res.1)
-        },
-        Length::Word => {
-            val1.overflowing_add(val2)
         }
+        Length::Word => val1.overflowing_add(val2),
         _ => unreachable!(),
     }
 }
@@ -178,7 +188,7 @@ pub fn adc(val1: u16, val2: u16, cflag: u16, length: Length) -> (u16, bool) {
             let res_temp = val1.overflowing_add(val2);
             let res = res_temp.0.overflowing_add(cflag);
             (res.0 as u16, res.1 | res_temp.1)
-        },
+        }
         Length::Word => {
             let res_temp = val1.overflowing_add(val2);
             let res = res_temp.0.overflowing_add(cflag);
@@ -195,10 +205,8 @@ pub fn sub(val1: u16, val2: u16, length: Length) -> (u16, bool) {
             let val2 = val2 as u8;
             let res = val1.overflowing_sub(val2);
             (res.0 as u16, res.1)
-        },
-        Length::Word => {
-            val1.overflowing_sub(val2)
         }
+        Length::Word => val1.overflowing_sub(val2),
         _ => unreachable!(),
     }
 }
@@ -212,7 +220,7 @@ pub fn sbb(val1: u16, val2: u16, cflag: u16, length: Length) -> (u16, bool) {
             let res_temp = val1.overflowing_sub(val2);
             let res = res_temp.0.overflowing_sub(cflag);
             (res.0 as u16, res.1 | res_temp.1)
-        },
+        }
         Length::Word => {
             let res_temp = val1.overflowing_sub(val2);
             let res = res_temp.0.overflowing_sub(cflag);
@@ -228,11 +236,9 @@ pub fn sar(val1: u16, count: u32, length: Length) -> u16 {
             let val = val1 as u8 as i8;
             let res = val.wrapping_shr(count);
             res as u8 as u16
-        }, 
-        Length::Word => {
-            (val1 as i16).wrapping_shr(count) as u16
         }
-        _ => unreachable!()
+        Length::Word => (val1 as i16).wrapping_shr(count) as u16,
+        _ => unreachable!(),
     }
 }
 
@@ -242,11 +248,9 @@ pub fn shr(val1: u16, count: u32, length: Length) -> u16 {
             let val = val1 as u8;
             let res = val.wrapping_shr(count);
             res as u16
-        }, 
-        Length::Word => {
-            val1.wrapping_shr(count)
         }
-        _ => unreachable!()
+        Length::Word => val1.wrapping_shr(count),
+        _ => unreachable!(),
     }
 }
 
@@ -256,10 +260,8 @@ pub fn salshl(val1: u16, count: u32, length: Length) -> u16 {
             let val = val1 as u8;
             let res = val.wrapping_shl(count);
             res as u16
-        }, 
-        Length::Word => {
-            val1.wrapping_shl(count)
         }
-        _ => unreachable!()
+        Length::Word => val1.wrapping_shl(count),
+        _ => unreachable!(),
     }
 }

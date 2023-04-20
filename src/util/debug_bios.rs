@@ -5,41 +5,42 @@ use std::collections::VecDeque;
 use std::sync::Mutex;
 
 lazy_static! {
-    static ref IP_QUEUE: Mutex<VecDeque<u16>> = Mutex::new(VecDeque::with_capacity(4));
+    pub static ref IP_QUEUE: Mutex<VecDeque<u16>> = Mutex::new(VecDeque::with_capacity(4));
 }
 
 pub fn debug_82(cpu: &mut CPU) {
     let mut ip_queue_lock = IP_QUEUE.lock().unwrap();
     ip_queue_lock.push_back(cpu.ip);
-    if ip_queue_lock.len() == 4 {
+    if ip_queue_lock.len() == 10 {
         ip_queue_lock.pop_front();
     }
 
     match get_address(cpu) {
-        0xFE05B => log::info!("8088 TEST"),
-        0xFE0AE => log::info!("ROS CHECKSUM TEST 1"),
-        0xFE0D3 => log::info!("8237 DMA INIT CHANNEL REGISTER TEST"),
-        0xFE14B => log::info!("BASE 16K R/W STORAGE TEST"),
-        0xFE217 => log::info!("8259 INTERRUPT CONTROLER TEST"),
-        0xFE23F => log::info!("8253 TIMER CHECKOUT"),
-        0xFE2AD => log::info!("INIT AND START CTR CONTROLLER. TEST VIDEO R/W STORAGE"),
-        0xFE31E => log::info!("SETUP VIDEO DATA ON SCREEN FOR VIDEO LINE TEST"),
-        0xFE32E => log::info!("CRT INTERFACE LINES TEST"),
-        0xFE382 => log::info!("EXPANSION I/O BOX TEST"),
-        0xFE3C4 => log::info!("ADDITIONAL R/W STORAGE TEST"),
-        0xFE43B => log::info!("KEYBOARD TEST"),
-        0xFE483 => log::info!("CASSETTE DATA WRAP TEST"),
-        0xFE4BC => log::info!("CHECK FOR OPTIONAL ROM FROM C8000->F4000"),
-        0xFE4DC => log::info!("ROS CHECKSUM 2"),
-        0xFE4F1 => log::info!("DISKETTE ATTACHMENT TEST"),
+        0xFE05B => log::warn!("8088 TEST"),
+        0xFE0AE => log::warn!("ROS CHECKSUM TEST 1"),
+        0xFE0D3 => log::warn!("8237 DMA INIT CHANNEL REGISTER TEST"),
+        0xFE14B => log::warn!("BASE 16K R/W STORAGE TEST"),
+        0xFE217 => log::warn!("8259 INTERRUPT CONTROLER TEST"),
+        0xFE23F => log::warn!("8253 TIMER CHECKOUT"),
+        0xFE2AD => log::warn!("INIT AND START CTR CONTROLLER. TEST VIDEO R/W STORAGE"),
+        0xFE31E => log::warn!("SETUP VIDEO DATA ON SCREEN FOR VIDEO LINE TEST"),
+        0xFE32E => log::warn!("CRT INTERFACE LINES TEST"),
+        0xFE382 => log::warn!("EXPANSION I/O BOX TEST"),
+        0xFE3C4 => log::warn!("ADDITIONAL R/W STORAGE TEST"),
+        0xFE43B => log::warn!("KEYBOARD TEST"),
+        0xFE483 => log::warn!("CASSETTE DATA WRAP TEST"),
+        0xFE4BC => log::warn!("CHECK FOR OPTIONAL ROM FROM C8000->F4000"),
+        0xFE4DC => log::warn!("ROS CHECKSUM 2"),
+        0xFE4F1 => log::warn!("DISKETTE ATTACHMENT TEST"),
 
-        0xFE0AD => log::info!(" - ERROR 1: {:04X}", ip_queue_lock[1]),
-        0xFE3BD => log::info!(" - EXP ERROR: {:04X}", ip_queue_lock[1]),
-        0xFE809 => log::info!(" - ROM ERROR: {:04X}", ip_queue_lock[1]),
-        0xFE6BA => log::info!(" - P_MSG: {:04X}", ip_queue_lock[1]),
-        0xFE5CF => log::info!(" - ERROR BEEP SUBROUTINE: {:04X}", ip_queue_lock[1]),
+        0xFE0AD => log::warn!(" - ERROR 1: {:04X?}", ip_queue_lock),
+        0xFE3BD => log::warn!(" - EXP ERROR: {:04X?}", ip_queue_lock),
+        0xFE809 => log::warn!(" - ROM ERROR: {:04X?}", ip_queue_lock),
+        0xFE6BA => log::warn!(" - P_MSG: {:04X?}", ip_queue_lock),
+        0xFE5CF => log::warn!(" - ERROR BEEP SUBROUTINE: {:04X?}", ip_queue_lock),
 
-        0xF6000 => log::info!("BASIC"),
+        0xF6000 => log::warn!("BASIC"),
+        0x07C00 => log::warn!("DOS"),
         _ => {}
     }
 }

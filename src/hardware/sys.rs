@@ -2,6 +2,7 @@
 use std::fs::File;
 
 use super::bus::Bus;
+use super::casette::CasetteController;
 use super::cpu_8088::{cpu_utils::get_address, CPU};
 
 use std::fs::OpenOptions;
@@ -9,6 +10,7 @@ use std::fs::OpenOptions;
 pub struct System {
     pub cpu: CPU,
     pub bus: Bus,
+    pub disk_ctrl: CasetteController,
 
     pub running: bool,
 
@@ -21,6 +23,7 @@ impl System {
         let sys = System {
             cpu: CPU::new(),
             bus: Bus::new(),
+            disk_ctrl: CasetteController::default(),
 
             running: false,
 
@@ -42,7 +45,7 @@ impl Default for System {
     }
 }
 
-use crate::{util::debug_bios::debug_82, DESIRED_FPS};
+use crate::{screen::DESIRED_FPS, util::debug_bios::debug_82};
 
 impl System {
     pub fn rst(&mut self) {
@@ -54,6 +57,22 @@ impl System {
 
     // Llamar cada frame
     pub fn update(&mut self) {
+        let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
+        let mut cycles_ran = 0;
+
+        self.bus.ppi.key_input(&mut self.bus.pic);
+        while cycles_ran <= max_cycles {
+            if self.cpu.halted {
+                print!("HALTED\r");
+                cycles_ran += 1;
+                continue;
+            }
+
+            self.step(&mut cycles_ran);
+        }
+    }
+
+    pub fn update_debugger(&mut self) {
         let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
         let mut cycles_ran = 0;
 
@@ -70,7 +89,7 @@ impl System {
 
             self.step(&mut cycles_ran);
 
-            if get_address(&self.cpu) == 0xF6000 {
+            if get_address(&self.cpu) == 0x07C00 {
                 self.running = false;
                 break;
             }
@@ -78,16 +97,13 @@ impl System {
     }
 
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        if get_address(&mut self.cpu) == 0xF6000 {
-            let _a = 0;
-        }
-
         debug_82(&mut self.cpu);
         let (mut cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
         // println!("{:04X}", _ip);
-        
-        self.cpu.handle_interrupts(&mut self.bus, &mut cycles);
-        
+
+        self.cpu
+            .handle_interrupts(&mut self.bus, &mut self.disk_ctrl, &mut cycles);
+
         self.cycles_step = cycles;
         // ACTUALIZAR PERIFERICOS
         self.bus.update_peripherals(cycles);
@@ -139,12 +155,14 @@ impl System {
         }
     }
 
-    pub fn load_test(&mut self) {
-        for (idx, element) in std::fs::read("roms/tests/shifts.bin")
+    pub fn load_test(&mut self, path: &str) {
+        for (idx, element) in std::fs::read(path)
             .unwrap()
             .into_iter()
             .enumerate()
         {
+            self.cpu.cs = 0xF000;
+            self.cpu.ip = 0xFFF0;
             self.bus.memory[0xF0000 + idx] = element;
         }
     }

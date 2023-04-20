@@ -18,7 +18,7 @@ mov ax,1000h
 mov ss,ax
 mov sp,1000h
 
-mov cx,0feffh
+mov cx,0effh
 push cx
 popf
 

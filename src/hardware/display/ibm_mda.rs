@@ -1,10 +1,6 @@
 use std::io::Read;
 
-use ggez::{
-    graphics::{Image, ImageFormat},
-    Context,
-};
-
+use notan::prelude::*;
 use rayon::prelude::*;
 
 use crate::hardware::peripheral::Peripheral;
@@ -79,12 +75,6 @@ impl IbmMDA {
     }
 }
 
-impl Default for IbmMDA {
-    fn default() -> Self {
-        IbmMDA::new()
-    }
-}
-
 fn decode_pixel_slice(
     font_map: &[[[bool; 9]; 14]; 256],
     row: usize,
@@ -98,30 +88,27 @@ fn decode_pixel_slice(
         .zip(character_slice.iter())
         .for_each(|(pixels, val)| {
             let color = if *val {
-                character.foreground_color.to_rgba()
+                character.foreground_color.rgba_u8()
             } else {
-                character.background_color.to_rgba()
+                character.background_color.rgba_u8()
             };
 
-            pixels[0] = color.0;
-            pixels[1] = color.1;
-            pixels[2] = color.2;
-            pixels[3] = color.3;
+            for i in 0..4 {
+                pixels[i] = color[i]
+            }
         });
 
     return_slice
 }
 
 impl DisplayAdapter for IbmMDA {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image {
+    fn create_frame(&mut self, gfx: &mut Graphics, texture: &mut Texture, vram: &[u8]) {
         if !self.enabled() {
-            return Image::from_pixels(
-                ctx,
-                &[0x00; IMG_BUFF_SIZE],
-                ImageFormat::Rgba8Unorm,
-                720,
-                350,
-            );
+            gfx.update_texture(texture)
+                .with_data(&[0x00; IMG_BUFF_SIZE])
+                .update()
+                .unwrap();
+            return;
         }
 
         self.img_buffer
@@ -143,8 +130,43 @@ impl DisplayAdapter for IbmMDA {
                 pixel_slice.copy_from_slice(&new_pixel_slice);
             });
 
-        Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350)
+        gfx.update_texture(texture)
+            .with_data(&self.img_buffer)
+            .update()
+            .unwrap()
     }
+    // fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image {
+    //     if !self.enabled() {
+    //         return Image::from_pixels(
+    //             ctx,
+    //             &[0x00; IMG_BUFF_SIZE],
+    //             ImageFormat::Rgba8Unorm,
+    //             720,
+    //             350,
+    //         );
+    //     }
+
+    //     self.img_buffer
+    //         .par_chunks_mut(9 * 4)
+    //         .enumerate()
+    //         .for_each(|(i, pixel_slice)| {
+    //             let col_index = i % 80;
+    //             let row_index = (i / 80) % 14;
+    //             let row_char_index = i / (80 * 14);
+
+    //             let char_index = (row_char_index * 80 + col_index) * 2;
+
+    //             let vram_char = vram[char_index] as usize;
+    //             let vram_attr = vram[char_index + 1];
+
+    //             let character = Char::new(vram_char).decode_colors(vram_attr);
+
+    //             let new_pixel_slice = decode_pixel_slice(&self.font_map, row_index, character);
+    //             pixel_slice.copy_from_slice(&new_pixel_slice);
+    //         });
+
+    //     Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350)
+    // }
 }
 
 impl Peripheral for IbmMDA {

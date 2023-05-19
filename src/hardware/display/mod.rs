@@ -1,15 +1,18 @@
+use notan::prelude::*;
+
 pub const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
 
-use ggez::{
-    graphics::{Color, Image},
-    Context,
-};
+// use ggez::{
+//     graphics::{Color, Image},
+//     Context,
+// };
 
 pub mod crtc6845;
 pub mod ibm_mda;
 
 pub trait DisplayAdapter {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
+    // fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
+    fn create_frame(&mut self, gfx: &mut Graphics, texture: &mut Texture, vram: &[u8]);
 }
 
 pub struct Char {

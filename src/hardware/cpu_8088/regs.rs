@@ -60,7 +60,7 @@ impl Flags {
         Flags {
             o: false,
             d: false,
-            #[cfg(not(feature = "tests"))] 
+            #[cfg(not(feature = "tests"))]
             i: true,
             #[cfg(feature = "tests")]
             i: false,
@@ -99,7 +99,7 @@ impl Flags {
         #[cfg(feature = "tests")]
         return o + d + i + t + s + z + a + p + c + 2;
 
-        #[cfg(not(feature = "tests"))] 
+        #[cfg(not(feature = "tests"))]
         return 0xF000 + o + d + i + t + s + z + a + p + c;
     }
 }
@@ -175,11 +175,11 @@ fn check_c_salshl(val: u16, count: u32, len: Length) -> bool {
 fn check_c_shr(val: u16, count: u32, len: Length) -> bool {
     match len {
         Length::Byte => {
-            let mask = ((1u8.wrapping_shl(count)) >> 1) as u8;
+            let mask = (1u8.wrapping_shl(count)) >> 1;
             mask & val as u8 > 0
         }
         Length::Word => {
-            let mask = ((1u16.wrapping_shl(count)) >> 1) as u16;
+            let mask = (1u16.wrapping_shl(count)) >> 1;
             mask & val > 0
         }
         _ => unreachable!(),

@@ -13,7 +13,7 @@ pub fn sign_extend_32(value: u16) -> u32 {
 }
 
 pub fn to_u16(low: u8, high: u8) -> u16 {
-    low as u16 + high as u16 * 0x100
+    low as u16 + ((high as u16) << 8)
 }
 
 pub fn to_2u8(val: u16) -> (u8, u8) {
@@ -38,6 +38,14 @@ pub fn get_msb(val: u16, len: Length) -> bool {
     match len {
         Length::Byte => val as u8 & 0x80 != 0,
         Length::Word => val & 0x8000 != 0,
+        _ => unreachable!(),
+    }
+}
+
+pub fn get_smdb(val: u16, len: Length) -> bool {
+    match len {
+        Length::Byte => val as u8 & 0x40 != 0,
+        Length::Word => val & 0x4000 != 0,
         _ => unreachable!(),
     }
 }
@@ -78,91 +86,73 @@ pub fn rotate_right(val: u16, count: u32, len: Length) -> (u16, bool) {
     }
 }
 
-pub fn rotate_left_carry(cpu: &mut CPU, val: u16, count: u32, len: Length) -> u16 {
-    if count == 0 {
-        return val;
-    }
-
-    let count = if count > 0x1F {
-        0x1F
-    } else {
-        count
-    };
-
+pub fn rotate_left_carry(mut cf: bool, val: u16, mut count: u32, len: Length) -> (u16, bool) {
     match len {
         Length::Byte => {
-            // let mut res = val as u8;
-
-            let count = count % 9;
-
-            let res_temp = ((val as u8 as u32) | (cpu.flags.c as u32) << 8) << count;
-
-            let res = res_temp as u8 | (res_temp >> 9) as u8;
-            cpu.flags.c = res_temp & 0x100 > 0;
-
-            res as u16
-        }
-        Length::Word => {
-            let count = count % 17;
-
-            let res_temp = ((val as u64) | (cpu.flags.c as u64) << 16) << count;
-
-            let res = res_temp as u16 | (res_temp >> 17) as u16;
-            cpu.flags.c = res_temp & 0x10000 > 0;
-
-            res
-        }
-        _ => unreachable!(),
-    }
-}
-
-pub fn rotate_right_carry(cpu: &mut CPU, val: u16, count: u32, len: Length) -> u16 {
-    if count == 0 {
-        return val;
-    }
-
-    let mut count = if count > 0x1F {
-        0x1F
-    } else {
-        count
-    };
-    
-    match len {
-        Length::Byte => {
-            count %= 9;
             let mut res = val as u8;
 
             while count > 0 {
-                let to_carry = get_lsb(res);
-                let from_carry = cpu.flags.c;
-
-                cpu.flags.c = to_carry;
-                res >>= 1;
-                res |= (from_carry as u8) << 7;
+                let c = cf as u8;
+                cf = get_msb(res as u16, len);
+                res <<= 1;
+                res |= c;
 
                 count -= 1;
             }
 
-            res as u16
-        }
+            (res as u16, cf)
+        },
         Length::Word => {
-            count %= 17;
             let mut res = val;
 
             while count > 0 {
-                let to_carry = get_lsb(res as u8);
-                let from_carry = cpu.flags.c;
-
-                cpu.flags.c = to_carry;
-                res >>= 1;
-                res |= (from_carry as u16) << 15;
+                let c = cf as u16;
+                cf = get_msb(res, len);
+                res <<= 1;
+                res |= c;
 
                 count -= 1;
             }
 
-            res
+            (res, cf)
         }
-        _ => unreachable!(),
+
+        _ => unreachable!()
+    }
+}
+
+pub fn rotate_right_carry(mut cf: bool, val: u16, mut count: u32, len: Length) -> (u16, bool) {
+    match len {
+        Length::Byte => {
+            let mut res = val as u8;
+
+            while count > 0 {
+                let c = (cf as u8) << 7;
+                cf = get_lsb(res);
+                res >>= 1;
+                res |= c;
+
+                count -= 1;
+            }
+
+            (res as u16, cf)
+        },
+        Length::Word => {
+            let mut res = val;
+
+            while count > 0 {
+                let c = (cf as u16) << 15;
+                cf = get_lsb(res as u8);
+                res >>= 1;
+                res |= c;
+            
+                count -= 1;
+            }
+
+            (res, cf)
+        }
+
+        _ => unreachable!()
     }
 }
 

@@ -59,16 +59,21 @@ impl System {
     pub fn update(&mut self) {
         let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
         let mut cycles_ran = 0;
+        let mut instr_ran = 0;
 
-        self.bus.ppi.key_input(&mut self.bus.pic);
         while cycles_ran <= max_cycles {
             if self.cpu.halted {
                 print!("HALTED\r");
                 cycles_ran += 1;
                 continue;
             }
+            
+            if instr_ran % 200 == 0 {
+                self.bus.ppi.key_input(&mut self.bus.pic);
+            }
 
             self.step(&mut cycles_ran);
+            instr_ran += 1;
         }
     }
 
@@ -98,7 +103,7 @@ impl System {
 
     pub fn step(&mut self, cycles_ran: &mut u32) {
         debug_82(&mut self.cpu);
-        let (mut cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
+        let (mut cycles, _ip) = self.cpu.step(&mut self.bus);
         // println!("{:04X}", _ip);
 
         self.cpu
@@ -156,11 +161,7 @@ impl System {
     }
 
     pub fn load_test(&mut self, path: &str) {
-        for (idx, element) in std::fs::read(path)
-            .unwrap()
-            .into_iter()
-            .enumerate()
-        {
+        for (idx, element) in std::fs::read(path).unwrap().into_iter().enumerate() {
             self.cpu.cs = 0xF000;
             self.cpu.ip = 0xFFF0;
             self.bus.memory[0xF0000 + idx] = element;

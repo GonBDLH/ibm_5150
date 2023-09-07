@@ -1,8 +1,4 @@
-use std::{collections::VecDeque, sync::Mutex};
-
-// use ggez::event::ScanCode;
-
-use lazy_static::lazy_static;
+use std::collections::VecDeque;
 
 use super::{
     pic_8259::{IRQs, PIC8259},
@@ -19,9 +15,9 @@ const SW2: u8 = 0b11100000;
 const KBD_RESET_CYCLES: u32 = 47700; // 20 ms
 const KBD_RESET_CYCLE_DELAY: u32 = 100;
 
-lazy_static!(
-    pub static ref KEY_QUEUE: Mutex<VecDeque<u8>> = Mutex::new(VecDeque::with_capacity(50));
-);
+// lazy_static!(
+//     pub static ref KEY_QUEUE: Mutex<VecDeque<u8>> = Mutex::new(VecDeque::with_capacity(50));
+// );
 
 #[derive(Clone, Default)]
 pub struct PPI8255 {
@@ -45,7 +41,7 @@ pub struct Keyboard {
     count_until_reset: u32,
     resets_counter: u32,
 
-    // key_queue: VecDeque<u8>,
+    key_queue: VecDeque<u8>,
 }
 
 impl Keyboard {
@@ -61,7 +57,7 @@ impl Keyboard {
             count_until_reset: 0,
             resets_counter: 0,
 
-            // key_queue: VecDeque::with_capacity(50),
+            key_queue: VecDeque::with_capacity(50),
         }
     }
 }
@@ -84,17 +80,17 @@ impl PPI8255 {
         }
     }
 
-    // pub fn key_up(&mut self, keycode: u8) {
-    //     self.kbd.key_queue.push_front(keycode + 0x80);
-    // }
+    pub fn key_up(&mut self, keycode: u8) {
+        self.kbd.key_queue.push_front(keycode + 0x80);
+    }
 
-    // pub fn key_down(&mut self, keycode: u8) {
-    //     self.kbd.key_queue.push_front(keycode as u8);
-    // }
+    pub fn key_down(&mut self, keycode: u8) {
+        self.kbd.key_queue.push_front(keycode);
+    }
 
     pub fn key_input(&mut self, pic: &mut PIC8259) {
-        if let Some(key_code) = KEY_QUEUE.lock().unwrap().pop_back() {
-            self.key_code = key_code as u8;
+        if let Some(key_code) = self.kbd.key_queue.pop_back() {
+            self.key_code = key_code;
             pic.irq(IRQs::Irq1);
         }
     }

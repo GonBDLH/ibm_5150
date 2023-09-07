@@ -460,8 +460,13 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
-                self.flags
-                    .set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
+                if count > 0 {
+                    self.flags.c = res.1; 
+                }
+
+                if count == 1 {
+                    self.flags.o = get_msb(res.0, self.instr.data_length) ^ res.1;
+                }
             }
             Opcode::ROR => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -471,30 +476,41 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res.0);
 
-                self.flags
-                    .set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
+                if count > 0 {
+                    self.flags.c = res.1; 
+                }
+
+                if count == 1 {
+                    self.flags.o = get_msb(res.0, self.instr.data_length) ^ get_smdb(res.0, self.instr.data_length);
+                }
             }
             Opcode::RCL => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate_left_carry(self, val, count, self.instr.data_length);
+                let res = rotate_left_carry(self.flags.c, val, count, self.instr.data_length);
 
-                self.set_val(bus, self.instr.operand1, res);
+                self.set_val(bus, self.instr.operand1, res.0);
 
-                self.flags
-                    .set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
+                self.flags.c = res.1; 
+
+                if count == 1 {
+                    self.flags.o = get_msb(res.0, self.instr.data_length) ^ get_msb(val, self.instr.data_length);
+                }
             }
             Opcode::RCR => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate_right_carry(self, val, count, self.instr.data_length);
+                let res = rotate_right_carry(self.flags.c, val, count, self.instr.data_length);
 
-                self.set_val(bus, self.instr.operand1, res);
+                self.set_val(bus, self.instr.operand1, res.0);
 
-                self.flags
-                    .set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
+                self.flags.c = res.1; 
+
+                if count == 1 {
+                    self.flags.o = get_msb(res.0, self.instr.data_length) ^ get_smdb(res.0, self.instr.data_length);
+                }
             }
             Opcode::AND => {
                 let val1 = self.get_val(bus, self.instr.operand1);
@@ -535,49 +551,45 @@ impl CPU {
             Opcode::STOSB => self.string_op(bus, CPU::stos, 13),
             Opcode::STOSW => self.string_op(bus, CPU::stos, 17),
 
-            Opcode::CALL => {
-                match self.instr.jump_type {
-                    JumpType::DirWithinSegment(disp) => {
-                        self.push_stack_16(bus, self.ip);
-                        self.ip = self.ip.wrapping_add(disp);
-                    }
-                    JumpType::IndWithinSegment(new_ip) => {
-                        self.push_stack_16(bus, self.ip);
-                        self.ip = new_ip;
-                    }
-                    JumpType::DirIntersegment(offset, segment) => {
-                        self.push_stack_16(bus, self.cs);
-                        self.push_stack_16(bus, self.ip);
-                        self.ip = offset;
-                        self.cs = segment;
-                    }
-                    JumpType::IndIntersegment(new_cs, new_ip) => {
-                        self.push_stack_16(bus, self.cs);
-                        self.push_stack_16(bus, self.ip);
-                        self.ip = new_ip;
-                        self.cs = new_cs;
-                    }
-                    _ => unreachable!(),
+            Opcode::CALL => match self.instr.jump_type {
+                JumpType::DirWithinSegment(disp) => {
+                    self.push_stack_16(bus, self.ip);
+                    self.ip = self.ip.wrapping_add(disp);
                 }
+                JumpType::IndWithinSegment(new_ip) => {
+                    self.push_stack_16(bus, self.ip);
+                    self.ip = new_ip;
+                }
+                JumpType::DirIntersegment(offset, segment) => {
+                    self.push_stack_16(bus, self.cs);
+                    self.push_stack_16(bus, self.ip);
+                    self.ip = offset;
+                    self.cs = segment;
+                }
+                JumpType::IndIntersegment(new_cs, new_ip) => {
+                    self.push_stack_16(bus, self.cs);
+                    self.push_stack_16(bus, self.ip);
+                    self.ip = new_ip;
+                    self.cs = new_cs;
+                }
+                _ => unreachable!(),
             },
-            Opcode::JMP => {
-                match self.instr.jump_type {
-                    JumpType::DirWithinSegment(disp) => self.ip = self.ip.wrapping_add(disp),
-                    JumpType::DirWithinSegmentShort(disp) => {
-                        self.ip = self.ip.wrapping_add(sign_extend(disp))
-                    }
-                    JumpType::IndWithinSegment(imm) => self.ip = imm,
-                    JumpType::IndIntersegment(new_cs, new_ip) => {
-                        self.ip = new_ip;
-                        self.cs = new_cs;
-                    }
-                    JumpType::DirIntersegment(offset, segment) => {
-                        self.cs = segment;
-                        self.ip = offset;
-                        let _a = 0;
-                    }
-                    _ => unreachable!(),
+            Opcode::JMP => match self.instr.jump_type {
+                JumpType::DirWithinSegment(disp) => self.ip = self.ip.wrapping_add(disp),
+                JumpType::DirWithinSegmentShort(disp) => {
+                    self.ip = self.ip.wrapping_add(sign_extend(disp))
                 }
+                JumpType::IndWithinSegment(imm) => self.ip = imm,
+                JumpType::IndIntersegment(new_cs, new_ip) => {
+                    self.ip = new_ip;
+                    self.cs = new_cs;
+                }
+                JumpType::DirIntersegment(offset, segment) => {
+                    self.cs = segment;
+                    self.ip = offset;
+                    let _a = 0;
+                }
+                _ => unreachable!(),
             },
             Opcode::RET => match self.instr.ret_type {
                 RetType::NearAdd(val) => {

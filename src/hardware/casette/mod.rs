@@ -30,6 +30,7 @@ impl Default for CasetteController {
     }
 }
 
+#[derive(Default)]
 struct Disk {
     inserted: bool,
     filesize: usize,
@@ -38,20 +39,6 @@ struct Disk {
     heads: usize,
 
     file: Option<File>,
-}
-
-impl Default for Disk {
-    fn default() -> Self {
-        Self {
-            inserted: false,
-            filesize: 0,
-            cylinders: 0,
-            sectors: 0,
-            heads: 0,
-
-            file: None,
-        }
-    }
 }
 
 impl CasetteController {
@@ -73,7 +60,7 @@ impl CasetteController {
         bus: &mut Bus,
         drive_number: usize,
         segment: u16,
-        mut offset: u16,
+        offset: u16,
         head: usize,
         cyl: usize,
         sector: usize,
@@ -98,8 +85,8 @@ impl CasetteController {
             }
             for sector_offset in 0..512 {
                 let val = self.sector_buffer[sector_offset];
-                bus.write_8(segment, offset, val);
-                offset += 1;
+                bus.write_8(segment, offset + sector_offset as u16, val);
+                // offset += 1;
             }
             sectors_readed += 1;
         }
@@ -115,7 +102,7 @@ impl CasetteController {
         bus: &mut Bus,
         drive_number: usize,
         segment: u16,
-        mut offset: u16,
+        offset: u16,
         head: usize,
         cyl: usize,
         sector: usize,
@@ -135,10 +122,9 @@ impl CasetteController {
         file_ref.seek(SeekFrom::Start(fileoffset as u64)).unwrap();
         for _ in 0..num_sectors {
             for sector_offset in 0..512 {
-                self.sector_buffer[sector_offset] = bus.read_8(segment, offset);
-                offset += 1;
+                self.sector_buffer[sector_offset] = bus.read_8(segment, offset + sector_offset as u16);
             }
-            file_ref.write(&self.sector_buffer).unwrap();
+            file_ref.write_all(&self.sector_buffer).unwrap();
         }
 
         cpu.ax.low = num_sectors as u8;
@@ -203,7 +189,7 @@ impl CasetteController {
 
         cpu.dx.low = 0;
 
-        // CYL SECT HEAD SECTCOUNT        
+        // CYL SECT HEAD SECTCOUNT
         self.read(cpu, bus, 0, 0, 0x7C00, 0, 0, 1, 1);
         cpu.cs = 0;
         cpu.ip = 0x7C00;
@@ -246,7 +232,8 @@ impl CasetteController {
                         segment,
                         offset,
                         head_number,
-                        track_number + (sector_number / 64) * 256,
+                        // track_number + (sector_number / 64) * 256,
+                        track_number,
                         sector_number & 63,
                         number_of_sectors,
                     );
@@ -267,7 +254,8 @@ impl CasetteController {
                         segment,
                         offset,
                         head_number,
-                        track_number + (sector_number / 64) * 256,
+                        // track_number + (sector_number / 64) * 256,
+                        track_number,
                         sector_number & 63,
                         number_of_sectors,
                     );

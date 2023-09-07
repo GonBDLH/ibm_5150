@@ -126,11 +126,25 @@ impl<'a> InstructionStrBuilder<'a> {
                 self.s.push_str(&format!(" {}", self.instr.port));
             } else if self.instr.jump_type != JumpType::None {
                 let dir = match self.instr.jump_type {
-                    JumpType::DirIntersegment(off, seg) => format!(" {:05X}", ((seg as usize) << 4) + off as usize),
-                    JumpType::DirWithinSegment(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + (self.instr.ip.wrapping_add(off) as usize)),
-                    JumpType::DirWithinSegmentShort(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + (self.instr.ip.wrapping_add(sign_extend(off)) as usize)),
-                    JumpType::IndIntersegment(seg, off) => format!(" {:05X}", ((seg as usize) << 4) + off as usize),
-                    JumpType::IndWithinSegment(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + off as usize),
+                    JumpType::DirIntersegment(off, seg) => {
+                        format!(" {:05X}", ((seg as usize) << 4) + off as usize)
+                    }
+                    JumpType::DirWithinSegment(off) => format!(
+                        " {:05X}",
+                        ((self.instr.cs as usize) << 4)
+                            + (self.instr.ip.wrapping_add(off) as usize)
+                    ),
+                    JumpType::DirWithinSegmentShort(off) => format!(
+                        " {:05X}",
+                        ((self.instr.cs as usize) << 4)
+                            + (self.instr.ip.wrapping_add(sign_extend(off)) as usize)
+                    ),
+                    JumpType::IndIntersegment(seg, off) => {
+                        format!(" {:05X}", ((seg as usize) << 4) + off as usize)
+                    }
+                    JumpType::IndWithinSegment(off) => {
+                        format!(" {:05X}", ((self.instr.cs as usize) << 4) + off as usize)
+                    }
                     _ => unreachable!(),
                 };
 
@@ -210,6 +224,14 @@ impl Length {
             Length::Word
         } else {
             Length::Byte
+        }
+    }
+
+    pub fn get_bits(&self) -> usize {
+        match self {
+            Length::Byte => 8,
+            Length::Word => 16,
+            Length::None => 0,
         }
     }
 }

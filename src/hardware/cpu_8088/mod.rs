@@ -108,7 +108,7 @@ impl CPU {
     }
 
     // DEVUELVO LA IP PARA DEBUGEAR
-    pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> (u32, u16) {
+    pub fn step(&mut self, bus: &mut Bus) -> (u32, u16) {
         self.cycles = 0;
         let ip = self.ip;
 

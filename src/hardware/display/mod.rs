@@ -2,17 +2,12 @@ use notan::prelude::*;
 
 pub const IMG_BUFF_SIZE: usize = 720 * 350 * 4;
 
-// use ggez::{
-//     graphics::{Color, Image},
-//     Context,
-// };
-
 pub mod crtc6845;
 pub mod ibm_mda;
 
 pub trait DisplayAdapter {
-    // fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
     fn create_frame(&mut self, gfx: &mut Graphics, texture: &mut Texture, vram: &[u8]);
+    fn get_crtc(&self) -> &crtc6845::CRTC6845;
 }
 
 pub struct Char {
@@ -33,19 +28,6 @@ impl Char {
     }
 
     fn decode_colors(mut self, attr: u8) -> Self {
-        // self.bright = attr & 0x0F > 0x08;
-        // self.underline = attr & 0x07 == 0x01;
-
-        // if matches!(attr, 0x00 | 0x08 | 0x80 | 0x88) {
-        //     self.background_color = Color::BLACK;
-        //     self.foreground_color = Color::BLACK;
-        // } else if matches!(attr, 0x70 | 0x78 | 0xF0 | 0xF8) {
-        //     self.background_color = Color::WHITE;
-        //     self.foreground_color = Color::BLACK;
-        // } else {
-        //     self.background_color = Color::BLACK;
-        //     self.foreground_color = Color::WHITE;
-        // }
         self.bright = attr & 0x08 > 0;
         self.underline = attr & 0x07 == 0x01;
 
@@ -94,5 +76,15 @@ impl Default for Char {
             bright: false,
             underline: false,
         }
+    }
+}
+
+trait Enable {
+    fn enabled(&self) -> bool;
+}
+
+impl<T> Enable for T where T: DisplayAdapter {
+    fn enabled(&self) -> bool {
+        self.get_crtc().op1 & 0b00001000 > 0
     }
 }

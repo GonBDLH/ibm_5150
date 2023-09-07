@@ -1315,7 +1315,8 @@ impl CPU {
 
             _ => {
                 // writeln!(&mut self.file, "Instrucción sin hacer: {:02X}", op).unwrap();
-                dbg!("ERROR: {:02X}", op);
+                // dbg!("ERROR: {:02X}", op);
+                log::error!("{:02X}", op);
                 self.cycles += 3
             } // _ => unreachable!(),
         }

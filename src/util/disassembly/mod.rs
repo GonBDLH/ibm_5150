@@ -44,7 +44,7 @@ impl Disassembler {
                 self.cache.insert(
                     ea,
                     (
-                        String::from(format!("{}", instr)),
+                        format!("{}", instr),
                         self.op_string.clone(),
                         ea_dif,
                     ),
@@ -172,12 +172,18 @@ impl Disassembler {
         }
     }
 
-    pub fn read_length(&self, instr: &mut Instruction, mem: &[u8], segment: u16, offset: u16) -> u16 {
+    pub fn read_length(
+        &self,
+        instr: &mut Instruction,
+        mem: &[u8],
+        segment: u16,
+        offset: u16,
+    ) -> u16 {
         let address = ((segment as usize) << 4) + offset as usize;
         match instr.data_length {
             Length::Byte => mem[address] as u16,
             Length::Word => to_u16(mem[address], mem[address.wrapping_add(1)]),
-            _ => unreachable!("{}", instr.opcode)
+            _ => unreachable!("{}", instr.opcode),
         }
     }
 
@@ -186,12 +192,9 @@ impl Disassembler {
             OperandType::Register(operand) => cpu.get_reg(operand),
             OperandType::SegmentRegister(operand) => cpu.get_segment(operand),
             OperandType::Immediate(imm) => imm,
-            OperandType::Memory(_operand) => self.read_length(
-                instr,
-                mem,
-                cpu.get_segment(instr.segment),
-                instr.offset,
-            ),
+            OperandType::Memory(_operand) => {
+                self.read_length(instr, mem, cpu.get_segment(instr.segment), instr.offset)
+            }
             _ => unreachable!(),
         }
     }

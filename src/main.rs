@@ -5,15 +5,16 @@ use std::env;
 use egui::vec2;
 
 fn main_debugger() -> Result<(), eframe::Error> {
-    let mut options = eframe::NativeOptions::default();
-
-    options.resizable = false;
-    options.initial_window_size = Some(vec2(1000., 700.));
+    let options = eframe::NativeOptions {
+        resizable: false,
+        initial_window_size: Some(vec2(1000., 700.)),
+        ..Default::default()
+    };
 
     eframe::run_native(
         "Prueba",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 
@@ -40,7 +41,6 @@ fn main_view() -> GameResult {
 
     event::run(ctx, event_loop, app);
 }
-
 
 fn main() {
     let args: Vec<String> = env::args().collect();

@@ -4,7 +4,8 @@ use crate::hardware::cpu_8088::{
     instr_utils::{
         decode_jmp, decode_mod, decode_reg, decode_segment, Direction, Instruction, JumpType,
         Length, Opcode, Operand, OperandType, RepetitionPrefix, RetType, Segment,
-    }, CPU,
+    },
+    CPU,
 };
 
 impl Disassembler {
@@ -143,7 +144,6 @@ impl Disassembler {
                             cpu.get_segment(instr.segment),
                             instr.offset.wrapping_add(2),
                         );
-
 
                         instr.jump_type = JumpType::IndIntersegment(cs, ip);
                     }
@@ -585,6 +585,8 @@ impl Disassembler {
                     0x3E => Segment::DS,
                     _ => unreachable!(),
                 };
+
+                instr.has_segment_prefix = true;
 
                 let new_op = self.fetch(mem);
                 self.decode(instr, mem, new_op, cpu);

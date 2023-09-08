@@ -342,6 +342,11 @@ impl CPU {
                 };
                 self.cycles += 12;
             }
+            0xD6 => {
+                self.instr.opcode = Opcode::SALC;
+
+                self.cycles += 2;
+            }
             0xD7 => {
                 self.instr.opcode = Opcode::XLAT;
                 self.instr.operand1 = OperandType::Register(Operand::AL);
@@ -901,6 +906,7 @@ impl CPU {
                     _ => unreachable!(),
                 };
 
+                self.instr.has_segment_prefix = true;
                 self.cycles += 2;
 
                 let new_op = self.fetch(bus);
@@ -1072,24 +1078,24 @@ impl CPU {
 
                 self.cycles += 15;
             }
-            0xC2 => {
+            0xC0 | 0xC2 => {
                 self.instr.opcode = Opcode::RET;
                 let val = to_u16(self.fetch(bus), self.fetch(bus));
                 self.instr.ret_type = RetType::NearAdd(val);
                 self.cycles += 24;
             }
-            0xC3 => {
+            0xC1 | 0xC3 => {
                 self.instr.opcode = Opcode::RET;
                 self.instr.ret_type = RetType::Near;
                 self.cycles += 20;
             }
-            0xCA => {
+            0xC8 | 0xCA => {
                 self.instr.opcode = Opcode::RET;
                 let val = to_u16(self.fetch(bus), self.fetch(bus));
                 self.instr.ret_type = RetType::FarAdd(val);
                 self.cycles += 34;
             }
-            0xCB => {
+            0xC9 | 0xCB => {
                 self.instr.opcode = Opcode::RET;
                 self.instr.ret_type = RetType::Far;
                 self.cycles += 33;
@@ -1315,8 +1321,9 @@ impl CPU {
 
             _ => {
                 // writeln!(&mut self.file, "Instrucción sin hacer: {:02X}", op).unwrap();
-                dbg!("ERROR: {:02X}", op);
-                self.cycles += 3
+                // dbg!("ERROR: {:02X}", op);
+                panic!("ERROR: {:02X} INSTRUCCION NO IMPLEMENTADA", op);
+                // self.cycles += 3
             } // _ => unreachable!(),
         }
         self.instr.ip = self.ip;

@@ -78,9 +78,9 @@ impl Bus {
     }
 
     pub fn read_8(&self, segment: u16, offset: u16) -> u8 {
-        let ea = ((segment as usize) << 4) + offset as usize;
+        let ea = (((segment as usize) * 0x10) + offset as usize) % 0x100000;
 
-        self.memory[ea % 0x100000]
+        self.memory[ea]
     }
 
     pub fn read_16(&self, segment: u16, offset: u16) -> u16 {
@@ -91,14 +91,16 @@ impl Bus {
     }
 
     pub fn write_8(&mut self, segment: u16, offset: u16, val: u8) {
-        let ea = ((segment as usize) << 4) + offset as usize;
+        let ea = (((segment as usize) * 0x10) + offset as usize) % 0x100000;
 
         // NO ESCRIBIR EN ROM
+        // #[cfg(not(feature = "tests"))] 
+        #[cfg(not(test))]
         if ea >= 0xC0000 {
             return;
         }
 
-        self.memory[ea % 0x100000] = val;
+        self.memory[ea] = val;
     }
 
     pub fn write_16(&mut self, segment: u16, offset: u16, val: u16) {

@@ -195,7 +195,7 @@ impl MyApp {
 
                         let ascii: String = self.sys.bus.memory[addr..addr + 0x10]
                             .iter()
-                            .map(|val| special_char(val))
+                            .map(special_char)
                             .collect();
 
                         ui.label(
@@ -223,15 +223,15 @@ impl MyApp {
                 egui::Grid::new("disassembly_grid").show(ui, |ui| {
                     for i in instrs {
                         ui.label(
-                            egui::RichText::new(String::from(format!("{:05X} | ", i.2)))
+                            egui::RichText::new(format!("{:05X} | ", i.2))
                                 .text_style(egui::TextStyle::Monospace),
                         );
                         ui.label(
-                            egui::RichText::new(String::from(format!("{:010} | ", i.1)))
+                            egui::RichText::new(format!("{:010} | ", i.1))
                                 .text_style(egui::TextStyle::Monospace),
                         );
                         ui.label(
-                            egui::RichText::new(String::from(format!("{:020}", i.0)))
+                            egui::RichText::new(format!("{:020}", i.0))
                                 .text_style(egui::TextStyle::Monospace),
                         );
                         ui.end_row()

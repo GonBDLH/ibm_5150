@@ -66,17 +66,21 @@ impl CPU {
 
             flags: Flags::new(),
 
-            #[cfg(feature = "tests")]
+            //#[cfg(feature = "tests")]
+            #[cfg(test)]
             cs: 0xF000,
-            #[cfg(not(feature = "tests"))]
+            //#[cfg(not(feature = "tests"))]
+            #[cfg(not(test))]
             cs: 0xFFFF,
             ds: 0x0000,
             es: 0x0000,
             ss: 0x0000,
 
-            #[cfg(feature = "tests")]
+            //#[cfg(feature = "tests")]
+            #[cfg(test)]
             ip: 0xFFF0,
-            #[cfg(not(feature = "tests"))]
+            //#[cfg(not(feature = "tests"))]
+            #[cfg(not(test))]
             ip: 0x0000,
 
             instr: Instruction::default(),

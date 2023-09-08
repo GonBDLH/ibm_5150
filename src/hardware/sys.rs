@@ -97,6 +97,7 @@ impl System {
     }
 
     pub fn step(&mut self, cycles_ran: &mut u32) {
+        #[cfg(not(feature = "tests"))]
         debug_82(&mut self.cpu);
         let (mut cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
         // println!("{:04X}", _ip);
@@ -156,11 +157,7 @@ impl System {
     }
 
     pub fn load_test(&mut self, path: &str) {
-        for (idx, element) in std::fs::read(path)
-            .unwrap()
-            .into_iter()
-            .enumerate()
-        {
+        for (idx, element) in std::fs::read(path).unwrap().into_iter().enumerate() {
             self.cpu.cs = 0xF000;
             self.cpu.ip = 0xFFF0;
             self.bus.memory[0xF0000 + idx] = element;

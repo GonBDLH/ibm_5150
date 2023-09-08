@@ -83,11 +83,7 @@ pub fn rotate_left_carry(cpu: &mut CPU, val: u16, count: u32, len: Length) -> u1
         return val;
     }
 
-    let count = if count > 0x1F {
-        0x1F
-    } else {
-        count
-    };
+    let count = if count > 0x1F { 0x1F } else { count };
 
     match len {
         Length::Byte => {
@@ -121,12 +117,8 @@ pub fn rotate_right_carry(cpu: &mut CPU, val: u16, count: u32, len: Length) -> u
         return val;
     }
 
-    let mut count = if count > 0x1F {
-        0x1F
-    } else {
-        count
-    };
-    
+    let mut count = if count > 0x1F { 0x1F } else { count };
+
     match len {
         Length::Byte => {
             count %= 9;

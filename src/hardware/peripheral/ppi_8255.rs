@@ -88,7 +88,7 @@ impl PPI8255 {
 
     pub fn key_input(&mut self, pic: &mut PIC8259) {
         if let Some(key_code) = self.kbd.key_queue.pop_back() {
-            self.key_code = key_code as u8;
+            self.key_code = key_code;
             pic.irq(IRQs::Irq1);
         }
     }

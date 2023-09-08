@@ -30,6 +30,7 @@ impl Default for CasetteController {
     }
 }
 
+#[derive(Default)]
 struct Disk {
     inserted: bool,
     filesize: usize,
@@ -38,20 +39,6 @@ struct Disk {
     heads: usize,
 
     file: Option<File>,
-}
-
-impl Default for Disk {
-    fn default() -> Self {
-        Self {
-            inserted: false,
-            filesize: 0,
-            cylinders: 0,
-            sectors: 0,
-            heads: 0,
-
-            file: None,
-        }
-    }
 }
 
 impl CasetteController {
@@ -138,7 +125,7 @@ impl CasetteController {
                 self.sector_buffer[sector_offset] = bus.read_8(segment, offset);
                 offset += 1;
             }
-            file_ref.write(&self.sector_buffer).unwrap();
+            file_ref.write_all(&self.sector_buffer).unwrap();
         }
 
         cpu.ax.low = num_sectors as u8;
@@ -203,7 +190,7 @@ impl CasetteController {
 
         cpu.dx.low = 0;
 
-        // CYL SECT HEAD SECTCOUNT        
+        // CYL SECT HEAD SECTCOUNT
         self.read(cpu, bus, 0, 0, 0x7C00, 0, 0, 1, 1);
         cpu.cs = 0;
         cpu.ip = 0x7C00;

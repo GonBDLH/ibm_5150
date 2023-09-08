@@ -18,6 +18,7 @@ pub struct Instruction {
     pub segment: Segment,
     pub offset: u16,
     pub ea_cycles: u32,
+    pub has_segment_prefix: bool,
 
     // Valor inmediato en caso de que lo haya
     // pub imm: u16,
@@ -53,6 +54,7 @@ impl Default for Instruction {
             segment: Segment::DS,
             offset: 0x0000,
             ea_cycles: 0x00,
+            has_segment_prefix: false,
 
             //imm: 0,
             port: 0,
@@ -126,11 +128,25 @@ impl<'a> InstructionStrBuilder<'a> {
                 self.s.push_str(&format!(" {}", self.instr.port));
             } else if self.instr.jump_type != JumpType::None {
                 let dir = match self.instr.jump_type {
-                    JumpType::DirIntersegment(off, seg) => format!(" {:05X}", ((seg as usize) << 4) + off as usize),
-                    JumpType::DirWithinSegment(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + (self.instr.ip.wrapping_add(off) as usize)),
-                    JumpType::DirWithinSegmentShort(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + (self.instr.ip.wrapping_add(sign_extend(off)) as usize)),
-                    JumpType::IndIntersegment(seg, off) => format!(" {:05X}", ((seg as usize) << 4) + off as usize),
-                    JumpType::IndWithinSegment(off) => format!(" {:05X}", ((self.instr.cs as usize) << 4) + off as usize),
+                    JumpType::DirIntersegment(off, seg) => {
+                        format!(" {:05X}", ((seg as usize) << 4) + off as usize)
+                    }
+                    JumpType::DirWithinSegment(off) => format!(
+                        " {:05X}",
+                        ((self.instr.cs as usize) << 4)
+                            + (self.instr.ip.wrapping_add(off) as usize)
+                    ),
+                    JumpType::DirWithinSegmentShort(off) => format!(
+                        " {:05X}",
+                        ((self.instr.cs as usize) << 4)
+                            + (self.instr.ip.wrapping_add(sign_extend(off)) as usize)
+                    ),
+                    JumpType::IndIntersegment(seg, off) => {
+                        format!(" {:05X}", ((seg as usize) << 4) + off as usize)
+                    }
+                    JumpType::IndWithinSegment(off) => {
+                        format!(" {:05X}", ((self.instr.cs as usize) << 4) + off as usize)
+                    }
                     _ => unreachable!(),
                 };
 
@@ -253,6 +269,7 @@ pub enum Opcode {
     CWD,
     NOT,
     SALSHL,
+    SALC,
     SHR,
     SAR,
     ROL,
@@ -350,6 +367,7 @@ impl Display for Opcode {
             Opcode::CWD => "CWD",
             Opcode::NOT => "NOT",
             Opcode::SALSHL => "SAL/SHL",
+            Opcode::SALC => "SALC",
             Opcode::SHR => "SHR",
             Opcode::SAR => "SAR",
             Opcode::ROL => "ROL",
@@ -666,11 +684,17 @@ pub fn decode_mem(
             0b010 => {
                 cpu.instr.offset = cpu.bp.wrapping_add(cpu.si);
                 cpu.instr.ea_cycles = 8;
+                if !cpu.instr.has_segment_prefix {
+                    cpu.instr.segment = Segment::SS;
+                }
                 OperandType::Memory(Operand::BPSI)
             }
             0b011 => {
                 cpu.instr.offset = cpu.bp.wrapping_add(cpu.di);
                 cpu.instr.ea_cycles = 7;
+                if !cpu.instr.has_segment_prefix {
+                    cpu.instr.segment = Segment::SS;
+                }
                 OperandType::Memory(Operand::BPDI)
             }
             0b100 => {
@@ -729,11 +753,17 @@ pub fn decode_mem(
                 0b010 => {
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.si).wrapping_add(disp);
                     cpu.instr.ea_cycles = 12;
+                    if !cpu.instr.has_segment_prefix {
+                        cpu.instr.segment = Segment::SS;
+                    }
                     OperandType::Memory(Operand::DispBPSI(disp))
                 }
                 0b011 => {
                     cpu.instr.offset = cpu.bp.wrapping_add(cpu.di).wrapping_add(disp);
                     cpu.instr.ea_cycles = 11;
+                    if !cpu.instr.has_segment_prefix {
+                        cpu.instr.segment = Segment::SS;
+                    }
                     OperandType::Memory(Operand::DispBPDI(disp))
                 }
                 0b100 => {
@@ -749,6 +779,9 @@ pub fn decode_mem(
                 0b110 => {
                     cpu.instr.offset = cpu.bp.wrapping_add(disp);
                     cpu.instr.ea_cycles = 9;
+                    if !cpu.instr.has_segment_prefix {
+                        cpu.instr.segment = Segment::SS;
+                    }
                     OperandType::Memory(Operand::DispBP(disp))
                 }
                 0b111 => {

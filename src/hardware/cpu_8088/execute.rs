@@ -11,7 +11,12 @@ impl CPU {
                 self.set_val(bus, self.instr.operand1, val);
             }
             Opcode::PUSH => {
-                let val = self.get_val(bus, self.instr.operand1);
+                let mut val = self.get_val(bus, self.instr.operand1);
+                if let OperandType::Register(op) = self.instr.operand1 {
+                    if op == Operand::SP {
+                        val = val.wrapping_sub(2);
+                    }
+                };
                 self.push_stack_16(bus, val);
             }
             Opcode::POP => {
@@ -40,7 +45,7 @@ impl CPU {
             Opcode::XLAT => {
                 let val = bus.read_8(
                     self.get_segment(self.instr.segment),
-                    self.get_reg(Operand::BX) + self.get_reg(Operand::AL),
+                    self.get_reg(Operand::BX).wrapping_add(self.get_reg(Operand::AL)),
                 );
                 self.set_reg8(Operand::AL, val);
             }
@@ -152,21 +157,13 @@ impl CPU {
             }
             Opcode::DAA => {
                 let old_al = self.ax.low;
-                let old_cf = self.flags.c;
-                self.flags.c = false;
                 if (self.ax.low & 0x0F) > 9 || self.flags.a {
-                    let val = self.ax.low.overflowing_add(6);
-                    self.ax.low = val.0;
-                    self.flags.c = old_cf || val.1;
+                    self.ax.low = self.ax.low.wrapping_add(6);
                     self.flags.a = true;
-                } else {
-                    self.flags.a = false;
                 }
-                if old_al > 0x99 || old_cf {
+                if (old_al > 0x99) || self.flags.c {
                     self.ax.low = self.ax.low.wrapping_add(0x60);
                     self.flags.c = true;
-                } else {
-                    self.flags.c = false;
                 }
             }
             Opcode::SUB => {

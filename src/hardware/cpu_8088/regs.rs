@@ -98,13 +98,7 @@ impl Flags {
         let p = ((self.p as u16) << 2) & 0b0000000000000100;
         let c = (self.c as u16) & 0b0000000000000001;
 
-        //#[cfg(feature = "tests")]
-        #[cfg(test)]
-        return o + d + i + t + s + z + a + p + c + 2;
-
-        // #[cfg(not(feature = "tests"))]
-        #[cfg(not(test))]
-        return 0xF000 + o + d + i + t + s + z + a + p + c;
+        return 0xF000 + o + d + i + t + s + z + a + p + c + 2;
     }
 }
 

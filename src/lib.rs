@@ -10,7 +10,7 @@ use assert_hex::assert_eq_hex;
 use egui::epaint::ahash::HashMap;
 use flate2::read::GzDecoder;
 #[allow(unused_imports)]
-use hardware::{cpu_8088::instr_utils::Opcode, sys::System};
+use hardware::{cpu_8088::instr_utils::{Opcode, RepetitionPrefix}, sys::System};
 use serde::Deserialize;
 #[allow(unused_imports)]
 use ntest::timeout;
@@ -85,86 +85,99 @@ fn check_state(instr: &Instr, sys: &mut System) {
     assert_eq_hex!(
         sys.cpu.ax.get_x(),
         *instr.final_state.regs.get("ax").unwrap(),
-        "ax {}",
-        instr.name
+        "ax {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.bx.get_x(),
         *instr.final_state.regs.get("bx").unwrap(),
-        "bx {}",
-        instr.name
+        "bx {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.cx.get_x(),
         *instr.final_state.regs.get("cx").unwrap(),
-        "cx {}",
-        instr.name
+        "cx {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.dx.get_x(),
         *instr.final_state.regs.get("dx").unwrap(),
-        "dx {}",
-        instr.name
+        "dx {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.cs,
         *instr.final_state.regs.get("cs").unwrap(),
-        "cs {}",
-        instr.name
+        "cs {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.ss,
         *instr.final_state.regs.get("ss").unwrap(),
-        "ss {}",
-        instr.name
+        "ss {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.ds,
         *instr.final_state.regs.get("ds").unwrap(),
-        "ds {}",
-        instr.name
+        "ds {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.es,
         *instr.final_state.regs.get("es").unwrap(),
-        "es {}",
-        instr.name
+        "es {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.sp,
         *instr.final_state.regs.get("sp").unwrap(),
-        "sp {}",
-        instr.name
+        "sp {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.bp,
         *instr.final_state.regs.get("bp").unwrap(),
-        "bp {}",
-        instr.name
+        "bp {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.si,
         *instr.final_state.regs.get("si").unwrap(),
-        "si {}",
-        instr.name
+        "si {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
         sys.cpu.di,
         *instr.final_state.regs.get("di").unwrap(),
-        "di {}",
-        instr.name
+        "di {} {:#?}",
+        instr.name,
+        instr
     );
     assert_eq_hex!(
-        sys.cpu.ip - 1,
+        sys.cpu.ip,
         *instr.final_state.regs.get("ip").unwrap(),
-        "ip {}",
-        instr.name
+        "ip {} {:#?}",
+        instr.name,
+        instr
     );
     // assert_eq!(sys.cpu.flags.get_flags(), *instr.final_state.regs.get("flags").unwrap(), "flags {}", instr.name);
 
     for i in &instr.final_state.ram {
         // println!("{} {}", sys.bus.memory[i.0], i.1);
-        assert_eq_hex!(sys.bus.memory[i.0], i.1, "mem {:05X} {}", i.0, instr.name)
+        assert_eq_hex!(sys.bus.memory[i.0], i.1, "mem {:05X} {} {:#?}", i.0, instr.name, instr)
     }
 }
 
@@ -185,9 +198,11 @@ macro_rules! create_test {
 
                 loop {
                     sys.step(&mut 0);
-                    if sys.cpu.instr.opcode == Opcode::NOP {
-                        break;
+                    if sys.cpu.instr.repetition_prefix != RepetitionPrefix::None && !sys.cpu.to_decode {
+                        continue;
                     }
+
+                    break;
                 }
 
                 check_state(&i, &mut sys);

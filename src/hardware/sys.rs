@@ -97,7 +97,7 @@ impl System {
     }
 
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        #[cfg(not(feature = "tests"))]
+        #[cfg(debug_assertions)]
         debug_82(&mut self.cpu);
         let (mut cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
         // println!("{:04X}", _ip);

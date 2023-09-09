@@ -280,6 +280,11 @@ impl CPU {
                 self.instr.opcode = Opcode::NOP;
                 self.cycles += 3;
             }
+            0xD8..=0xDF => {
+                // TODO ESC
+                self.instr.opcode = Opcode::NOP;
+                self.cycles += 2;
+            }
             0x91..=0x97 => {
                 self.instr.opcode = Opcode::XCHG;
                 self.instr.data_length = Length::Word;
@@ -359,6 +364,11 @@ impl CPU {
                 self.instr.data_length = Length::Word;
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
+                
+                if let OperandType::Register(reg) = self.instr.operand2 {
+                    self.instr.offset = self.get_reg(reg);
+                }
+
                 self.cycles += 2 + self.instr.ea_cycles;
             }
             0xC5 => {
@@ -1100,7 +1110,7 @@ impl CPU {
                 self.instr.ret_type = RetType::Far;
                 self.cycles += 33;
             }
-            0x74 => {
+            0x74 | 0x64 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1108,7 +1118,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x7C => {
+            0x7C | 0x6C => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1116,7 +1126,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x7E => {
+            0x7E | 0x6E => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1124,7 +1134,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x72 => {
+            0x72 | 0x62 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1132,7 +1142,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x76 => {
+            0x76 | 0x66 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1140,7 +1150,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x7A => {
+            0x7A | 0x6A => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1148,7 +1158,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x70 => {
+            0x70 | 0x60 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1156,7 +1166,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x78 => {
+            0x78 | 0x68 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1164,7 +1174,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x75 => {
+            0x75 | 0x65 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1172,7 +1182,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x7D => {
+            0x7D | 0x6D => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1180,7 +1190,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x7F => {
+            0x7F | 0x6F => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1188,7 +1198,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x73 => {
+            0x73 | 0x63 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1196,7 +1206,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x77 => {
+            0x77 | 0x67 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1204,7 +1214,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x7B => {
+            0x7B | 0x6B => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1212,7 +1222,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x71 => {
+            0x71 | 0x61 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,
@@ -1220,7 +1230,7 @@ impl CPU {
                     JumpType::DirWithinSegmentShort(val),
                 );
             }
-            0x79 => {
+            0x79 | 0x69 => {
                 let val = self.fetch(bus);
                 decode_jmp(
                     &mut self.instr,

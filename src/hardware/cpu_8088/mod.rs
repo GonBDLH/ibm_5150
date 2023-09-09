@@ -133,7 +133,8 @@ impl CPU {
         disk_ctrl: &mut CasetteController,
         cycles: &mut u32,
     ) {
-        if self.flags.i && self.sw_int {
+        if self.sw_int {
+            #[cfg(not(test))]
             if self.instr.sw_int_type == 0x13 {
                 disk_ctrl.int13(self, bus);
             // } else if self.instr.sw_int_type == 0x19 {
@@ -141,6 +142,10 @@ impl CPU {
             } else {
                 self.interrupt(bus, self.instr.sw_int_type as u16 * 0x04);
             }
+
+            #[cfg(test)]
+            self.interrupt(bus, self.instr.sw_int_type as u16 * 0x04);
+
             self.sw_int = false;
         } else if self.nmi && self.nmi_enabled {
             // Si hay una NON-MASKABLE INTERRUPT

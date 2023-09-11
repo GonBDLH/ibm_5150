@@ -94,7 +94,7 @@ impl Bus {
         let ea = (((segment as usize) * 0x10) + offset as usize) % 0x100000;
 
         // NO ESCRIBIR EN ROM
-        // #[cfg(not(feature = "tests"))] 
+        // #[cfg(not(feature = "tests"))]
         #[cfg(not(test))]
         if ea >= 0xC0000 {
             return;

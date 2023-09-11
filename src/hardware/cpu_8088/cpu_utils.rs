@@ -42,69 +42,69 @@ pub fn get_msb(val: u16, len: Length) -> bool {
     }
 }
 
+pub fn get_msb_1(val: u16, len: Length) -> bool {
+    match len {
+        Length::Byte => val as u8 & 0x40 != 0,
+        Length::Word => val & 0x4000 != 0,
+        _ => unreachable!(),
+    }
+}
+
 pub fn get_lsb(val: u8) -> bool {
     val & 0x01 > 0
 }
 
-pub fn rotate_left(val: u16, count: u32, len: Length) -> (u16, bool) {
+pub fn rotate_left(val: u16, count: u32, len: Length) -> u16 {
     match len {
         Length::Byte => {
             let res = (val as u8).rotate_left(count);
-            let last = get_lsb(res);
-            (res as u16, last)
+            res as u16
         }
         Length::Word => {
             let res = val.rotate_left(count);
-            let last = get_lsb(res as u8);
-            (res, last)
+            res
         }
         _ => unreachable!(),
     }
 }
 
-pub fn rotate_right(val: u16, count: u32, len: Length) -> (u16, bool) {
+pub fn rotate_right(val: u16, count: u32, len: Length) -> u16 {
     match len {
         Length::Byte => {
             let res = (val as u8).rotate_right(count);
-            let last = get_msb(res as u16, len);
-            (res as u16, last)
+            res as u16
         }
         Length::Word => {
             let res = val.rotate_right(count);
-            let last = get_msb(res, len);
-            (res, last)
+            res
         }
         _ => unreachable!(),
     }
 }
 
-pub fn rotate_left_carry(cpu: &mut CPU, val: u16, count: u32, len: Length) -> u16 {
-    if count == 0 {
-        return val;
-    }
-
-    let count = if count > 0x1F { 0x1F } else { count };
-
+pub fn rotate_left_carry(cpu: &mut CPU, val: u16, mut count: u32, len: Length) -> u16 {
     match len {
         Length::Byte => {
-            // let mut res = val as u8;
+            let mut res = val as u8;
 
-            let count = count % 9;
-
-            let res_temp = ((val as u8 as u32) | (cpu.flags.c as u32) << 8) << count;
-
-            let res = res_temp as u8 | (res_temp >> 9) as u8;
-            cpu.flags.c = res_temp & 0x100 > 0;
+            while count != 0 {
+                let temp_cf = get_msb(res as u16, len);
+                res = res.wrapping_shl(1) + cpu.flags.c as u8;
+                cpu.flags.c = temp_cf;
+                count -= 1;
+            }
 
             res as u16
         }
         Length::Word => {
-            let count = count % 17;
+            let mut res = val;
 
-            let res_temp = ((val as u64) | (cpu.flags.c as u64) << 16) << count;
-
-            let res = res_temp as u16 | (res_temp >> 17) as u16;
-            cpu.flags.c = res_temp & 0x10000 > 0;
+            while count != 0 {
+                let temp_cf = get_msb(res, len);
+                res = res.wrapping_mul(2) + cpu.flags.c as u16;
+                cpu.flags.c = temp_cf;
+                count -= 1;
+            }
 
             res
         }
@@ -222,38 +222,80 @@ pub fn sbb(val1: u16, val2: u16, cflag: u16, length: Length) -> (u16, bool) {
     }
 }
 
-pub fn sar(val1: u16, count: u32, length: Length) -> u16 {
-    match length {
+pub fn sar(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
+    match len {
         Length::Byte => {
-            let val = val1 as u8 as i8;
-            let res = val.wrapping_shr(count);
-            res as u8 as u16
+            let mut res = val1 as u8 as i8;
+            while count != 0 {
+                cpu.flags.c = get_lsb(res as u8);
+                res = res.wrapping_shr(1);
+                count -= 1;
+            }
+
+            res as u16
         }
-        Length::Word => (val1 as i16).wrapping_shr(count) as u16,
+        Length::Word => {
+            let mut res = val1 as i16;
+            while count != 0 {
+                cpu.flags.c = get_lsb(res as u8);
+                res = res.wrapping_shr(1);
+                count -= 1;
+            }
+
+            res as u16
+        },
         _ => unreachable!(),
     }
 }
 
-pub fn shr(val1: u16, count: u32, length: Length) -> u16 {
-    match length {
+pub fn shr(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
+    match len {
         Length::Byte => {
-            let val = val1 as u8;
-            let res = val.wrapping_shr(count);
+            let mut res = val1 as u8;
+            while count != 0 {
+                cpu.flags.c = get_lsb(res);
+                res = res.wrapping_div(2);
+                count -= 1;
+            }
+
             res as u16
         }
-        Length::Word => val1.wrapping_shr(count),
+        Length::Word => {
+            let mut res = val1;
+            while count != 0 {
+                cpu.flags.c = get_lsb(res as u8);
+                res = res.wrapping_div(2);
+                count -= 1;
+            }
+
+            res
+        },
         _ => unreachable!(),
     }
 }
 
-pub fn salshl(val1: u16, count: u32, length: Length) -> u16 {
-    match length {
+pub fn salshl(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
+    match len {
         Length::Byte => {
-            let val = val1 as u8;
-            let res = val.wrapping_shl(count);
+            let mut res = val1 as u8;
+            while count != 0 {
+                cpu.flags.c = get_msb(res as u16, len);
+                res = res.wrapping_mul(2);
+                count -= 1;
+            }
+
             res as u16
         }
-        Length::Word => val1.wrapping_shl(count),
+        Length::Word => {
+            let mut res = val1;
+            while count != 0 {
+                cpu.flags.c = get_msb(res, len);
+                res = res.wrapping_mul(2);
+                count -= 1;
+            }
+
+            res
+        },
         _ => unreachable!(),
     }
 }

@@ -133,7 +133,7 @@ fn check_o_sub(val1: u16, val2: u16, res: u16, len: Length) -> bool {
 }
 
 #[inline]
-fn check_s(val: u16, len: Length) -> bool {
+pub fn check_s(val: u16, len: Length) -> bool {
     get_msb(val, len)
 }
 
@@ -152,7 +152,7 @@ fn check_a(val1: u16, val2: u16, res: u16) -> bool {
 }
 
 #[inline]
-fn check_p(val: u16) -> bool {
+pub fn check_p(val: u16) -> bool {
     (val as u8).count_ones() % 2 == 0
 }
 
@@ -263,14 +263,14 @@ impl Flags {
     pub fn set_imul_flags(&mut self, length: Length, res: u32) {
         match length {
             Length::Word => {
-                let val = !matches!(res & 0x80008000, 0x80008000 | 0x0);
-                self.o = val;
-                self.c = val;
+                let res_temp = sign_extend_32(res as u16);
+                self.o = res_temp != res;
+                self.c = res_temp != res;
             }
             Length::Byte => {
-                let val = !matches!(res & 0x8080, 0x8080 | 0x0000);
-                self.o = val;
-                self.c = val;
+                let res_temp = sign_extend(res as u8);
+                self.o = res_temp != res as u16;
+                self.c = res_temp != res as u16;
             }
             _ => unreachable!(),
         }
@@ -315,18 +315,37 @@ impl Flags {
         }
     }
 
-    pub fn set_rotate_flags(
+    pub fn set_rl_flags(
         &mut self,
         count: u32,
         len: Length,
-        val: u16,
+        _val: u16,
         res: u16,
         last_bit: bool,
     ) {
-        self.c = last_bit;
+        // println!("{:016b}", res);
+        if count != 0 {
+            self.c = last_bit;
+        }
+        if count & 0x1F == 1 {
+            self.o = get_msb(res, len) ^ self.c;
+        }
+    }
 
-        if count == 1 {
-            self.o = get_msb(val, len) != get_msb(res, len);
+    pub fn set_rr_flags(
+        &mut self,
+        count: u32,
+        len: Length,
+        _val: u16,
+        res: u16,
+        last_bit: bool,
+    ) {
+        // println!("{:016b}", res);
+        if count != 0 {
+            self.c = last_bit;
+        }
+        if count & 0x1F == 1 {
+            self.o = get_msb(res, len) ^ get_msb_1(res, len);
         }
     }
 

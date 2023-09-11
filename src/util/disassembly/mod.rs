@@ -41,14 +41,8 @@ impl Disassembler {
                 let ea_dif = (((self.cs << 4) + self.ip) & 0xFFFFF).wrapping_sub(ea);
 
                 instr_vec.push((format!("{}", instr), self.op_string.clone(), ea));
-                self.cache.insert(
-                    ea,
-                    (
-                        format!("{}", instr),
-                        self.op_string.clone(),
-                        ea_dif,
-                    ),
-                );
+                self.cache
+                    .insert(ea, (format!("{}", instr), self.op_string.clone(), ea_dif));
             }
         }
 

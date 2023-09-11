@@ -228,6 +228,14 @@ impl Length {
             Length::Byte
         }
     }
+
+    pub fn get_num_bits(&self) -> u16 {
+        match self {
+            Length::Byte => 8,
+            Length::Word => 16,
+            Length::None => 0,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -325,6 +333,8 @@ pub enum Opcode {
     STI,
     HLT,
     NOP,
+    SETMO,
+    SETMOC,
 }
 
 impl Display for Opcode {
@@ -423,6 +433,8 @@ impl Display for Opcode {
             Opcode::STI => "STI",
             Opcode::HLT => "HLT",
             Opcode::NOP => "NOP",
+            Opcode::SETMO => "SETMO",
+            Opcode::SETMOC => "SETMOC",
         };
         write!(f, "{}", val)
     }

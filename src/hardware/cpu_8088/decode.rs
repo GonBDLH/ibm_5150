@@ -211,7 +211,7 @@ impl CPU {
                             _ => unreachable!(),
                         }
                     }
-                    0x30 => {
+                    0x30 | 0x38 => {
                         self.instr.opcode = Opcode::PUSH;
                         self.instr.data_length = Length::Word;
                         decode_mod_n_rm(self, bus, operand);
@@ -364,7 +364,7 @@ impl CPU {
                 self.instr.data_length = Length::Word;
                 let operand = self.fetch(bus);
                 decode_mod_reg_rm(self, bus, operand);
-                
+
                 if let OperandType::Register(reg) = self.instr.operand2 {
                     self.instr.offset = self.get_reg(reg);
                 }
@@ -748,7 +748,7 @@ impl CPU {
             0xD4 => {
                 self.instr.opcode = Opcode::AAM;
                 self.instr.data_length = Length::Byte;
-                // self.instr.operand1 = OperandType::Immediate(read_imm(self, bus));
+                self.instr.operand1 = OperandType::Immediate(read_imm(self, bus));
                 self.cycles += 83;
             }
             0xD5 => {
@@ -785,7 +785,13 @@ impl CPU {
                     0x18 => self.instr.opcode = Opcode::RCR,
                     0x20 => self.instr.opcode = Opcode::SALSHL,
                     0x28 => self.instr.opcode = Opcode::SHR,
-                    0x30 => self.instr.opcode = Opcode::SALSHL,
+                    0x30 => {
+                        if op == 0xD0 || op == 0xD1 {
+                            self.instr.opcode = Opcode::SETMO
+                        } else {
+                            self.instr.opcode = Opcode::SETMOC
+                        }
+                    }
                     0x38 => self.instr.opcode = Opcode::SAR,
                     _ => unreachable!(),
                 }

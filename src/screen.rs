@@ -46,6 +46,7 @@ impl EventHandler for IbmPc {
 
         while ctx.time.check_update_time(DESIRED_FPS as u32) {
             self.sys.update();
+            self.sys.bus.mda.frame_counter += 1;
             // veces += 1;
         }
 
@@ -56,15 +57,16 @@ impl EventHandler for IbmPc {
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
         let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
-        let img = self
-            .sys
-            .bus
-            .mda
-            .create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB0FA0]);
-        // .create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB1000]);
-
-        canvas.draw(&img, Vec2::new(0.0, 0.0));
-        canvas.finish(ctx)?;
+            let img = self
+                .sys
+                .bus
+                .mda
+                .create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB0FA0]);
+            // .create_frame(ctx, &self.sys.bus.memory[0xB0000..0xB1000]);
+    
+            canvas.draw(&img, Vec2::new(0.0, 0.0));
+            canvas.finish(ctx)?;
+        
 
         timer::yield_now();
         Ok(())

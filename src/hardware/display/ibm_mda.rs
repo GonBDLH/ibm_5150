@@ -9,7 +9,7 @@ use rayon::prelude::*;
 
 use crate::hardware::peripheral::Peripheral;
 
-use super::{crtc6845::CRTC6845, Char, DisplayAdapter, IMG_BUFF_SIZE};
+use super::{crtc6845::{CRTC6845, BlinkMode}, Char, DisplayAdapter, IMG_BUFF_SIZE};
 
 // const IMG_SIZE: usize = 720 * 350;
 
@@ -19,11 +19,14 @@ pub struct IbmMDA {
     pub img_buffer: Vec<u8>,
     pub font_rom: Vec<u8>,
 
-    font_map: [[[bool; 9]; 14]; 256], //IGUAL ESTO ESTA MAL NO SE: CARACTER / FILA / COLUMNA
+    font_map: [[[bool; 9]; 14]; 256],
 
     crtc: CRTC6845,
 
     retrace: u8,
+
+    pub frame_counter: usize,
+    cursor_color: u8,
 }
 
 fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 256] {
@@ -71,11 +74,51 @@ impl IbmMDA {
             crtc: CRTC6845::default(),
 
             retrace: 0,
+
+            frame_counter: 0,
+            cursor_color: 0xFF,
         }
     }
 
     fn enabled(&self) -> bool {
         self.crtc.op1 & 0b00001000 > 0
+    }
+
+    fn add_cursor(&mut self) {
+        let (x, y) = self.crtc.get_cursor_xy();
+        let cursor_size = self.crtc.get_cursor_start_end();
+        let blink_mode = self.crtc.get_cursor_blink();
+
+        for z in 0..14 {
+            for t in 0..9 {
+                if z < cursor_size.0 || z > cursor_size.1 {
+                    continue;
+                }
+
+                match blink_mode {
+                    BlinkMode::NonBlink => self.cursor_color = 0xFF,
+                    BlinkMode::NonDisplay => continue,
+                    BlinkMode::Blink1_16 => {
+                        if self.frame_counter % 16 == 0 {
+                            self.cursor_color = !self.cursor_color;
+                            self.frame_counter = 1;
+                        }
+                    },
+                    BlinkMode::Blink1_32 => {
+                        if self.frame_counter % 32 == 0 {
+                            self.cursor_color = !self.cursor_color;
+                            self.frame_counter = 1;
+                        }
+                    }
+                };
+
+                let index = t + x * 9 + z * 9 * 80 + y * 9 * 80 * 14;
+                for j in 0..3 {
+                    self.img_buffer[index * 4 + j] = self.cursor_color;
+                }
+                self.img_buffer[index * 4 + 3] = 0xFF;
+            }
+        }
     }
 }
 
@@ -142,6 +185,8 @@ impl DisplayAdapter for IbmMDA {
                 let new_pixel_slice = decode_pixel_slice(&self.font_map, row_index, character);
                 pixel_slice.copy_from_slice(&new_pixel_slice);
             });
+
+        self.add_cursor();
 
         Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350)
     }

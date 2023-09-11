@@ -2,6 +2,8 @@ use super::cpu_utils::*;
 use super::instr_utils::*;
 use super::Bus;
 use super::CPU;
+use super::regs::check_p;
+use super::regs::check_s;
 
 impl CPU {
     pub fn execute(&mut self, bus: &mut Bus) {
@@ -35,12 +37,17 @@ impl CPU {
                 self.set_val(bus, self.instr.operand2, val1);
             }
             Opcode::IN => {
+                #[cfg(not(test))]
                 let val = bus.port_in(self.instr.port);
+                #[cfg(test)]
+                let val = 0xFFFF;
                 self.set_val(bus, self.instr.operand1, val);
             }
             Opcode::OUT => {
-                let val = self.get_val(bus, self.instr.operand2);
-                bus.port_out(self, val, self.instr.port);
+                #[cfg(not(test))] {
+                    let val = self.get_val(bus, self.instr.operand2);
+                    bus.port_out(self, val, self.instr.port);
+                }
             }
             Opcode::XLAT => {
                 let val = bus.read_8(
@@ -120,14 +127,6 @@ impl CPU {
                     .set_add_flags(self.instr.data_length, val1, val2, res.0, res.1)
             }
             Opcode::ADC => {
-                // let val1 = self.get_val(bus, self.instr.operand1);
-                // let val2 = self
-                //     .get_val(bus, self.instr.operand2)
-                //     .overflowing_add(self.flags.c as u16);
-                // let res = val1.overflowing_add(val2.0);
-                // self.set_val(bus, self.instr.operand1, res.0);
-                // self.flags
-                //     .set_add_flags(self.instr.data_length, val1, val2.0, res.0, res.1 | val2.1)
                 let val1 = self.get_val(bus, self.instr.operand1);
                 let val2 = self.get_val(bus, self.instr.operand2);
                 let cflag = self.flags.c as u16;
@@ -285,8 +284,15 @@ impl CPU {
             }
             Opcode::AAM => {
                 let temp_al = self.ax.low;
-                // let val = self.get_val(bus, self.instr.operand1);
-                let val = 10;
+                let val = self.get_val(bus, self.instr.operand1);
+                // let val = 10;
+                if val == 0 {
+                    self.flags.set_aam_flags(self.ax.low);
+                    self.sw_int = true;
+                    self.instr.sw_int_type = 0;
+                    return;
+                }
+
                 self.ax.high = temp_al / val as u8;
                 self.ax.low = temp_al % val as u8;
 
@@ -304,8 +310,10 @@ impl CPU {
 
                 match self.instr.data_length {
                     Length::Byte => {
-                        let val1 = self.ax.low as u16;
+                        let val1 = self.ax.get_x();
                         let res_div = val1.wrapping_div(val2);
+                        println!("{:02X} {:02X} {:02X}", val1, val2, res_div);
+
                         if res_div > 0xFF {
                             self.sw_int = true;
                             self.instr.sw_int_type = 0;
@@ -316,7 +324,7 @@ impl CPU {
                         self.set_reg(self.instr.data_length, Operand::AH, val1.wrapping_rem(val2));
                     }
                     Length::Word => {
-                        let val1 = self.ax.get_x() as u32;
+                        let val1 = to_u32(self.ax.get_x(), self.dx.get_x());
                         let res_div = val1.wrapping_div(val2 as u32);
                         if res_div > 0xFFFF {
                             self.sw_int = true;
@@ -327,14 +335,14 @@ impl CPU {
                         self.set_reg(
                             self.instr.data_length,
                             Operand::DX,
-                            (val1 as u16).wrapping_rem(val2),
+                            val1.wrapping_rem(val2 as u32) as u16,
                         );
                     }
                     _ => unreachable!(),
                 };
             }
             Opcode::IDIV => {
-                let val2 = self.get_val(bus, self.instr.operand1) as i16;
+                let val2 = self.get_val(bus, self.instr.operand1);
 
                 if val2 == 0 {
                     // self.interrupt(bus, 0);
@@ -345,9 +353,11 @@ impl CPU {
 
                 match self.instr.data_length {
                     Length::Byte => {
-                        let val1 = self.ax.low as i8 as i16;
+                        let val1 = self.ax.get_x() as i16;
+                        let val2 = val2 as u8 as i8 as i16;
                         let res = val1.wrapping_div(val2);
-                        if res > 0x7F || -res > 0x80 {
+                        println!("{}/{}={} {:04X}",val1, val2, res, res as u16);
+                        if res > 127 || res < -127 {
                             // self.interrupt(bus, 0);
                             self.sw_int = true;
                             self.instr.sw_int_type = 0;
@@ -362,8 +372,9 @@ impl CPU {
                     }
                     Length::Word => {
                         let val1 = to_u32(self.ax.get_x(), self.dx.get_x()) as i32;
-                        let res = val1.wrapping_div(val2 as i32);
-                        if res > 0x7FFF || -res > 0x8000 {
+                        let val2 = val2 as i16 as i32;
+                        let res = val1.wrapping_div(val2);
+                        if res > 32767 || res < -32767 {
                             // self.interrupt(bus, 0);
                             self.sw_int = true;
                             self.instr.sw_int_type = 0;
@@ -372,8 +383,9 @@ impl CPU {
                             self.set_reg(
                                 self.instr.data_length,
                                 Operand::DX,
-                                val1.wrapping_rem(val2 as i32) as u16,
+                                val1.wrapping_rem(val2) as u16,
                             );
+                            // println!("{}/{}={} {}", val1, val2,res,val1.wrapping_rem(val2));
                         }
                     }
                     _ => unreachable!(),
@@ -405,17 +417,19 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = salshl(val, count, self.instr.data_length);
+                let res = salshl(self, val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_shift_flags(
-                    val,
-                    count,
-                    res,
-                    self.instr.data_length,
-                    self.instr.opcode,
-                );
+                if count == 1 {
+                    self.flags.o = get_msb(res, self.instr.data_length) ^ self.flags.c;
+                } else if count == 0 {
+                    return;
+                }
+
+                self.flags.s = check_s(res, self.instr.data_length);
+                self.flags.z = res == 0;
+                self.flags.p = check_p(res);
             }
             Opcode::SALC => {
                 if self.flags.c {
@@ -428,77 +442,97 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = shr(val, count, self.instr.data_length);
+                let res = shr(self, val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_shift_flags(
-                    val,
-                    count,
-                    res,
-                    self.instr.data_length,
-                    self.instr.opcode,
-                );
+                if count == 1 {
+                    self.flags.o = get_msb(val, self.instr.data_length);
+                } else if count == 0 {
+                    return;
+                }
+
+                self.flags.s = check_s(res, self.instr.data_length);
+                self.flags.z = res == 0;
+                self.flags.p = check_p(res);
             }
             Opcode::SAR => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = sar(val, count, self.instr.data_length);
+                let res = sar(self, val, count, self.instr.data_length);
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.set_shift_flags(
-                    val,
-                    count,
-                    res,
-                    self.instr.data_length,
-                    self.instr.opcode,
-                );
+                if count == 1 {
+                    self.flags.o = false;
+                } else if count == 0 {
+                    return;
+                }
+
+                self.flags.s = check_s(res, self.instr.data_length);
+                self.flags.z = res == 0;
+                self.flags.p = check_p(res);
             }
             Opcode::ROL => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate_left(val, count, self.instr.data_length);
+                let tmp_count = (count & 0x1F) % self.instr.data_length.get_num_bits() as u32;
 
-                self.set_val(bus, self.instr.operand1, res.0);
+                let res = rotate_left(val, tmp_count, self.instr.data_length);
+
+                if tmp_count != 0 {
+                    self.set_val(bus, self.instr.operand1, res);
+                }
 
                 self.flags
-                    .set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
+                    .set_rl_flags(count, self.instr.data_length, val, res, get_lsb(res as u8))
             }
             Opcode::ROR => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate_right(val, count, self.instr.data_length);
+                let tmp_count = (count & 0x1F) % self.instr.data_length.get_num_bits() as u32;
 
-                self.set_val(bus, self.instr.operand1, res.0);
+                let res = rotate_right(val, tmp_count, self.instr.data_length);
+
+                if tmp_count != 0 {
+                    self.set_val(bus, self.instr.operand1, res);
+                }
 
                 self.flags
-                    .set_rotate_flags(count, self.instr.data_length, val, res.0, res.1)
+                    .set_rr_flags(count, self.instr.data_length, val, res, get_msb(res, self.instr.data_length))
             }
             Opcode::RCL => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate_left_carry(self, val, count, self.instr.data_length);
+                let tmp_count = count % (self.instr.data_length.get_num_bits() as u32 + 1);
 
-                self.set_val(bus, self.instr.operand1, res);
+                let res = rotate_left_carry(self, val, tmp_count, self.instr.data_length);
+
+                if tmp_count != 0 {
+                    self.set_val(bus, self.instr.operand1, res);
+                }
 
                 self.flags
-                    .set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
+                    .set_rl_flags(count, self.instr.data_length, val, res, self.flags.c);
             }
             Opcode::RCR => {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let res = rotate_right_carry(self, val, count, self.instr.data_length);
+                let tmp_count = count % (self.instr.data_length.get_num_bits() as u32 + 1);
 
-                self.set_val(bus, self.instr.operand1, res);
+                let res = rotate_right_carry(self, val, tmp_count, self.instr.data_length);
+
+                if tmp_count != 0 {
+                    self.set_val(bus, self.instr.operand1, res);
+                }
 
                 self.flags
-                    .set_rotate_flags(count, self.instr.data_length, val, res, self.flags.c);
+                    .set_rr_flags(count, self.instr.data_length, val, res, self.flags.c);
             }
             Opcode::AND => {
                 let val1 = self.get_val(bus, self.instr.operand1);
@@ -526,6 +560,28 @@ impl CPU {
                 let res = val1 ^ val2;
                 self.set_val(bus, self.instr.operand1, res);
                 self.flags.set_logic_flags(self.instr.data_length, res)
+            }
+
+            Opcode::SETMO => {
+                self.set_val(bus, self.instr.operand1, 0xFFFF);
+                self.flags.p = check_p(0xFFFF);
+                self.flags.a = false;
+                self.flags.c = false;
+                self.flags.o = false;
+                self.flags.s = true;
+                self.flags.z = false;
+            }
+
+            Opcode::SETMOC => {
+                if self.cx.low != 0 {
+                    self.set_val(bus, self.instr.operand1, 0xFFFF);
+                    self.flags.p = check_p(0xFFFF);
+                    self.flags.a = false;
+                    self.flags.c = false;
+                    self.flags.o = false;
+                    self.flags.s = true;
+                    self.flags.z = false;
+                }
             }
 
             Opcode::MOVSB => self.string_op(bus, CPU::movs, 17),

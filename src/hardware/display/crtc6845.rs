@@ -1,3 +1,5 @@
+use crate::hardware::cpu_8088::cpu_utils::to_u16;
+
 #[derive(Default, Clone)]
 pub struct CRTC6845 {
     horizontal_total_reg: u8,        // W
@@ -58,4 +60,39 @@ impl CRTC6845 {
             _ => 0,
         }
     }
+
+    pub fn get_cursor_xy(&self) -> (usize, usize) {
+        let ch = self.cursorh_reg;
+        let cl = self.cursorl_reg;
+        let cursor_addres = to_u16(cl, ch);
+
+        let x = cursor_addres % 80;
+        let y = cursor_addres / 80;
+
+        (x as usize, y as usize)
+    }
+
+    pub fn get_cursor_start_end(&self) -> (usize, usize) {
+        ((self.cursor_start_reg & 0b00011111) as usize, self.cursor_end_reg as usize)
+    }
+
+    pub fn get_cursor_blink(&self) -> BlinkMode {
+        let blink_control = (self.cursor_start_reg & 0b01100000) >> 5;
+
+        match blink_control {
+            0b00 => BlinkMode::NonBlink,
+            0b01 => BlinkMode::NonDisplay,
+            0b10 => BlinkMode::Blink1_16,
+            0b11 => BlinkMode::Blink1_32,
+            _ => unreachable!()
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum BlinkMode {
+    NonBlink,
+    NonDisplay,
+    Blink1_16,
+    Blink1_32,
 }

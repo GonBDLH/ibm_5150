@@ -1,3 +1,5 @@
+use crate::util::debug_bios::ADDR_QUEUE;
+
 use super::cpu_utils::*;
 use super::instr_utils::*;
 use super::Bus;
@@ -405,6 +407,10 @@ impl CPU {
             }
 
             0x00..=0x03 => {
+                // if op == 0 {
+                //     println!("MAL SALTO: {:#05X?}", ADDR_QUEUE.lock());
+                // }
+
                 self.instr.opcode = Opcode::ADD;
                 self.instr.direction = Direction::new(op);
                 self.instr.data_length = Length::new(op, 0);

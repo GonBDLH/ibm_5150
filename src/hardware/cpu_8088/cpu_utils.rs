@@ -56,28 +56,16 @@ pub fn get_lsb(val: u8) -> bool {
 
 pub fn rotate_left(val: u16, count: u32, len: Length) -> u16 {
     match len {
-        Length::Byte => {
-            let res = (val as u8).rotate_left(count);
-            res as u16
-        }
-        Length::Word => {
-            let res = val.rotate_left(count);
-            res
-        }
+        Length::Byte => (val as u8).rotate_left(count) as u16,
+        Length::Word => val.rotate_left(count),
         _ => unreachable!(),
     }
 }
 
 pub fn rotate_right(val: u16, count: u32, len: Length) -> u16 {
     match len {
-        Length::Byte => {
-            let res = (val as u8).rotate_right(count);
-            res as u16
-        }
-        Length::Word => {
-            let res = val.rotate_right(count);
-            res
-        }
+        Length::Byte => (val as u8).rotate_right(count) as u16,
+        Length::Word => val.rotate_right(count),
         _ => unreachable!(),
     }
 }
@@ -243,7 +231,7 @@ pub fn sar(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
             }
 
             res as u16
-        },
+        }
         _ => unreachable!(),
     }
 }
@@ -269,7 +257,7 @@ pub fn shr(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
             }
 
             res
-        },
+        }
         _ => unreachable!(),
     }
 }
@@ -295,7 +283,7 @@ pub fn salshl(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
             }
 
             res
-        },
+        }
         _ => unreachable!(),
     }
 }

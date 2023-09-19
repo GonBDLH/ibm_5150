@@ -1,4 +1,6 @@
+use ggez::conf::WindowSetup;
 use ibm_5150::debugger::*;
+use ibm_5150::hardware::switches_cfg::*;
 use ibm_5150::screen::*;
 use std::env;
 
@@ -15,25 +17,43 @@ fn main_debugger() -> Result<(), eframe::Error> {
 }
 
 fn main_view() -> GameResult {
+    let sw1 = DD_ENABLE | RESERVED | MEM_64K | DISPLAY_CGA_40_25 | DRIVES_2;
+    let sw2 = HIGH_NIBBLE | PLUS_32;
+
+    let dimensions = match (sw1 & 0b00110000) >> 4 {
+        0b00 => panic!("Reserved"),
+        0b01 => (320., 200.),
+        0b10 => (640., 200.),
+        0b11 => (720., 350.),
+        _ => unreachable!(),
+    };
+
     let win_mode = WindowMode::default()
-        .dimensions(720., 350.)
+        .dimensions(dimensions.0 * 2., dimensions.1 * 2.)
         .resize_on_scale_factor_change(true);
 
-    let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo").window_mode(win_mode);
+    let win_setup = WindowSetup::default()
+        .srgb(true);
+
+    let cb = ggez::ContextBuilder::new("IBM 5150", "Gonzalo").window_mode(win_mode).window_setup(win_setup);
 
     let (ctx, event_loop) = cb.build()?;
 
-    let mut app = IbmPc::new();
+    let mut app = IbmPc::new(&ctx, sw1, sw2, dimensions);
     //graphics::set_mode(&mut ctx, win_mode)?;
 
     app.sys.rst();
     app.sys.load_roms();
+
     app.sys
         .disk_ctrl
-        .insert_disk(&mut app.sys.bus, 0, "roms/dos/Disk01.img");
+        .insert_disk(&mut app.sys.bus, 0, "roms/dos/3.00/Disk01.img");
     app.sys
         .disk_ctrl
-        .insert_disk(&mut app.sys.bus, 1, "roms/dos/Disk02.img");
+        .insert_disk(&mut app.sys.bus, 1, "roms/dos/3.00/Disk02.img");
+    // app.sys
+    //     .disk_ctrl
+    //     .insert_disk(&mut app.sys.bus, 0, "roms/dos/1.10/DISK01.IMA");
 
     event::run(ctx, event_loop, app);
 }

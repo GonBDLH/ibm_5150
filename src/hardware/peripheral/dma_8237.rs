@@ -8,7 +8,6 @@ struct Channel {
     toggle: bool,
 }
 
-#[derive(Clone)]
 pub struct DMA8237 {
     channels: [Channel; 4],
 }

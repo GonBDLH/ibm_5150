@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 pub mod hardware;
 pub mod util;
 
@@ -9,18 +12,16 @@ use std::io::Read;
 use assert_hex::assert_eq_hex;
 use egui::epaint::ahash::HashMap;
 use flate2::read::GzDecoder;
-#[allow(unused_imports)]
 use hardware::{
     cpu_8088::instr_utils::{Opcode, RepetitionPrefix},
     sys::System,
 };
-#[allow(unused_imports)]
 use ntest::timeout;
 use serde::Deserialize;
 
 use crate::hardware::cpu_8088::cpu_utils::to_2u8;
+use crate::hardware::switches_cfg::*;
 
-#[allow(dead_code)]
 fn open_json(path: &str) -> Vec<Instr> {
     let buff = std::fs::read(path).unwrap();
     let mut decoder = GzDecoder::new(&buff[..]);
@@ -34,14 +35,12 @@ fn open_json(path: &str) -> Vec<Instr> {
     serde_json::from_str(&str_file_gz).unwrap()
 }
 
-#[allow(dead_code)]
 fn open_metadata() -> HashMap<String, Entry> {
     let buff = std::fs::read("roms/tests/8088/v1/8088.json").unwrap();
 
     serde_json::from_slice(&buff).unwrap()
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 enum Entry {
@@ -49,14 +48,13 @@ enum Entry {
         status: String,
         flags: Option<String>,
         #[serde(rename = "flags-mask")]
-        flags_mask: Option<u16>
+        flags_mask: Option<u16>,
     },
     Nested {
-        reg: HashMap<String, Entry>
-    }
+        reg: HashMap<String, Entry>,
+    },
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct State {
     regs: HashMap<String, u16>,
@@ -64,7 +62,6 @@ struct State {
     queue: Vec<u8>,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct Instr {
     name: String,
@@ -75,7 +72,6 @@ struct Instr {
     final_state: State,
 }
 
-#[allow(dead_code)]
 fn set_state(instr: &Instr, sys: &mut System) {
     sys.cpu
         .ax
@@ -107,8 +103,12 @@ fn set_state(instr: &Instr, sys: &mut System) {
     }
 }
 
-#[allow(dead_code)]
-fn check_state(instr: &Instr, sys: &mut System, metadata: &HashMap<String, Entry>, file_name: &str) {
+fn check_state(
+    instr: &Instr,
+    sys: &mut System,
+    metadata: &HashMap<String, Entry>,
+    file_name: &str,
+) {
     assert_eq_hex!(
         sys.cpu.ax.get_x(),
         *instr.final_state.regs.get("ax").unwrap(),
@@ -202,7 +202,7 @@ fn check_state(instr: &Instr, sys: &mut System, metadata: &HashMap<String, Entry
     );
 
     let mut parts = Vec::new();
-    for part in file_name.split(".") {
+    for part in file_name.split('.') {
         parts.push(part);
     }
 
@@ -213,15 +213,21 @@ fn check_state(instr: &Instr, sys: &mut System, metadata: &HashMap<String, Entry
                 if let Some(m) = reg.get(option) {
                     match m {
                         Entry::Nested { reg: _ } => None,
-                        Entry::Normal { status: _, flags: _, flags_mask } => flags_mask.clone()
+                        Entry::Normal {
+                            status: _,
+                            flags: _,
+                            flags_mask,
+                        } => *flags_mask,
                     }
                 } else {
                     None
                 }
-            },
-            Entry::Normal { status: _, flags: _, flags_mask } => {
-                flags_mask.clone()
             }
+            Entry::Normal {
+                status: _,
+                flags: _,
+                flags_mask,
+            } => *flags_mask,
         }
     } else {
         None
@@ -282,7 +288,11 @@ macro_rules! create_test {
             let metadata = open_metadata();
 
             for i in v {
-                let mut sys = System::new();
+                let mut sys = System::new(
+                    DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
+                    HIGH_NIBBLE | PLUS_0,
+                    (720., 350.),
+                );
                 set_state(&i, &mut sys);
 
                 // if i.name == String::from("add byte cs:[bp+si+E7h], bh") {

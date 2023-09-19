@@ -3,14 +3,17 @@ use crate::hardware::cpu_8088::instr_utils::Length;
 use crate::hardware::cpu_8088::CPU;
 
 use super::cpu_8088::instr_utils::Segment;
+use super::display::cga::CGA;
 use super::display::ibm_mda::IbmMDA;
+use super::display::DisplayAdapter;
 use super::peripheral::dma_8237::DMA8237;
+use super::peripheral::fdc_necupd765::FloppyDiskController;
 use super::peripheral::pic_8259::PIC8259;
 use super::peripheral::ppi_8255::PPI8255;
 use super::peripheral::timer_8253::TIM8253;
 use super::peripheral::Peripheral;
+use super::switches_cfg::*;
 
-#[derive(Clone)]
 pub struct Bus {
     // pub memory: [u8; 0x100000],
     pub memory: Vec<u8>,
@@ -19,26 +22,31 @@ pub struct Bus {
     pub dma: DMA8237,
     pub ppi: PPI8255,
     pub mda: IbmMDA,
+    pub cga: CGA,
+    pub fdc: FloppyDiskController,
 }
 
 impl Bus {
-    pub fn new() -> Self {
+    pub fn new(sw1: u8, sw2: u8, dimensions: (f32, f32)) -> Self {
         Bus {
             memory: vec![0x00; 0x100000],
             pic: PIC8259::new(),
             pit: TIM8253::new(),
             dma: DMA8237::new(),
-            ppi: PPI8255::new(),
-            mda: IbmMDA::new(),
+            ppi: PPI8255::new(sw1, sw2),
+            mda: IbmMDA::new(dimensions),
+            cga: CGA::new(dimensions),
+            fdc: FloppyDiskController::default(),
         }
     }
 
     pub fn update_peripherals(&mut self, cycles: u32) {
-        self.update_timer();
+        self.update_timer(cycles);
         self.update_ppi(cycles);
     }
 
-    fn update_timer(&mut self) {
+    fn update_timer(&mut self, cycles: u32) {
+        self.pit.cycles += cycles;
         self.pit.update(&mut self.pic, &mut self.ppi);
     }
 
@@ -59,6 +67,8 @@ impl Bus {
             0xA0..=0xAF => 0,
 
             0x3B0..=0x3BF => self.mda.port_in(port),
+            0x3D0..=0x3DF => self.cga.port_in(port),
+            0x3F0..=0x3F7 => self.fdc.port_in(port),
             _ => 0,
         }
     }
@@ -73,6 +83,8 @@ impl Bus {
             0xA0..=0xAF => cpu.nmi_out(val),
 
             0x3B0..=0x3BF => self.mda.port_out(val, port),
+            0x3D0..=0x3DF => self.cga.port_out(val, port),
+            0x3F0..=0x3F7 => self.fdc.port_out(val, port),
             _ => {}
         };
     }
@@ -98,6 +110,11 @@ impl Bus {
         #[cfg(not(test))]
         if ea >= 0xC0000 {
             return;
+        }
+
+        if (0xA0000..0xC0000).contains(&ea) {
+            self.mda.set_dirty_vram(true);
+            self.cga.set_dirty_vram(true);
         }
 
         self.memory[ea] = val;
@@ -142,6 +159,10 @@ impl Bus {
 
 impl Default for Bus {
     fn default() -> Self {
-        Self::new()
+        Self::new(
+            DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
+            HIGH_NIBBLE | PLUS_0,
+            (720., 350.),
+        )
     }
 }

@@ -1,6 +1,5 @@
 use super::Peripheral;
 
-#[derive(Copy, Clone)]
 pub struct PIC8259 {
     isr: u8,
     imr: u8,
@@ -11,7 +10,6 @@ pub struct PIC8259 {
     icw_step: usize,
 }
 
-#[derive(Clone, Copy)]
 pub enum IRQs {
     Irq0 = 0b00000001,
     Irq1 = 0b00000010,
@@ -47,7 +45,7 @@ impl PIC8259 {
     pub fn get_next(&mut self) -> u8 {
         let requested_ints = self.irr & !self.imr;
         for i in 0..8 {
-            if requested_ints & 1 << (7 - i) > 0 {
+            if requested_ints & (1 << (7 - i)) > 0 {
                 self.isr |= 1 << (7 - i);
                 self.irr ^= 1 << (7 - i);
                 return self.icw[1] + (7 - i);

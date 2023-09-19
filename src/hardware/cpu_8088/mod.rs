@@ -4,7 +4,7 @@ mod execute;
 pub mod instr_utils;
 pub mod regs;
 
-use super::{bus::Bus, casette::CasetteController};
+use super::{bus::Bus, peripheral::fdc_necupd765::FloppyDiskController};
 use cpu_utils::*;
 use instr_utils::*;
 use regs::{Flags, GPReg};
@@ -130,7 +130,7 @@ impl CPU {
     pub fn handle_interrupts(
         &mut self,
         bus: &mut Bus,
-        disk_ctrl: &mut CasetteController,
+        disk_ctrl: &mut FloppyDiskController,
         cycles: &mut u32,
     ) {
         if self.sw_int {

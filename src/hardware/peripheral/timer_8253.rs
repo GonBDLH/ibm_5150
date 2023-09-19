@@ -4,7 +4,7 @@ use super::{
     Peripheral,
 };
 
-#[derive(Clone, Copy, PartialEq, Debug, Default)]
+#[derive(PartialEq, Debug, Default)]
 enum Mode {
     #[default]
     Mode0,
@@ -15,7 +15,7 @@ enum Mode {
     Mode5,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct TIM8253 {
     pub cycles: u32,
 
@@ -108,7 +108,9 @@ impl TIM8253 {
                     Mode::Mode2 => self.mode2(i, pic),
                     Mode::Mode3 => self.mode3(i, pic),
 
-                    _ => {} // TODO
+                    _ => {
+                        println!("Modo no implementado")
+                    } // TODO
                 }
             }
 

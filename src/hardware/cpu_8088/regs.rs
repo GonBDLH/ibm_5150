@@ -98,7 +98,7 @@ impl Flags {
         let p = ((self.p as u16) << 2) & 0b0000000000000100;
         let c = (self.c as u16) & 0b0000000000000001;
 
-        return 0xF000 + o + d + i + t + s + z + a + p + c + 2;
+        0xF000 + o + d + i + t + s + z + a + p + c + 2
     }
 }
 
@@ -315,14 +315,7 @@ impl Flags {
         }
     }
 
-    pub fn set_rl_flags(
-        &mut self,
-        count: u32,
-        len: Length,
-        _val: u16,
-        res: u16,
-        last_bit: bool,
-    ) {
+    pub fn set_rl_flags(&mut self, count: u32, len: Length, _val: u16, res: u16, last_bit: bool) {
         // println!("{:016b}", res);
         if count != 0 {
             self.c = last_bit;
@@ -332,14 +325,7 @@ impl Flags {
         }
     }
 
-    pub fn set_rr_flags(
-        &mut self,
-        count: u32,
-        len: Length,
-        _val: u16,
-        res: u16,
-        last_bit: bool,
-    ) {
+    pub fn set_rr_flags(&mut self, count: u32, len: Length, _val: u16, res: u16, last_bit: bool) {
         // println!("{:016b}", res);
         if count != 0 {
             self.c = last_bit;

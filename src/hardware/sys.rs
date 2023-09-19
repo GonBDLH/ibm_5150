@@ -1,29 +1,41 @@
 // use std::fs::File;
 use std::fs::File;
 
+use ggez::graphics::Image;
+use ggez::Context;
+
 use super::bus::Bus;
-use super::casette::CasetteController;
 use super::cpu_8088::{cpu_utils::get_address, CPU};
+use super::display::DisplayAdapter;
+use super::peripheral::fdc_necupd765::FloppyDiskController;
+use super::switches_cfg::*;
 
 use std::fs::OpenOptions;
 
 pub struct System {
     pub cpu: CPU,
     pub bus: Bus,
-    pub disk_ctrl: CasetteController,
+
+    // TODO REMOVE THIS
+    pub disk_ctrl: FloppyDiskController,
 
     pub running: bool,
 
     pub file: File,
     cycles_step: u32,
+
+    sw1: u8,
+    sw2: u8,
+
+    screen_dimensions: (f32, f32),
 }
 
 impl System {
-    pub fn new() -> Self {
+    pub fn new(sw1: u8, sw2: u8, dimensions: (f32, f32)) -> Self {
         let sys = System {
             cpu: CPU::new(),
-            bus: Bus::new(),
-            disk_ctrl: CasetteController::default(),
+            bus: Bus::new(sw1, sw2, dimensions),
+            disk_ctrl: FloppyDiskController::default(),
 
             running: false,
 
@@ -33,6 +45,10 @@ impl System {
                 .open("logs/logs.txt")
                 .unwrap(),
             cycles_step: 0,
+            sw1,
+            sw2,
+
+            screen_dimensions: dimensions,
         };
 
         sys
@@ -41,7 +57,11 @@ impl System {
 
 impl Default for System {
     fn default() -> Self {
-        System::new()
+        System::new(
+            DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
+            HIGH_NIBBLE | PLUS_0,
+            (720., 350.),
+        )
     }
 }
 
@@ -50,7 +70,7 @@ use crate::{screen::DESIRED_FPS, util::debug_bios::debug_82};
 impl System {
     pub fn rst(&mut self) {
         self.cpu = CPU::new();
-        self.bus = Bus::new();
+        self.bus = Bus::new(self.sw1, self.sw2, self.screen_dimensions);
 
         self.running = false;
     }
@@ -89,7 +109,17 @@ impl System {
 
             self.step(&mut cycles_ran);
 
-            if get_address(&self.cpu) == 0x07C00 {
+            if get_address(&self.cpu) == 0x1A23 {
+                self.running = false;
+                break;
+            }
+
+            if get_address(&self.cpu) == 0x193B {
+                self.running = false;
+                break;
+            }
+
+            if get_address(&self.cpu) == 0x7C00 {
                 self.running = false;
                 break;
             }
@@ -161,6 +191,24 @@ impl System {
             self.cpu.cs = 0xF000;
             self.cpu.ip = 0xFFF0;
             self.bus.memory[0xF0000 + idx] = element;
+        }
+    }
+
+    pub fn create_frame(&mut self, ctx: &mut Context) -> Image {
+        match self.sw1 & 0b00110000 {
+            DISPLAY_MDA_80_25 => self
+                .bus
+                .mda
+                .create_frame(ctx, &self.bus.memory[0xB0000..0xB4000]),
+            DISPLAY_CGA_40_25 => self
+                .bus
+                .cga
+                .create_frame(ctx, &self.bus.memory[0xB8000..0xBC000]),
+            DISPLAY_CGA_80_25 => self
+                .bus
+                .cga
+                .create_frame(ctx, &self.bus.memory[0xB8000..0xBC000]),
+            _ => unreachable!(),
         }
     }
 }

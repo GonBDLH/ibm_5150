@@ -47,10 +47,19 @@ impl Default for MyApp {
 
         app.sys
             .disk_ctrl
-            .insert_disk(&mut app.sys.bus, 0, "roms/dos/Disk01.img");
+            .insert_disk(&mut app.sys.bus, 0, "roms/dos/2.10/Disk01.img");
         app.sys
             .disk_ctrl
-            .insert_disk(&mut app.sys.bus, 1, "roms/dos/Disk02.img");
+            .insert_disk(&mut app.sys.bus, 1, "roms/dos/2.10/Disk02.img");
+        // app.sys
+        //     .disk_ctrl
+        //     .insert_disk(&mut app.sys.bus, 0, "roms/dos/PCDOS210-DISK1.img");
+        // app.sys
+        //     .disk_ctrl
+        //     .insert_disk(&mut app.sys.bus, 1, "roms/dos/Disk02.img");
+        // app.sys
+        //     .disk_ctrl
+        //     .insert_disk(&mut app.sys.bus, 0, "roms/dos/DISK01.IMA");
 
         app
     }
@@ -94,9 +103,6 @@ impl eframe::App for MyApp {
                         builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
                             strip.cell(|ui| {
                                 self.reg_view(ui);
-                            });
-                            strip.cell(|ui| {
-                                ui.label("Top Right");
                             });
                         });
                     });

@@ -24,6 +24,11 @@ pub struct CRTC6845 {
     pub adddr_reg: usize,
     pub op1: u8,
     pub sp: u8,
+
+    pub dirty_vram: bool,
+    pub frame_counter: usize,
+
+    pub retrace: u8,
 }
 
 impl CRTC6845 {
@@ -73,18 +78,21 @@ impl CRTC6845 {
     }
 
     pub fn get_cursor_start_end(&self) -> (usize, usize) {
-        ((self.cursor_start_reg & 0b00011111) as usize, self.cursor_end_reg as usize)
+        (
+            (self.cursor_start_reg & 0b00011111) as usize,
+            self.cursor_end_reg as usize,
+        )
     }
 
     pub fn get_cursor_blink(&self) -> BlinkMode {
         let blink_control = (self.cursor_start_reg & 0b01100000) >> 5;
 
         match blink_control {
-            0b00 => BlinkMode::NonBlink,
+            0b10 => BlinkMode::NonBlink,
             0b01 => BlinkMode::NonDisplay,
-            0b10 => BlinkMode::Blink1_16,
+            0b00 => BlinkMode::Blink1_16,
             0b11 => BlinkMode::Blink1_32,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }

@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 lazy_static! {
     pub static ref IP_QUEUE: Mutex<VecDeque<u16>> = Mutex::new(VecDeque::with_capacity(4));
+    pub static ref ADDR_QUEUE: Mutex<VecDeque<usize>> = Mutex::new(VecDeque::with_capacity(4));
 }
 
 pub fn debug_82(cpu: &mut CPU) {
@@ -13,6 +14,12 @@ pub fn debug_82(cpu: &mut CPU) {
     ip_queue_lock.push_back(cpu.ip);
     if ip_queue_lock.len() == 10 {
         ip_queue_lock.pop_front();
+    }
+
+    let mut addr_queue_lock = ADDR_QUEUE.lock().unwrap();
+    addr_queue_lock.push_back(get_address(cpu));
+    if addr_queue_lock.len() == 10 {
+        addr_queue_lock.pop_front();
     }
 
     match get_address(cpu) {

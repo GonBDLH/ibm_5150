@@ -723,11 +723,9 @@ pub fn decode_mem(
                 let disp_low = cpu.fetch(bus);
                 let disp_high = cpu.fetch(bus);
 
-                // cpu.instr.segment = Segment::Dir(disp_high as u16 + ds);
                 cpu.instr.offset = to_u16(disp_low, disp_high);
                 cpu.instr.ea_cycles = 6;
 
-                // TODO Esto no se si estara mal
                 OperandType::Memory(Operand::Disp(to_u16(disp_low, disp_high)))
             }
             0b111 => {

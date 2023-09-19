@@ -5,11 +5,15 @@ use ggez::{
     Context,
 };
 
+use crate::hardware::display::process_pixel_slice;
 use rayon::prelude::*;
 
 use crate::hardware::peripheral::Peripheral;
 
-use super::{crtc6845::{CRTC6845, BlinkMode}, Char, DisplayAdapter, IMG_BUFF_SIZE};
+use super::{
+    crtc6845::{BlinkMode, CRTC6845},
+    BWChar, Character, DisplayAdapter,
+};
 
 // const IMG_SIZE: usize = 720 * 350;
 
@@ -23,10 +27,9 @@ pub struct IbmMDA {
 
     crtc: CRTC6845,
 
-    retrace: u8,
-
-    pub frame_counter: usize,
     cursor_color: u8,
+
+    screen_dimensions: (f32, f32),
 }
 
 fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 256] {
@@ -58,9 +61,9 @@ fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 256] {
 }
 
 impl IbmMDA {
-    pub fn new() -> IbmMDA {
+    pub fn new(dimensions: (f32, f32)) -> IbmMDA {
         // let a: Vec<u8> = (0..IMG_BUFF_SIZE).map(|x| if x % 4 == 3 {0xFF} else {0x00}).collect();
-        let a = vec![0x00; IMG_BUFF_SIZE];
+        let a = vec![0x00; (dimensions.0 * dimensions.1 * 4.) as usize];
         let mut file =
             std::fs::File::open("roms/IBM_5788005_AM9264_1981_CGA_MDA_CARD.BIN").unwrap();
         let mut buf = Vec::new();
@@ -73,10 +76,9 @@ impl IbmMDA {
 
             crtc: CRTC6845::default(),
 
-            retrace: 0,
-
-            frame_counter: 0,
             cursor_color: 0xFF,
+
+            screen_dimensions: dimensions,
         }
     }
 
@@ -99,15 +101,15 @@ impl IbmMDA {
                     BlinkMode::NonBlink => self.cursor_color = 0xFF,
                     BlinkMode::NonDisplay => continue,
                     BlinkMode::Blink1_16 => {
-                        if self.frame_counter % 16 == 0 {
+                        if self.crtc.frame_counter % 16 == 0 {
                             self.cursor_color = !self.cursor_color;
-                            self.frame_counter = 1;
+                            self.crtc.frame_counter = 1;
                         }
-                    },
+                    }
                     BlinkMode::Blink1_32 => {
-                        if self.frame_counter % 32 == 0 {
+                        if self.crtc.frame_counter % 32 == 0 {
                             self.cursor_color = !self.cursor_color;
-                            self.frame_counter = 1;
+                            self.crtc.frame_counter = 1;
                         }
                     }
                 };
@@ -124,33 +126,19 @@ impl IbmMDA {
 
 impl Default for IbmMDA {
     fn default() -> Self {
-        IbmMDA::new()
+        IbmMDA::new((720., 350.))
     }
 }
 
 fn decode_pixel_slice(
     font_map: &[[[bool; 9]; 14]; 256],
     row: usize,
-    character: Char,
+    character: BWChar,
 ) -> [u8; 9 * 4] {
     let character_slice = font_map[character.index][row];
     let mut return_slice = [0x00; 9 * 4];
 
-    return_slice
-        .chunks_mut(4)
-        .zip(character_slice.iter())
-        .for_each(|(pixels, val)| {
-            let color = if *val {
-                character.foreground_color.to_rgba()
-            } else {
-                character.background_color.to_rgba()
-            };
-
-            pixels[0] = color.0;
-            pixels[1] = color.1;
-            pixels[2] = color.2;
-            pixels[3] = color.3;
-        });
+    process_pixel_slice(&mut return_slice, &character_slice, character);
 
     return_slice
 }
@@ -160,11 +148,16 @@ impl DisplayAdapter for IbmMDA {
         if !self.enabled() {
             return Image::from_pixels(
                 ctx,
-                &[0x00; IMG_BUFF_SIZE],
+                &vec![0x00; (self.screen_dimensions.0 * self.screen_dimensions.1 * 4.) as usize],
                 ImageFormat::Rgba8Unorm,
                 720,
                 350,
             );
+        }
+
+        if !self.get_dirty_vram() {
+            self.add_cursor();
+            return Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350);
         }
 
         self.img_buffer
@@ -180,15 +173,28 @@ impl DisplayAdapter for IbmMDA {
                 let vram_char = vram[char_index] as usize;
                 let vram_attr = vram[char_index + 1];
 
-                let character = Char::new(vram_char).decode_colors(vram_attr);
+                let character = BWChar::new(vram_char).decode_colors(vram_attr);
 
                 let new_pixel_slice = decode_pixel_slice(&self.font_map, row_index, character);
                 pixel_slice.copy_from_slice(&new_pixel_slice);
             });
 
         self.add_cursor();
+        self.set_dirty_vram(false);
 
-        Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350)
+        Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Uint, 720, 350)
+    }
+
+    fn get_dirty_vram(&self) -> bool {
+        self.crtc.dirty_vram
+    }
+
+    fn set_dirty_vram(&mut self, val: bool) {
+        self.crtc.dirty_vram = val;
+    }
+
+    fn inc_frame_counter(&mut self) {
+        self.crtc.frame_counter += 1;
     }
 }
 
@@ -198,8 +204,8 @@ impl Peripheral for IbmMDA {
             0x3B8 => self.crtc.op1 as u16,
             // 0x3BA => self.crtc_sp as u16,
             0x3BA => {
-                self.retrace = (self.retrace + 1) % 4;
-                match self.retrace {
+                self.crtc.retrace = (self.crtc.retrace + 1) % 4;
+                match self.crtc.retrace {
                     0 => 8,
                     1 => 0,
                     2 => 1,

@@ -1,4 +1,5 @@
 pub mod dma_8237;
+pub mod fdc_necupd765;
 pub mod pic_8259;
 pub mod ppi_8255;
 pub mod timer_8253;

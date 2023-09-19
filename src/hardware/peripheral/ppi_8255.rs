@@ -7,17 +7,10 @@ use super::{
     Peripheral,
 };
 
-// IMPORTANTE: ESTAN AL REVES, LA POSICION 1 ES EL BIT 0.
-//             ON = 0, OFF = 1
-// const SW1: u8 = 0b00110000;
-const SW1: u8 = 0b00110101;
-// const SW2: u8 = 0b00001111;
-const SW2: u8 = 0b11100000;
-
 const KBD_RESET_CYCLES: u32 = 47700; // 20 ms
 const KBD_RESET_CYCLE_DELAY: u32 = 100;
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct PPI8255 {
     key_code: u8,
     pub port_b: u8,
@@ -25,9 +18,11 @@ pub struct PPI8255 {
     mode_reg: u8,
 
     kbd: Keyboard,
+
+    sw1: u8,
+    sw2: u8,
 }
 
-#[derive(Clone)]
 pub struct Keyboard {
     clear: bool,
     reset: bool,
@@ -67,14 +62,11 @@ impl Default for Keyboard {
 }
 
 impl PPI8255 {
-    pub fn new() -> Self {
+    pub fn new(sw1: u8, sw2: u8) -> Self {
         PPI8255 {
-            key_code: 0x00,
-            port_b: 0x00,
-            port_c: 0x00,
-            mode_reg: 0x00,
-
-            kbd: Keyboard::new(),
+            sw1,
+            sw2,
+            ..Default::default()
         }
     }
 
@@ -95,17 +87,19 @@ impl PPI8255 {
 
     fn read_pa(&mut self) -> u8 {
         if self.port_b & 0x80 == 0x80 {
-            SW1
+            // DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2
+            self.sw1
         } else {
             self.key_code
         }
     }
 
     pub fn read_pc(&mut self) -> u8 {
-        if self.port_b & 0x04 == 0x04 {
-            SW2 & 0x0F | self.port_c & 0xF0
+        // let sw2 = HIGH_NIBBLE | PLUS_0;
+        if self.port_b & 0x04 != 0 {
+            self.sw2 & 0x0F | self.port_c & 0xF0
         } else {
-            (SW2 >> 4) & 0x01 | self.port_c & 0xF0
+            (self.sw2 >> 1) & 0x0F | self.port_c & 0xF0
         }
     }
 

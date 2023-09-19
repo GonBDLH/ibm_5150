@@ -1,9 +1,9 @@
 use super::cpu_utils::*;
 use super::instr_utils::*;
-use super::Bus;
-use super::CPU;
 use super::regs::check_p;
 use super::regs::check_s;
+use super::Bus;
+use super::CPU;
 
 impl CPU {
     pub fn execute(&mut self, bus: &mut Bus) {
@@ -312,7 +312,6 @@ impl CPU {
                     Length::Byte => {
                         let val1 = self.ax.get_x();
                         let res_div = val1.wrapping_div(val2);
-                        println!("{:02X} {:02X} {:02X}", val1, val2, res_div);
 
                         if res_div > 0xFF {
                             self.sw_int = true;
@@ -351,18 +350,22 @@ impl CPU {
                     return;
                 }
 
+                let rep_neg = if self.instr.repetition_prefix != RepetitionPrefix::None {
+                    -1
+                } else {
+                    1
+                };
+
                 match self.instr.data_length {
                     Length::Byte => {
                         let val1 = self.ax.get_x() as i16;
                         let val2 = val2 as u8 as i8 as i16;
                         let res = val1.wrapping_div(val2);
-                        println!("{}/{}={} {:04X}",val1, val2, res, res as u16);
-                        if res > 127 || res < -127 {
-                            // self.interrupt(bus, 0);
+                        if !(-127..=127).contains(&res) {
                             self.sw_int = true;
                             self.instr.sw_int_type = 0;
                         } else {
-                            self.set_reg(self.instr.data_length, Operand::AL, res as u16);
+                            self.set_reg(self.instr.data_length, Operand::AL, (res * rep_neg) as u16);
                             self.set_reg(
                                 self.instr.data_length,
                                 Operand::AH,
@@ -374,18 +377,16 @@ impl CPU {
                         let val1 = to_u32(self.ax.get_x(), self.dx.get_x()) as i32;
                         let val2 = val2 as i16 as i32;
                         let res = val1.wrapping_div(val2);
-                        if res > 32767 || res < -32767 {
-                            // self.interrupt(bus, 0);
+                        if !(-32767..=32767).contains(&res) {
                             self.sw_int = true;
                             self.instr.sw_int_type = 0;
                         } else {
-                            self.set_reg(self.instr.data_length, Operand::AX, res as u16);
+                            self.set_reg(self.instr.data_length, Operand::AX, (res * (rep_neg as i32)) as u16);
                             self.set_reg(
                                 self.instr.data_length,
                                 Operand::DX,
                                 val1.wrapping_rem(val2) as u16,
                             );
-                            // println!("{}/{}={} {}", val1, val2,res,val1.wrapping_rem(val2));
                         }
                     }
                     _ => unreachable!(),
@@ -618,22 +619,24 @@ impl CPU {
                 }
                 _ => unreachable!(),
             },
-            Opcode::JMP => match self.instr.jump_type {
-                JumpType::DirWithinSegment(disp) => self.ip = self.ip.wrapping_add(disp),
-                JumpType::DirWithinSegmentShort(disp) => {
-                    self.ip = self.ip.wrapping_add(sign_extend(disp))
-                }
-                JumpType::IndWithinSegment(imm) => self.ip = imm,
-                JumpType::IndIntersegment(new_cs, new_ip) => {
-                    self.ip = new_ip;
-                    self.cs = new_cs;
-                }
-                JumpType::DirIntersegment(offset, segment) => {
-                    self.cs = segment;
-                    self.ip = offset;
-                    let _a = 0;
-                }
-                _ => unreachable!(),
+            Opcode::JMP => {
+                match self.instr.jump_type {
+                    JumpType::DirWithinSegment(disp) => self.ip = self.ip.wrapping_add(disp),
+                    JumpType::DirWithinSegmentShort(disp) => {
+                        self.ip = self.ip.wrapping_add(sign_extend(disp))
+                    }
+                    JumpType::IndWithinSegment(imm) => self.ip = imm,
+                    JumpType::IndIntersegment(new_cs, new_ip) => {
+                        self.ip = new_ip;
+                        self.cs = new_cs;
+                    }
+                    JumpType::DirIntersegment(offset, segment) => {
+                        self.cs = segment;
+                        self.ip = offset;
+                        let _a = 0;
+                    }
+                    _ => unreachable!(),
+                };
             },
             Opcode::RET => match self.instr.ret_type {
                 RetType::NearAdd(val) => {

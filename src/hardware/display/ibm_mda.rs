@@ -18,7 +18,6 @@ use super::{
 // const IMG_SIZE: usize = 720 * 350;
 
 #[allow(dead_code)]
-#[derive(Clone)]
 pub struct IbmMDA {
     pub img_buffer: Vec<u8>,
     pub font_rom: Vec<u8>,
@@ -29,7 +28,8 @@ pub struct IbmMDA {
 
     cursor_color: u8,
 
-    screen_dimensions: (f32, f32),
+    screen_dimensions: (usize, usize),
+    char_dimensions: (usize, usize),
 }
 
 fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 256] {
@@ -78,49 +78,13 @@ impl IbmMDA {
 
             cursor_color: 0xFF,
 
-            screen_dimensions: dimensions,
+            screen_dimensions: (dimensions.0 as usize, dimensions.1 as usize),
+            char_dimensions: (9, 14),
         }
     }
 
     fn enabled(&self) -> bool {
         self.crtc.op1 & 0b00001000 > 0
-    }
-
-    fn add_cursor(&mut self) {
-        let (x, y) = self.crtc.get_cursor_xy();
-        let cursor_size = self.crtc.get_cursor_start_end();
-        let blink_mode = self.crtc.get_cursor_blink();
-
-        for z in 0..14 {
-            for t in 0..9 {
-                if z < cursor_size.0 || z > cursor_size.1 {
-                    continue;
-                }
-
-                match blink_mode {
-                    BlinkMode::NonBlink => self.cursor_color = 0xFF,
-                    BlinkMode::NonDisplay => continue,
-                    BlinkMode::Blink1_16 => {
-                        if self.crtc.frame_counter % 16 == 0 {
-                            self.cursor_color = !self.cursor_color;
-                            self.crtc.frame_counter = 1;
-                        }
-                    }
-                    BlinkMode::Blink1_32 => {
-                        if self.crtc.frame_counter % 32 == 0 {
-                            self.cursor_color = !self.cursor_color;
-                            self.crtc.frame_counter = 1;
-                        }
-                    }
-                };
-
-                let index = t + x * 9 + z * 9 * 80 + y * 9 * 80 * 14;
-                for j in 0..3 {
-                    self.img_buffer[index * 4 + j] = self.cursor_color;
-                }
-                self.img_buffer[index * 4 + 3] = 0xFF;
-            }
-        }
     }
 }
 
@@ -148,16 +112,11 @@ impl DisplayAdapter for IbmMDA {
         if !self.enabled() {
             return Image::from_pixels(
                 ctx,
-                &vec![0x00; (self.screen_dimensions.0 * self.screen_dimensions.1 * 4.) as usize],
+                &vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 4],
                 ImageFormat::Rgba8Unorm,
                 720,
                 350,
             );
-        }
-
-        if !self.get_dirty_vram() {
-            self.add_cursor();
-            return Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Unorm, 720, 350);
         }
 
         self.img_buffer
@@ -179,18 +138,14 @@ impl DisplayAdapter for IbmMDA {
                 pixel_slice.copy_from_slice(&new_pixel_slice);
             });
 
-        self.add_cursor();
-        self.set_dirty_vram(false);
+        self.crtc.add_cursor(
+            &mut self.img_buffer,
+            self.screen_dimensions.0 / self.char_dimensions.0,
+            self.char_dimensions,
+            0xFFFFFFFF
+        );
 
-        Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8Uint, 720, 350)
-    }
-
-    fn get_dirty_vram(&self) -> bool {
-        self.crtc.dirty_vram
-    }
-
-    fn set_dirty_vram(&mut self, val: bool) {
-        self.crtc.dirty_vram = val;
+        Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8UnormSrgb, 720, 350)
     }
 
     fn inc_frame_counter(&mut self) {

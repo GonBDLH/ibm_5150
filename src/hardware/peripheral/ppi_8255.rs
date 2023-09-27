@@ -87,7 +87,6 @@ impl PPI8255 {
 
     fn read_pa(&mut self) -> u8 {
         if self.port_b & 0x80 == 0x80 {
-            // DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2
             self.sw1
         } else {
             self.key_code
@@ -95,7 +94,6 @@ impl PPI8255 {
     }
 
     pub fn read_pc(&mut self) -> u8 {
-        // let sw2 = HIGH_NIBBLE | PLUS_0;
         if self.port_b & 0x04 != 0 {
             self.sw2 & 0x0F | self.port_c & 0xF0
         } else {

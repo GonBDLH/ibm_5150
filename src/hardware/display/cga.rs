@@ -11,20 +11,22 @@ use crate::hardware::peripheral::Peripheral;
 
 use super::{crtc6845::CRTC6845, Character, ColorChar, DisplayAdapter};
 
-const PALETTE: [[u32; 4]; 4] = [[0x000000FF, 0x00AA00FF, 0xAA0000FF, 0xAA5500FF],       // PALETTE_0_LOW_INTENSITY
-                                [0x555555FF, 0x55FF55FF, 0xFF5555FF, 0xFFFF55FF],       // PALETTE_0_HIGH_INTENSITY
-                                [0x000000FF, 0x0000AAFF, 0xAA00AAFF, 0xAAAAAAFF],       // PALETTE_1_LOW_INTENSITY
-                                [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF]];      // PALETTE_1_HIGH_INTENSITY
+const PALETTE: [[u32; 4]; 4] = [
+    [0x000000FF, 0x00AA00FF, 0xAA0000FF, 0xAA5500FF], // PALETTE_0_LOW_INTENSITY
+    [0x555555FF, 0x55FF55FF, 0xFF5555FF, 0xFFFF55FF], // PALETTE_0_HIGH_INTENSITY
+    [0x000000FF, 0x0000AAFF, 0xAA00AAFF, 0xAAAAAAFF], // PALETTE_1_LOW_INTENSITY
+    [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF], // PALETTE_1_HIGH_INTENSITY
+]; 
 
 // const PALETTE: [[u32; 4]; 4] = [[0x000000FF, 0x00AAAAFF, 0xAA00AAFF, 0xAAAAAAFF],       // PALETTE_0_LOW_INTENSITY
 //                                 [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF],       // PALETTE_0_HIGH_INTENSITY
 //                                 [0x000000FF, 0x00AA00FF, 0xAA0000FF, 0xAA5500FF],       // PALETTE_1_LOW_INTENSITY
 //                                 [0x555555FF, 0x55FF55FF, 0xFF5555FF, 0xFFFF55FF]];      // PALETTE_1_HIGH_INTENSITY
 
-const FULL_PALETTE: [u32; 16] = [0x000000FF, 0x555555FF, 0x0000AAFF, 0x5555FFFF,
-                                 0x00AA00FF, 0x55FF55FF, 0x00AAAAFF, 0x55FFFFFF,
-                                 0xAA0000FF, 0xFF5555FF, 0xAA00AAFF, 0xFF55FFFF,
-                                 0xAA5500FF, 0xFFFF55FF, 0xAAAAAAFF, 0xFFFFFFFF];
+const FULL_PALETTE: [u32; 16] = [
+    0x000000FF, 0x555555FF, 0x0000AAFF, 0x5555FFFF, 0x00AA00FF, 0x55FF55FF, 0x00AAAAFF, 0x55FFFFFF,
+    0xAA0000FF, 0xFF5555FF, 0xAA00AAFF, 0xFF55FFFF, 0xAA5500FF, 0xFFFF55FF, 0xAAAAAAFF, 0xFFFFFFFF,
+];
 
 pub struct CGA {
     pub img_buffer: Vec<u8>,
@@ -33,7 +35,8 @@ pub struct CGA {
 
     crtc: CRTC6845,
 
-    screen_dimensions: (f32, f32),
+    screen_dimensions: (usize, usize),
+    char_dimensions: (usize, usize),
 
     color: u8,
 }
@@ -49,7 +52,8 @@ impl CGA {
             img_buffer: vec![0x00; (dimensions.0 * dimensions.1 * 4.) as usize],
             font_map: decode_font_map(&buf[0x1800..]),
             crtc: CRTC6845::default(),
-            screen_dimensions: dimensions,
+            screen_dimensions: (dimensions.0 as usize, dimensions.1 as usize),
+            char_dimensions: (8, 8),
 
             color: 0,
         }
@@ -60,7 +64,7 @@ impl CGA {
     }
 
     fn alphanumeric_mode(&mut self, vram: &[u8]) {
-        let screen_character_width = (self.screen_dimensions.0 / 8.) as usize;
+        let screen_character_width = self.screen_dimensions.0 / self.char_dimensions.0;
 
         self.img_buffer
             .par_chunks_mut(8 * 4)
@@ -92,28 +96,29 @@ impl CGA {
         let intensity = (self.color & 0b00010000 != 0) as usize;
 
         self.img_buffer
-            .par_chunks_mut(self.screen_dimensions.0 as usize * 4)
+            .par_chunks_mut(self.screen_dimensions.0 * 4)
             .enumerate()
             .for_each(|(i, pixel_slice)| {
                 let row_slice = if i % 2 == 0 {
-                    let slice_start = i * self.screen_dimensions.0 as usize / 8;
-                    let slice_end = slice_start + self.screen_dimensions.0 as usize / 4;
+                    let slice_start = i * self.screen_dimensions.0 / 8;
+                    let slice_end = slice_start + self.screen_dimensions.0 / 4;
                     &vram[slice_start..slice_end]
                 } else {
-                    let slice_start = (i - 1) * self.screen_dimensions.0 as usize / 8;
-                    let slice_end = slice_start + self.screen_dimensions.0 as usize / 4;
+                    let slice_start = (i - 1) * self.screen_dimensions.0 / 8;
+                    let slice_end = slice_start + self.screen_dimensions.0 / 4;
                     &vram[(0x2000 + slice_start)..(0x2000 + slice_end)]
                 };
 
                 for (group_index, pixel_group) in row_slice.iter().enumerate() {
                     for pixel_offset in 0..4 {
-                        let pixel = (pixel_group >> 2 * (3 - pixel_offset)) & 3;
+                        let pixel = pixel_group >> (2 * (3 - pixel_offset)) & 3;
                         let color = PALETTE[palette + intensity][pixel as usize];
-                        let color_bytes: [u8; 4] = unsafe { transmute(color.to_be()) };
+                        let color_bytes = color.to_be_bytes();
                         let pixel_slice_start = group_index * 16 + pixel_offset * 4;
                         let pixel_slice_end = pixel_slice_start + 4;
 
-                        pixel_slice[pixel_slice_start..pixel_slice_end].copy_from_slice(&color_bytes)
+                        pixel_slice[pixel_slice_start..pixel_slice_end]
+                            .copy_from_slice(&color_bytes)
                     }
                 }
             });
@@ -190,18 +195,7 @@ impl DisplayAdapter for CGA {
         if !self.enabled() {
             return Image::from_pixels(
                 ctx,
-                &vec![0x00; (self.screen_dimensions.0 * self.screen_dimensions.1 * 4.) as usize],
-                ImageFormat::Rgba8UnormSrgb,
-                self.screen_dimensions.0 as u32,
-                self.screen_dimensions.1 as u32,
-            );
-        }
-
-        if !self.get_dirty_vram() {
-            // self.add_cursor();
-            return Image::from_pixels(
-                ctx,
-                &self.img_buffer,
+                &vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 4],
                 ImageFormat::Rgba8UnormSrgb,
                 self.screen_dimensions.0 as u32,
                 self.screen_dimensions.1 as u32,
@@ -214,7 +208,12 @@ impl DisplayAdapter for CGA {
             self.alphanumeric_mode(vram);
         }
 
-        self.set_dirty_vram(false);
+        self.crtc.add_cursor(
+            &mut self.img_buffer,
+            self.screen_dimensions.0 / self.char_dimensions.0,
+            self.char_dimensions,
+            0xAAAAAAFF
+        );
 
         Image::from_pixels(
             ctx,
@@ -223,14 +222,6 @@ impl DisplayAdapter for CGA {
             self.screen_dimensions.0 as u32,
             self.screen_dimensions.1 as u32,
         )
-    }
-
-    fn get_dirty_vram(&self) -> bool {
-        self.crtc.dirty_vram
-    }
-
-    fn set_dirty_vram(&mut self, val: bool) {
-        self.crtc.dirty_vram = val
     }
 
     fn inc_frame_counter(&mut self) {

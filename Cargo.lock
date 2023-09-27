@@ -243,9 +243,9 @@ dependencies = [
 
 [[package]]
 name = "assert_hex"
-version = "0.3.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9072550e1ad8a7f5880154d2d94e252b3b1621d0b93da3a1614149e62c32672a"
+checksum = "f7010f1430f0fc8ca80bdb5e5d074db68776a2e268ec6cf80b53712d3ea4bca7"
 
 [[package]]
 name = "async-broadcast"

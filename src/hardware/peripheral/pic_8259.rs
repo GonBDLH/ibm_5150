@@ -90,7 +90,7 @@ impl Peripheral for PIC8259 {
             // TODO OCW
             if val & 0x20 > 0 {
                 for i in 0..8 {
-                    if self.isr & 1 << (7 - i) > 0 {
+                    if (self.isr & 1 << (7 - i)) > 0 {
                         self.isr ^= 1 << (7 - i);
                     }
                 }

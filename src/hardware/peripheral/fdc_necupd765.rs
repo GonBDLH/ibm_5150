@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, File},
+    fs::{self, File, OpenOptions},
     io::{Read, Seek, SeekFrom, Write},
 };
 
@@ -156,8 +156,7 @@ impl FloppyDiskController {
         num_sectors: usize,
     ) {
         let lba = (cyl * self.disks[drive_number].heads + head) * self.disks[drive_number].sectors
-            + sector
-            - 1;
+            + (sector - 1);
         let fileoffset = lba * 512;
 
         if fileoffset > self.disks[drive_number].filesize {
@@ -168,11 +167,14 @@ impl FloppyDiskController {
 
         file_ref.seek(SeekFrom::Start(fileoffset as u64)).unwrap();
         for _ in 0..num_sectors {
-            for sector_offset in 0..512 {
-                self.sector_buffer[sector_offset] = bus.read_8(segment, offset);
-                offset += 1;
-            }
+            // for sector_offset in 0..512 {
+            //     self.sector_buffer[sector_offset] = bus.read_8(segment, offset);
+            //     offset += 1;
+            // }
+            let dir = ((segment as usize * 0x10) + offset as usize) % 0x100000;
+            self.sector_buffer.copy_from_slice(&bus.memory[dir..(dir + 512)]);
             file_ref.write_all(&self.sector_buffer).unwrap();
+            offset += 512;
         }
 
         cpu.ax.low = num_sectors as u8;
@@ -192,8 +194,9 @@ impl FloppyDiskController {
 
     // RETURNS FALSE IF FLOPPY OR ERROR OR TRUE IF HDD
     pub fn insert_disk(&mut self, bus: &mut Bus, num: usize, path: &str) {
-        let read_result = fs::File::open(path);
-
+        // let read_result = fs::File::open(path);
+        let read_result = OpenOptions::new().write(true).read(true).open(path);
+        
         if read_result.is_err() {
             println!("Error reading file");
             return;

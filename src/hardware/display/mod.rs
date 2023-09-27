@@ -10,8 +10,6 @@ pub mod ibm_mda;
 
 pub trait DisplayAdapter {
     fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
-    fn get_dirty_vram(&self) -> bool;
-    fn set_dirty_vram(&mut self, val: bool);
     fn inc_frame_counter(&mut self);
 }
 
@@ -122,7 +120,11 @@ impl ColorChar {
         let green = (val & 0b0010 != 0) as u8;
         let blue = (val & 0b0001 != 0) as u8;
 
-        Color::from_rgb(red * 0xAA + intensity * 0x55, green * 0xAA + intensity * 0x55, blue * 0xAA + intensity * 0x55)
+        Color::from_rgb(
+            red * 0xAA + intensity * 0x55,
+            green * 0xAA + intensity * 0x55,
+            blue * 0xAA + intensity * 0x55,
+        )
     }
 }
 

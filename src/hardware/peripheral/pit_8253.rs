@@ -54,9 +54,11 @@ impl TIM8253 {
     }
 
     fn mode0(&mut self, i: usize, pic: &mut PIC8259) {
-        self.count[i] = self.count[i].wrapping_sub(1);
         if self.count[i] == 0 {
-            self.output(i, true, pic)
+            self.output(i, true, pic);
+        } else {
+            self.count[i] = self.count[i].wrapping_sub(1);
+            self.output(i, false, pic)
         }
     }
 
@@ -64,20 +66,14 @@ impl TIM8253 {
         self.count[i] = self.count[i].wrapping_sub(1);
         if self.count[i] == 1 {
             self.output(i, false, pic);
-        } else {
+        } else if self.count[i] == 0 {
             self.output(i, true, pic);
-            if self.count[i] == 0 {
-                self.count[i] = self.reload[i];
-            }
+            self.count[i] = self.reload[i];
         }
     }
 
     fn mode3(&mut self, i: usize, pic: &mut PIC8259) {
-        let half = (self.reload[i] as f32 / 2.0).ceil() as u16;
-
-        self.output(i, self.count[i] <= half, pic);
-
-        if self.count[i] % 2 == 0 && self.out[i] && self.first_clk[i] {
+        if self.first_clk[i] && self.count[i] % 2 != 0 && self.out[i] {
             if self.reload_clk[i] {
                 self.count[i] = self.count[i].wrapping_sub(3);
                 self.reload_clk[i] = false;
@@ -93,16 +89,20 @@ impl TIM8253 {
         if self.count[i] == 0 {
             self.count[i] = self.reload[i];
             self.first_clk[i] = true;
-            self.reload_clk[i] = true;
+            if self.out[i] {
+                self.reload_clk[i] = true;
+            }
+            self.output(i, !self.out[i], pic);
         }
     }
 
     pub fn update(&mut self, pic: &mut PIC8259, _ppi: &mut PPI8255) {
         while self.cycles > 3 {
-            for i in 0..3 {
+            'inner: for i in 0..3 {
                 if !self.active[i] {
-                    continue;
+                    continue 'inner;
                 }
+
                 match self.mode[i] {
                     Mode::Mode0 => self.mode0(i, pic),
                     Mode::Mode2 => self.mode2(i, pic),
@@ -186,7 +186,7 @@ impl Peripheral for TIM8253 {
                     self.count[channel] = self.reload[channel];
                     self.active[channel] = true;
                     self.out[channel] =
-                        self.mode[channel] == Mode::Mode2 || self.mode[channel] == Mode::Mode3;
+                        self.mode[channel] == Mode::Mode2 && self.mode[channel] == Mode::Mode3;
                 }
             }
             0x43 => {

@@ -195,20 +195,12 @@ impl System {
     }
 
     pub fn create_frame(&mut self, ctx: &mut Context) -> Image {
-        match self.sw1 & 0b00110000 {
-            DISPLAY_MDA_80_25 => self
-                .bus
-                .mda
-                .create_frame(ctx, &self.bus.memory[0xB0000..0xB4000]),
-            DISPLAY_CGA_40_25 => self
-                .bus
-                .cga
-                .create_frame(ctx, &self.bus.memory[0xB8000..0xBC000]),
-            DISPLAY_CGA_80_25 => self
-                .bus
-                .cga
-                .create_frame(ctx, &self.bus.memory[0xB8000..0xBC000]),
-            _ => unreachable!(),
-        }
+        let vram = if self.sw1 & 0b00110000 == DISPLAY_MDA_80_25 {
+            &self.bus.memory[0xB0000..0xB4000]
+        } else {
+            &self.bus.memory[0xB8000..0xBC000]
+        };
+
+        self.bus.display.create_frame(ctx, vram)
     }
 }

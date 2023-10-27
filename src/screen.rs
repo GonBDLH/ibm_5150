@@ -1,5 +1,5 @@
 use ggez::glam::Vec2;
-use ggez::graphics::{DrawParam, Image, ImageFormat, BlendMode};
+use ggez::graphics::{BlendMode, DrawParam, Image, ImageFormat};
 use ggez::input::keyboard::KeyInput;
 use ggez::{timer, Context};
 // A
@@ -41,7 +41,7 @@ impl EventHandler for IbmPc {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
         while ctx.time.check_update_time(DESIRED_FPS as u32) {
             self.sys.update();
-            self.sys.bus.mda.inc_frame_counter();
+            self.sys.bus.display.inc_frame_counter();
             self.dirty = false;
         }
 

@@ -1,6 +1,10 @@
+use std::default;
+
 use crate::hardware::cpu_8088::cpu_utils::to_u16;
 
-#[derive(Default, Clone)]
+use super::DisplayAdapter;
+
+#[derive(Default)]
 pub struct CRTC6845 {
     horizontal_total_reg: u8,        // W
     horizontal_displayed_reg: u8,    // W
@@ -29,6 +33,8 @@ pub struct CRTC6845 {
     pub frame_counter: usize,
 
     pub retrace: u8,
+
+    cursor_blink_state: BlinkState,
 }
 
 impl CRTC6845 {
@@ -66,13 +72,13 @@ impl CRTC6845 {
         }
     }
 
-    pub fn get_cursor_xy(&self) -> (usize, usize) {
+    pub fn get_cursor_xy(&self, screen_width: u16) -> (usize, usize) {
         let ch = self.cursorh_reg;
         let cl = self.cursorl_reg;
         let cursor_addres = to_u16(cl, ch);
 
-        let x = cursor_addres % 80;
-        let y = cursor_addres / 80;
+        let x = cursor_addres % screen_width;
+        let y = cursor_addres / screen_width;
 
         (x as usize, y as usize)
     }
@@ -95,12 +101,83 @@ impl CRTC6845 {
             _ => unreachable!(),
         }
     }
+
+    pub fn add_cursor(
+        &mut self,
+        img_buffer: &mut [u8],
+        screen_width: usize,
+        char_dimensions: (usize, usize),
+        cursor_color: u32,
+    ) {
+        let (x, y) = self.get_cursor_xy(screen_width as u16);
+        let cursor_size = self.get_cursor_start_end();
+        let blink_mode = self.get_cursor_blink();
+
+        if blink_mode == BlinkMode::NonDisplay {
+            return;
+        }
+
+        match blink_mode {
+            BlinkMode::NonBlink => self.cursor_blink_state = BlinkState::Bright,
+            BlinkMode::Blink1_16 => {
+                if self.frame_counter % 16 == 0 {
+                    self.frame_counter = 1;
+                    self.cursor_blink_state = !self.cursor_blink_state;
+                }
+            }
+            BlinkMode::Blink1_32 => {
+                if self.frame_counter % 32 == 0 {
+                    self.frame_counter = 1;
+                    self.cursor_blink_state = !self.cursor_blink_state;
+                }
+            },
+            _ => unreachable!()
+        };
+
+        for z in 0..char_dimensions.1 {
+            for t in 0..char_dimensions.0 {
+                if z < cursor_size.0 || z > cursor_size.1 {
+                    continue;
+                }
+
+                let index = t
+                    + x * char_dimensions.0
+                    + z * char_dimensions.0 * screen_width
+                    + y * char_dimensions.0 * screen_width * char_dimensions.1;
+                // for j in 0..3 {
+                //     img_buffer[index * 4 + j] = cursor_color;
+                // }
+                // img_buffer[index * 4 + 3] = 0xFF;
+                if let BlinkState::Bright = self.cursor_blink_state {
+                    img_buffer[index * 4..index * 4 + 4].copy_from_slice(&cursor_color.to_be_bytes());
+                }
+            }
+        }
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum BlinkMode {
     NonBlink,
     NonDisplay,
     Blink1_16,
     Blink1_32,
+}
+
+#[derive(Default, Clone, Copy)]
+pub enum BlinkState {
+    Bright,
+    #[default]
+    Dark,
+}
+
+impl std::ops::Not for BlinkState {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        match self {
+            Self::Bright => Self::Dark,
+            Self::Dark => Self::Bright,
+        }
+    }
 }

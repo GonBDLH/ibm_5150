@@ -10,6 +10,8 @@ use super::{
 const KBD_RESET_CYCLES: u32 = 47700; // 20 ms
 const KBD_RESET_CYCLE_DELAY: u32 = 100;
 
+static mut TEST: usize = 0;
+
 #[derive(Default)]
 pub struct PPI8255 {
     key_code: u8,

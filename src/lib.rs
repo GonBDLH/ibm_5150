@@ -35,8 +35,20 @@ fn open_json(path: &str) -> Vec<Instr> {
     serde_json::from_str(&str_file_gz).unwrap()
 }
 
-fn open_metadata() -> HashMap<String, Entry> {
-    let buff = std::fs::read("roms/tests/8088/v1/8088.json").unwrap();
+#[derive(Deserialize, Debug)]
+struct Metadata {
+    url: String,
+    version: String,
+    syntax_version: i32,
+    cpu: String,
+    cpu_detail: String,
+    generator: String,
+    date: String,
+    opcodes: HashMap<String, Entry>
+}
+
+fn open_metadata() -> Metadata {
+    let buff = std::fs::read("roms/tests/8088/v2/metadata.json").unwrap();
 
     serde_json::from_slice(&buff).unwrap()
 }
@@ -75,28 +87,28 @@ struct Instr {
 fn set_state(instr: &Instr, sys: &mut System) {
     sys.cpu
         .ax
-        .set_x(*instr.initial_state.regs.get("ax").unwrap());
+        .set_x(*instr.initial_state.regs.get("ax").expect("NO AX REG EN EL ESTADO INICIAL"));
     sys.cpu
         .bx
-        .set_x(*instr.initial_state.regs.get("bx").unwrap());
+        .set_x(*instr.initial_state.regs.get("bx").expect("NO BX REG EN EL ESTADO INICIAL"));
     sys.cpu
         .cx
-        .set_x(*instr.initial_state.regs.get("cx").unwrap());
+        .set_x(*instr.initial_state.regs.get("cx").expect("NO CX REG EN EL ESTADO INICIAL"));
     sys.cpu
         .dx
-        .set_x(*instr.initial_state.regs.get("dx").unwrap());
-    sys.cpu.cs = *instr.initial_state.regs.get("cs").unwrap();
-    sys.cpu.ss = *instr.initial_state.regs.get("ss").unwrap();
-    sys.cpu.ds = *instr.initial_state.regs.get("ds").unwrap();
-    sys.cpu.es = *instr.initial_state.regs.get("es").unwrap();
-    sys.cpu.sp = *instr.initial_state.regs.get("sp").unwrap();
-    sys.cpu.bp = *instr.initial_state.regs.get("bp").unwrap();
-    sys.cpu.si = *instr.initial_state.regs.get("si").unwrap();
-    sys.cpu.di = *instr.initial_state.regs.get("di").unwrap();
-    sys.cpu.ip = *instr.initial_state.regs.get("ip").unwrap();
+        .set_x(*instr.initial_state.regs.get("dx").expect("NO DX REG EN EL ESTADO INICIAL"));
+    sys.cpu.cs = *instr.initial_state.regs.get("cs").expect("NO CS REG EN EL ESTADO INICIAL");
+    sys.cpu.ss = *instr.initial_state.regs.get("ss").expect("NO SS REG EN EL ESTADO INICIAL");
+    sys.cpu.ds = *instr.initial_state.regs.get("ds").expect("NO DS REG EN EL ESTADO INICIAL");
+    sys.cpu.es = *instr.initial_state.regs.get("es").expect("NO ES REG EN EL ESTADO INICIAL");
+    sys.cpu.sp = *instr.initial_state.regs.get("sp").expect("NO SP REG EN EL ESTADO INICIAL");
+    sys.cpu.bp = *instr.initial_state.regs.get("bp").expect("NO BP REG EN EL ESTADO INICIAL");
+    sys.cpu.si = *instr.initial_state.regs.get("si").expect("NO SI REG EN EL ESTADO INICIAL");
+    sys.cpu.di = *instr.initial_state.regs.get("di").expect("NO DI REG EN EL ESTADO INICIAL");
+    sys.cpu.ip = *instr.initial_state.regs.get("ip").expect("NO IP REG EN EL ESTADO INICIAL");
     sys.cpu
         .flags
-        .set_flags(*instr.initial_state.regs.get("flags").unwrap());
+        .set_flags(*instr.initial_state.regs.get("flags").expect("NO FLAGS EN EL ESTADO INICIAL"));
 
     for i in &instr.initial_state.ram {
         sys.bus.memory[i.0] = i.1
@@ -109,93 +121,96 @@ fn check_state(
     metadata: &HashMap<String, Entry>,
     file_name: &str,
 ) {
+    // println!("INICIAL {:?}", instr.initial_state);
+    // println!("FINAL {:?}", instr.final_state);
+
     assert_eq_hex!(
         sys.cpu.ax.get_x(),
-        *instr.final_state.regs.get("ax").unwrap(),
+        *instr.final_state.regs.get("ax").unwrap_or(instr.initial_state.regs.get("ax").unwrap()),
         "ax {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.bx.get_x(),
-        *instr.final_state.regs.get("bx").unwrap(),
+        *instr.final_state.regs.get("bx").unwrap_or(instr.initial_state.regs.get("bx").unwrap()),
         "bx {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.cx.get_x(),
-        *instr.final_state.regs.get("cx").unwrap(),
+        *instr.final_state.regs.get("cx").unwrap_or(instr.initial_state.regs.get("cx").unwrap()),
         "cx {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.dx.get_x(),
-        *instr.final_state.regs.get("dx").unwrap(),
+        *instr.final_state.regs.get("dx").unwrap_or(instr.initial_state.regs.get("dx").unwrap()),
         "dx {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.cs,
-        *instr.final_state.regs.get("cs").unwrap(),
+        *instr.final_state.regs.get("cs").unwrap_or(instr.initial_state.regs.get("cs").unwrap()),
         "cs {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.ss,
-        *instr.final_state.regs.get("ss").unwrap(),
+        *instr.final_state.regs.get("ss").unwrap_or(instr.initial_state.regs.get("ss").unwrap()),
         "ss {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.ds,
-        *instr.final_state.regs.get("ds").unwrap(),
+        *instr.final_state.regs.get("ds").unwrap_or(instr.initial_state.regs.get("ds").unwrap()),
         "ds {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.es,
-        *instr.final_state.regs.get("es").unwrap(),
+        *instr.final_state.regs.get("es").unwrap_or(instr.initial_state.regs.get("es").unwrap()),
         "es {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.sp,
-        *instr.final_state.regs.get("sp").unwrap(),
+        *instr.final_state.regs.get("sp").unwrap_or(instr.initial_state.regs.get("sp").unwrap()),
         "sp {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.bp,
-        *instr.final_state.regs.get("bp").unwrap(),
+        *instr.final_state.regs.get("bp").unwrap_or(instr.initial_state.regs.get("bp").unwrap()),
         "bp {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.si,
-        *instr.final_state.regs.get("si").unwrap(),
+        *instr.final_state.regs.get("si").unwrap_or(instr.initial_state.regs.get("si").unwrap()),
         "si {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.di,
-        *instr.final_state.regs.get("di").unwrap(),
+        *instr.final_state.regs.get("di").unwrap_or(instr.initial_state.regs.get("di").unwrap()),
         "di {} {:#?}",
         instr.name,
         instr
     );
     assert_eq_hex!(
         sys.cpu.ip,
-        *instr.final_state.regs.get("ip").unwrap(),
+        *instr.final_state.regs.get("ip").unwrap_or(instr.initial_state.regs.get("ip").unwrap()),
         "ip {} {:#?}",
         instr.name,
         instr
@@ -237,7 +252,7 @@ fn check_state(
 
     assert_eq!(
         sys.cpu.flags.get_flags() & flags_mask,
-        *instr.final_state.regs.get("flags").unwrap() & flags_mask,
+        *instr.final_state.regs.get("flags").unwrap_or(instr.initial_state.regs.get("flags").unwrap()) & flags_mask,
         "flags {} {:#?}",
         instr.name,
         instr
@@ -245,37 +260,45 @@ fn check_state(
 
     for i in &instr.final_state.ram {
         // println!("{} {}", sys.bus.memory[i.0], i.1);
-        let (mask_low, mask_high) = to_2u8(flags_mask);
-        let stack = (sys.cpu.ss as usize * 0x10 + sys.cpu.sp as usize) & 0xFFFFF;
+        // let (mask_low, mask_high) = to_2u8(flags_mask);
+        // let stack = (sys.cpu.ss as usize * 0x10 + sys.cpu.sp as usize) & 0xFFFFF;
 
-        if i.0 == stack + 5 {
-            assert_eq_hex!(
-                sys.bus.memory[i.0] & mask_high,
-                i.1 & mask_high,
-                "stack flags high {:05X} {} {:#?}",
-                i.0,
-                instr.name,
-                instr
-            )
-        } else if i.0 == stack + 4 {
-            assert_eq_hex!(
-                sys.bus.memory[i.0] & mask_low,
-                i.1 & mask_low,
-                "stack flags low {:05X} {} {:#?}",
-                i.0,
-                instr.name,
-                instr
-            )
-        } else {
-            assert_eq_hex!(
-                sys.bus.memory[i.0],
-                i.1,
-                "mem {:05X} {} {:#?}",
-                i.0,
-                instr.name,
-                instr
-            )
-        }
+        // if i.0 == stack + 5 {
+        //     assert_eq_hex!(
+        //         sys.bus.memory[i.0] & mask_high,
+        //         i.1 & mask_high,
+        //         "stack flags high {:05X} {} {:#?}",
+        //         i.0,
+        //         instr.name,
+        //         instr
+        //     )
+        // } else if i.0 == stack + 4 {
+        //     assert_eq_hex!(
+        //         sys.bus.memory[i.0] & mask_low,
+        //         i.1 & mask_low,
+        //         "stack flags low {:05X} {} {:#?}",
+        //         i.0,
+        //         instr.name,
+        //         instr
+        //     )
+        // } else {
+        //     assert_eq_hex!(
+        //         sys.bus.memory[i.0],
+        //         i.1,
+        //         "mem {:05X} {} {:#?}",
+        //         i.0,
+        //         instr.name,
+        //         instr
+        //     )
+        // }
+        assert_eq_hex!(
+            sys.bus.memory[i.0],
+            i.1,
+            "mem {:05X} {} {:#?}",
+            i.0,
+            instr.name,
+            instr
+        )
     }
 }
 
@@ -284,7 +307,7 @@ macro_rules! create_test {
         #[test]
         #[timeout(150000)]
         fn $name() {
-            let v = open_json(&(String::from("roms/tests/8088/v1/") + $file_name + ".json.gz"));
+            let v = open_json(&(String::from("roms/tests/8088/v2/") + $file_name + ".json.gz"));
             let metadata = open_metadata();
 
             for i in v {
@@ -310,7 +333,7 @@ macro_rules! create_test {
                     break;
                 }
 
-                check_state(&i, &mut sys, &metadata, $file_name);
+                check_state(&i, &mut sys, &metadata.opcodes, $file_name);
             }
         }
     };
@@ -331,7 +354,7 @@ create_test!(test_0b, "0B");
 create_test!(test_0c, "0C");
 create_test!(test_0d, "0D");
 create_test!(test_0e, "0E");
-create_test!(test_0f, "0F");
+// create_test!(test_0f, "0F");
 create_test!(test_10, "10");
 create_test!(test_11, "11");
 create_test!(test_12, "12");

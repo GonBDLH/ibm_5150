@@ -49,8 +49,6 @@ impl TIM8253 {
     fn output(&mut self, channel: usize, state: bool, pic: &mut PIC8259) {
         if !self.out[channel] && state && channel == 0 {
             pic.irq(IRQs::Irq0);
-        } else {
-            pic.clear_int(IRQs::Irq0);
         }
         self.out[channel] = state;
     }

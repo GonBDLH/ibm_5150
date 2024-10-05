@@ -83,7 +83,7 @@ impl PIC8259 {
 
             if (seriviced_ints & next_int) > 0 {
                 self.isr ^= next_int;
-                return;
+                // return;
             }
         }
     }
@@ -114,14 +114,14 @@ impl PIC8259 {
     }
 
     fn get_highest_prio(&self) -> u8 {
-        (self.lower_priority + 1) & 0b0000111
+        (self.lower_priority + 1) % 8
     }
 
     fn has_greater_prio(&self, int: u8) -> bool {
         let highest_prio = self.get_highest_prio();
         let isr_ordered = self.isr.rotate_right(highest_prio as u32);
 
-        int < isr_ordered
+        int > isr_ordered
     }
 }
 
@@ -144,11 +144,11 @@ impl PIC8259 {
             let next_int_bit = 1u8.rotate_left(next_int as u32);
 
             if requested_ints & next_int_bit > 0 {
-                if self.has_greater_prio(next_int_bit) {
+                if !self.has_greater_prio(next_int_bit) {
                     continue;
                 }
 
-                // self.isr |= next_int_bit;
+                self.isr |= next_int_bit;
                 self.irr ^= next_int_bit;
                 return Some(self.interrupt_vector + next_int);
             }
@@ -210,7 +210,7 @@ impl Peripheral for PIC8259 {
                         0b00100000 => {
                             // NON-SPECIFIC EOI
                             self.non_specific_eoi();
-                            println!("{}", val);
+                            // println!("{}", val);
                         }
                         0b01100000 => {
                             // SPECIFIC EOI
@@ -239,7 +239,6 @@ impl Peripheral for PIC8259 {
                 } else if val & 0b10011000 == 0b00001000 {
                     // TODO OCW3
                 }
-                println!("VALOR OUT {}", val);
             },
             0x21 => {
                 match self.icw_step {

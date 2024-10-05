@@ -108,7 +108,6 @@ impl PPI8255 {
         if self.kbd.clear {
             self.kbd.clear = false;
             self.key_code = 0;
-            pic.clear_int(IRQs::Irq1);
         }
 
         if self.kbd.counting_low && self.kbd.low_count < KBD_RESET_CYCLES {

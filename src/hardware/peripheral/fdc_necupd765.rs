@@ -102,6 +102,7 @@ impl FloppyDiskController {
         num
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn read(
         &mut self,
         cpu: &mut CPU,
@@ -143,6 +144,7 @@ impl FloppyDiskController {
         cpu.ax.high = 0;
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn write(
         &mut self,
         cpu: &mut CPU,

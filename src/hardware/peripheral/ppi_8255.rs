@@ -10,6 +10,8 @@ use super::{
 const KBD_RESET_CYCLES: u32 = 47700; // 20 ms
 const KBD_RESET_CYCLE_DELAY: u32 = 100;
 
+static mut TEST: usize = 0;
+
 #[derive(Default)]
 pub struct PPI8255 {
     key_code: u8,
@@ -106,7 +108,6 @@ impl PPI8255 {
         if self.kbd.clear {
             self.kbd.clear = false;
             self.key_code = 0;
-            pic.clear_int(IRQs::Irq1);
         }
 
         if self.kbd.counting_low && self.kbd.low_count < KBD_RESET_CYCLES {

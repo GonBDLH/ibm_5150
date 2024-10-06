@@ -151,10 +151,15 @@ impl CPU {
             self.interrupt(bus, 0x0008);
             self.nmi = false;
             *cycles += 50;
-        } else if self.flags.i && bus.pic.has_int() {
-            let interruption = bus.pic.get_next();
-            self.interrupt(bus, (interruption * 0x04) as u16);
-            *cycles += 61;
+        } else if self.flags.i {
+            let pic_interrupt =  bus.pic.get_next();
+
+            if pic_interrupt.is_some() {
+                self.interrupt(bus, (pic_interrupt.unwrap() * 0x04) as u16);
+                bus.pic.try_aeoi();
+                *cycles += 61;
+            }
+
         } else {
             // TODO ESTO IGUAL ESTA MAL
             self.nmi = false;

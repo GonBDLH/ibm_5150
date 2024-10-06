@@ -113,10 +113,6 @@ impl CRTC6845 {
         let cursor_size = self.get_cursor_start_end();
         let blink_mode = self.get_cursor_blink();
 
-        if blink_mode == BlinkMode::NonDisplay {
-            return;
-        }
-
         match blink_mode {
             BlinkMode::NonBlink => self.cursor_blink_state = BlinkState::Bright,
             BlinkMode::Blink1_16 => {
@@ -130,9 +126,13 @@ impl CRTC6845 {
                     self.frame_counter = 1;
                     self.cursor_blink_state = !self.cursor_blink_state;
                 }
-            }
-            _ => unreachable!(),
+            },
+            BlinkMode::NonDisplay => return
         };
+
+        if self.cursor_blink_state == BlinkState::Dark {
+            return;
+        }
 
         for z in 0..char_dimensions.1 {
             for t in 0..char_dimensions.0 {
@@ -144,20 +144,14 @@ impl CRTC6845 {
                     + x * char_dimensions.0
                     + z * char_dimensions.0 * screen_width
                     + y * char_dimensions.0 * screen_width * char_dimensions.1;
-                // for j in 0..3 {
-                //     img_buffer[index * 4 + j] = cursor_color;
-                // }
-                // img_buffer[index * 4 + 3] = 0xFF;
-                if let BlinkState::Bright = self.cursor_blink_state {
-                    img_buffer[index * 4..index * 4 + 4]
-                        .copy_from_slice(&cursor_color.to_be_bytes());
-                }
+
+                img_buffer[index * 4..index * 4 + 4].copy_from_slice(&cursor_color.to_be_bytes());
             }
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BlinkMode {
     NonBlink,
     NonDisplay,
@@ -165,7 +159,7 @@ pub enum BlinkMode {
     Blink1_32,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub enum BlinkState {
     Bright,
     #[default]

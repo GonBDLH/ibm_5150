@@ -41,6 +41,7 @@ impl System {
 
             file: OpenOptions::new()
                 .create(true)
+                .truncate(true)
                 .write(true)
                 .open("logs/logs.txt")
                 .unwrap(),

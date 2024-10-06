@@ -130,8 +130,8 @@ impl CRTC6845 {
                     self.frame_counter = 1;
                     self.cursor_blink_state = !self.cursor_blink_state;
                 }
-            },
-            _ => unreachable!()
+            }
+            _ => unreachable!(),
         };
 
         for z in 0..char_dimensions.1 {
@@ -149,7 +149,8 @@ impl CRTC6845 {
                 // }
                 // img_buffer[index * 4 + 3] = 0xFF;
                 if let BlinkState::Bright = self.cursor_blink_state {
-                    img_buffer[index * 4..index * 4 + 4].copy_from_slice(&cursor_color.to_be_bytes());
+                    img_buffer[index * 4..index * 4 + 4]
+                        .copy_from_slice(&cursor_color.to_be_bytes());
                 }
             }
         }

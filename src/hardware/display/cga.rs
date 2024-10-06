@@ -16,7 +16,7 @@ const PALETTE: [[u32; 4]; 4] = [
     [0x555555FF, 0x55FF55FF, 0xFF5555FF, 0xFFFF55FF], // PALETTE_0_HIGH_INTENSITY
     [0x000000FF, 0x0000AAFF, 0xAA00AAFF, 0xAAAAAAFF], // PALETTE_1_LOW_INTENSITY
     [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF], // PALETTE_1_HIGH_INTENSITY
-]; 
+];
 
 // const PALETTE: [[u32; 4]; 4] = [[0x000000FF, 0x00AAAAFF, 0xAA00AAFF, 0xAAAAAAFF],       // PALETTE_0_LOW_INTENSITY
 //                                 [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF],       // PALETTE_0_HIGH_INTENSITY
@@ -212,7 +212,7 @@ impl DisplayAdapter for CGA {
             &mut self.img_buffer,
             self.screen_dimensions.0 / self.char_dimensions.0,
             self.char_dimensions,
-            0xAAAAAAFF
+            0xAAAAAAFF,
         );
 
         Image::from_pixels(

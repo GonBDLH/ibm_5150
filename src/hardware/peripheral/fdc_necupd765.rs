@@ -172,7 +172,8 @@ impl FloppyDiskController {
             //     offset += 1;
             // }
             let dir = ((segment as usize * 0x10) + offset as usize) % 0x100000;
-            self.sector_buffer.copy_from_slice(&bus.memory[dir..(dir + 512)]);
+            self.sector_buffer
+                .copy_from_slice(&bus.memory[dir..(dir + 512)]);
             file_ref.write_all(&self.sector_buffer).unwrap();
             offset += 512;
         }
@@ -196,7 +197,7 @@ impl FloppyDiskController {
     pub fn insert_disk(&mut self, bus: &mut Bus, num: usize, path: &str) {
         // let read_result = fs::File::open(path);
         let read_result = OpenOptions::new().write(true).read(true).open(path);
-        
+
         if read_result.is_err() {
             println!("Error reading file");
             return;

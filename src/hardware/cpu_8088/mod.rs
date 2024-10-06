@@ -183,6 +183,27 @@ impl CPU {
             self.nmi_enabled
         };
     }
+
+    // USADO PARA TESTS
+    pub fn get_reg_16(&self, reg: &str) -> u16 {
+        match reg {
+            "ax" => self.ax.get_x(),
+            "bx" => self.bx.get_x(),
+            "cx" => self.cx.get_x(),
+            "dx" => self.dx.get_x(),
+            "si" => self.si,
+            "di" => self.di,
+            "bp" => self.bp,
+            "sp" => self.sp,
+            "cs" => self.cs,
+            "ds" => self.ds,
+            "es" => self.es,
+            "ss" => self.ss,
+            "ip" => self.ip,
+
+            _ => 0,
+        }
+    }
 }
 
 // Utilidades para el set de instrucciones

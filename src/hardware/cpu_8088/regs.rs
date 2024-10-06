@@ -310,9 +310,7 @@ impl Flags {
             _ => unreachable!(),
         };
 
-        if count == 1 {
-            self.o = get_msb(val, len) != get_msb(res, len);
-        }
+        self.o = get_msb(val, len) != get_msb(res, len);
     }
 
     pub fn set_rl_flags(&mut self, count: u32, len: Length, _val: u16, res: u16, last_bit: bool) {
@@ -320,9 +318,8 @@ impl Flags {
         if count != 0 {
             self.c = last_bit;
         }
-        if count & 0x1F == 1 {
-            self.o = get_msb(res, len) ^ self.c;
-        }
+
+        self.o = get_msb(res, len) ^ self.c;
     }
 
     pub fn set_rr_flags(&mut self, count: u32, len: Length, _val: u16, res: u16, last_bit: bool) {
@@ -330,9 +327,8 @@ impl Flags {
         if count != 0 {
             self.c = last_bit;
         }
-        if count & 0x1F == 1 {
-            self.o = get_msb(res, len) ^ get_msb_1(res, len);
-        }
+
+        self.o = get_msb(res, len) ^ get_msb_1(res, len);
     }
 
     pub fn set_logic_flags(&mut self, length: Length, res: u16) {

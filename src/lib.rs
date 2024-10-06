@@ -44,7 +44,43 @@ struct Metadata {
     cpu_detail: String,
     generator: String,
     date: String,
-    opcodes: HashMap<String, Entry>
+    opcodes: HashMap<String, Entry>,
+}
+
+impl Metadata {
+    fn get_flags_mask(&self, file_name: &str) -> Option<u16> {
+        let mut parts = Vec::new();
+        for part in file_name.split('.') {
+            parts.push(part);
+        }
+
+        if let Some(e) = self.opcodes.get(parts[0]) {
+            match e {
+                Entry::Nested { reg } => {
+                    let option = *parts.get(1).unwrap_or(&"0");
+                    if let Some(m) = reg.get(option) {
+                        match m {
+                            Entry::Nested { reg: _ } => None,
+                            Entry::Normal {
+                                status: _,
+                                flags: _,
+                                flags_mask,
+                            } => *flags_mask,
+                        }
+                    } else {
+                        None
+                    }
+                }
+                Entry::Normal {
+                    status: _,
+                    flags: _,
+                    flags_mask,
+                } => *flags_mask,
+            }
+        } else {
+            None
+        }
+    }
 }
 
 fn open_metadata() -> Metadata {
@@ -84,221 +120,90 @@ struct Instr {
     final_state: State,
 }
 
+impl Instr {
+    fn get_initial_reg(&self, reg: &str) -> u16 {
+        *self
+            .initial_state
+            .regs
+            .get(reg)
+            .unwrap_or_else(|| panic!("NO {} REG EN EL ESTADO INICIAL", reg.to_uppercase()))
+    }
+
+    fn try_get_final_reg(&self, reg: &str) -> Option<&u16> {
+        self.final_state.regs.get(reg)
+    }
+}
+
 fn set_state(instr: &Instr, sys: &mut System) {
-    sys.cpu
-        .ax
-        .set_x(*instr.initial_state.regs.get("ax").expect("NO AX REG EN EL ESTADO INICIAL"));
-    sys.cpu
-        .bx
-        .set_x(*instr.initial_state.regs.get("bx").expect("NO BX REG EN EL ESTADO INICIAL"));
-    sys.cpu
-        .cx
-        .set_x(*instr.initial_state.regs.get("cx").expect("NO CX REG EN EL ESTADO INICIAL"));
-    sys.cpu
-        .dx
-        .set_x(*instr.initial_state.regs.get("dx").expect("NO DX REG EN EL ESTADO INICIAL"));
-    sys.cpu.cs = *instr.initial_state.regs.get("cs").expect("NO CS REG EN EL ESTADO INICIAL");
-    sys.cpu.ss = *instr.initial_state.regs.get("ss").expect("NO SS REG EN EL ESTADO INICIAL");
-    sys.cpu.ds = *instr.initial_state.regs.get("ds").expect("NO DS REG EN EL ESTADO INICIAL");
-    sys.cpu.es = *instr.initial_state.regs.get("es").expect("NO ES REG EN EL ESTADO INICIAL");
-    sys.cpu.sp = *instr.initial_state.regs.get("sp").expect("NO SP REG EN EL ESTADO INICIAL");
-    sys.cpu.bp = *instr.initial_state.regs.get("bp").expect("NO BP REG EN EL ESTADO INICIAL");
-    sys.cpu.si = *instr.initial_state.regs.get("si").expect("NO SI REG EN EL ESTADO INICIAL");
-    sys.cpu.di = *instr.initial_state.regs.get("di").expect("NO DI REG EN EL ESTADO INICIAL");
-    sys.cpu.ip = *instr.initial_state.regs.get("ip").expect("NO IP REG EN EL ESTADO INICIAL");
-    sys.cpu
-        .flags
-        .set_flags(*instr.initial_state.regs.get("flags").expect("NO FLAGS EN EL ESTADO INICIAL"));
+    sys.cpu.ax.set_x(instr.get_initial_reg("ax"));
+    sys.cpu.bx.set_x(instr.get_initial_reg("bx"));
+    sys.cpu.cx.set_x(instr.get_initial_reg("cx"));
+    sys.cpu.dx.set_x(instr.get_initial_reg("dx"));
+    sys.cpu.cs = instr.get_initial_reg("cs");
+    sys.cpu.ss = instr.get_initial_reg("ss");
+    sys.cpu.ds = instr.get_initial_reg("ds");
+    sys.cpu.es = instr.get_initial_reg("es");
+    sys.cpu.sp = instr.get_initial_reg("sp");
+    sys.cpu.bp = instr.get_initial_reg("bp");
+    sys.cpu.si = instr.get_initial_reg("si");
+    sys.cpu.di = instr.get_initial_reg("di");
+    sys.cpu.ip = instr.get_initial_reg("ip");
+    sys.cpu.flags.set_flags(instr.get_initial_reg("flags"));
 
     for i in &instr.initial_state.ram {
         sys.bus.memory[i.0] = i.1
     }
 }
 
-fn check_state(
-    instr: &Instr,
-    sys: &mut System,
-    metadata: &HashMap<String, Entry>,
-    file_name: &str,
-) {
-    // println!("INICIAL {:?}", instr.initial_state);
-    // println!("FINAL {:?}", instr.final_state);
+fn check_state(instr: &Instr, sys: &mut System, metadata: &Metadata, file_name: &str) {
+    for (k, v) in &instr.initial_state.regs {
+        if k == "flags" {
+            continue;
+        }
 
-    assert_eq_hex!(
-        sys.cpu.ax.get_x(),
-        *instr.final_state.regs.get("ax").unwrap_or(instr.initial_state.regs.get("ax").unwrap()),
-        "ax {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.bx.get_x(),
-        *instr.final_state.regs.get("bx").unwrap_or(instr.initial_state.regs.get("bx").unwrap()),
-        "bx {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.cx.get_x(),
-        *instr.final_state.regs.get("cx").unwrap_or(instr.initial_state.regs.get("cx").unwrap()),
-        "cx {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.dx.get_x(),
-        *instr.final_state.regs.get("dx").unwrap_or(instr.initial_state.regs.get("dx").unwrap()),
-        "dx {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.cs,
-        *instr.final_state.regs.get("cs").unwrap_or(instr.initial_state.regs.get("cs").unwrap()),
-        "cs {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.ss,
-        *instr.final_state.regs.get("ss").unwrap_or(instr.initial_state.regs.get("ss").unwrap()),
-        "ss {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.ds,
-        *instr.final_state.regs.get("ds").unwrap_or(instr.initial_state.regs.get("ds").unwrap()),
-        "ds {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.es,
-        *instr.final_state.regs.get("es").unwrap_or(instr.initial_state.regs.get("es").unwrap()),
-        "es {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.sp,
-        *instr.final_state.regs.get("sp").unwrap_or(instr.initial_state.regs.get("sp").unwrap()),
-        "sp {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.bp,
-        *instr.final_state.regs.get("bp").unwrap_or(instr.initial_state.regs.get("bp").unwrap()),
-        "bp {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.si,
-        *instr.final_state.regs.get("si").unwrap_or(instr.initial_state.regs.get("si").unwrap()),
-        "si {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.di,
-        *instr.final_state.regs.get("di").unwrap_or(instr.initial_state.regs.get("di").unwrap()),
-        "di {} {:#?}",
-        instr.name,
-        instr
-    );
-    assert_eq_hex!(
-        sys.cpu.ip,
-        *instr.final_state.regs.get("ip").unwrap_or(instr.initial_state.regs.get("ip").unwrap()),
-        "ip {} {:#?}",
-        instr.name,
-        instr
-    );
+        let left = sys.cpu.get_reg_16(k);
+        let right = *instr.try_get_final_reg(k).unwrap_or(v);
 
-    let mut parts = Vec::new();
-    for part in file_name.split('.') {
-        parts.push(part);
+        assert_eq_hex!(left, right, "{} {} {:#?}", k, instr.name, instr)
     }
 
-    let flags_mask = if let Some(e) = metadata.get(parts[0]) {
-        match e {
-            Entry::Nested { reg } => {
-                let option = *parts.get(1).unwrap_or(&"0");
-                if let Some(m) = reg.get(option) {
-                    match m {
-                        Entry::Nested { reg: _ } => None,
-                        Entry::Normal {
-                            status: _,
-                            flags: _,
-                            flags_mask,
-                        } => *flags_mask,
-                    }
-                } else {
-                    None
-                }
-            }
-            Entry::Normal {
-                status: _,
-                flags: _,
-                flags_mask,
-            } => *flags_mask,
-        }
-    } else {
-        None
-    };
+    if let Some(flags) = instr.final_state.regs.get("flags") {
+        let flags_mask = metadata.get_flags_mask(file_name).unwrap_or(0xFFFF);
 
-    let flags_mask = flags_mask.unwrap_or(0xFFFF);
+        assert_eq!(
+            sys.cpu.flags.get_flags() & flags_mask,
+            *flags & flags_mask,
+            "flags {} {:#?}",
+            instr.name,
+            instr
+        );
+    }
 
-    assert_eq!(
-        sys.cpu.flags.get_flags() & flags_mask,
-        *instr.final_state.regs.get("flags").unwrap_or(instr.initial_state.regs.get("flags").unwrap()) & flags_mask,
-        "flags {} {:#?}",
-        instr.name,
-        instr
-    );
-
-    for i in &instr.final_state.ram {
-        // println!("{} {}", sys.bus.memory[i.0], i.1);
-        // let (mask_low, mask_high) = to_2u8(flags_mask);
-        // let stack = (sys.cpu.ss as usize * 0x10 + sys.cpu.sp as usize) & 0xFFFFF;
-
-        // if i.0 == stack + 5 {
-        //     assert_eq_hex!(
-        //         sys.bus.memory[i.0] & mask_high,
-        //         i.1 & mask_high,
-        //         "stack flags high {:05X} {} {:#?}",
-        //         i.0,
-        //         instr.name,
-        //         instr
-        //     )
-        // } else if i.0 == stack + 4 {
-        //     assert_eq_hex!(
-        //         sys.bus.memory[i.0] & mask_low,
-        //         i.1 & mask_low,
-        //         "stack flags low {:05X} {} {:#?}",
-        //         i.0,
-        //         instr.name,
-        //         instr
-        //     )
-        // } else {
-        //     assert_eq_hex!(
-        //         sys.bus.memory[i.0],
-        //         i.1,
-        //         "mem {:05X} {} {:#?}",
-        //         i.0,
-        //         instr.name,
-        //         instr
-        //     )
-        // }
+    for (address, value) in &instr.final_state.ram {
         assert_eq_hex!(
-            sys.bus.memory[i.0],
-            i.1,
+            sys.bus.memory[*address],
+            *value,
             "mem {:05X} {} {:#?}",
-            i.0,
+            address,
             instr.name,
             instr
         )
+    }
+
+    // Test unchanged memory
+    for (address, value) in &instr.initial_state.ram {
+        let final_val_entry = instr.final_state.ram.iter().find(|v| v.0 == *address);
+
+        if final_val_entry.is_none() {
+            assert_eq_hex!(
+                sys.bus.memory[*address],
+                *value,
+                "mem {:05X} {} {:#?}",
+                address,
+                instr.name,
+                instr
+            )
+        }
     }
 }
 
@@ -333,7 +238,7 @@ macro_rules! create_test {
                     break;
                 }
 
-                check_state(&i, &mut sys, &metadata.opcodes, $file_name);
+                check_state(&i, &mut sys, &metadata, $file_name);
             }
         }
     };

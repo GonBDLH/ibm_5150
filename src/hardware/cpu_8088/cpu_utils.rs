@@ -1,3 +1,5 @@
+use std::ops::ShrAssign;
+
 use super::{instr_utils::*, CPU};
 
 pub fn get_address(cpu: &CPU) -> usize {
@@ -242,7 +244,7 @@ pub fn shr(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
             let mut res = val1 as u8;
             while count != 0 {
                 cpu.flags.c = get_lsb(res);
-                res = res.wrapping_div(2);
+                res >>= 1;
                 count -= 1;
             }
 
@@ -252,7 +254,7 @@ pub fn shr(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
             let mut res = val1;
             while count != 0 {
                 cpu.flags.c = get_lsb(res as u8);
-                res = res.wrapping_div(2);
+                res >>= 1;
                 count -= 1;
             }
 
@@ -268,7 +270,7 @@ pub fn salshl(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
             let mut res = val1 as u8;
             while count != 0 {
                 cpu.flags.c = get_msb(res as u16, len);
-                res = res.wrapping_mul(2);
+                res <<= 1;
                 count -= 1;
             }
 
@@ -278,7 +280,7 @@ pub fn salshl(cpu: &mut CPU, val1: u16, mut count: u32, len: Length) -> u16 {
             let mut res = val1;
             while count != 0 {
                 cpu.flags.c = get_msb(res, len);
-                res = res.wrapping_mul(2);
+                res <<= 1;
                 count -= 1;
             }
 

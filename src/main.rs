@@ -46,18 +46,18 @@ fn main_view() -> GameResult {
     app.sys.rst();
     app.sys.load_roms();
 
-    // app.sys
-    //     .disk_ctrl
-    //     .insert_disk(&mut app.sys.bus, 0, "roms/dos/3.00/Disk01.img");
-    // app.sys
-    //     .disk_ctrl
-    //     .insert_disk(&mut app.sys.bus, 1, "roms/dos/3.00/Disk02.img");
+    app.sys
+        .disk_ctrl
+        .insert_disk(&mut app.sys.bus, 0, "roms/dos/3.00/Disk01.img");
+    app.sys
+        .disk_ctrl
+        .insert_disk(&mut app.sys.bus, 1, "roms/dos/3.00/Disk02.img");
     // app.sys
     //     .disk_ctrl
     //     .insert_disk(&mut app.sys.bus, 1, "roms/personal_editor/Disk1.img");
-    app.sys
-        .disk_ctrl
-        .insert_disk(&mut app.sys.bus, 0, "roms/dos/1.10/DISK01.IMA");
+    // app.sys
+    //     .disk_ctrl
+    //     .insert_disk(&mut app.sys.bus, 0, "roms/dos/1.10/DISK01.IMA");
 
     event::run(ctx, event_loop, app);
 }

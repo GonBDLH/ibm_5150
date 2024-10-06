@@ -142,7 +142,7 @@ impl DisplayAdapter for IbmMDA {
             &mut self.img_buffer,
             self.screen_dimensions.0 / self.char_dimensions.0,
             self.char_dimensions,
-            0xFFFFFFFF
+            0xFFFFFFFF,
         );
 
         Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8UnormSrgb, 720, 350)

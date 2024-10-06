@@ -44,7 +44,8 @@ impl CPU {
                 self.set_val(bus, self.instr.operand1, val);
             }
             Opcode::OUT => {
-                #[cfg(not(test))] {
+                #[cfg(not(test))]
+                {
                     let val = self.get_val(bus, self.instr.operand2);
                     bus.port_out(self, val, self.instr.port);
                 }
@@ -52,7 +53,8 @@ impl CPU {
             Opcode::XLAT => {
                 let val = bus.read_8(
                     self.get_segment(self.instr.segment),
-                    self.get_reg(Operand::BX).wrapping_add(self.get_reg(Operand::AL)),
+                    self.get_reg(Operand::BX)
+                        .wrapping_add(self.get_reg(Operand::AL)),
                 );
                 self.set_reg8(Operand::AL, val);
             }
@@ -365,7 +367,11 @@ impl CPU {
                             self.sw_int = true;
                             self.instr.sw_int_type = 0;
                         } else {
-                            self.set_reg(self.instr.data_length, Operand::AL, (res * rep_neg) as u16);
+                            self.set_reg(
+                                self.instr.data_length,
+                                Operand::AL,
+                                (res * rep_neg) as u16,
+                            );
                             self.set_reg(
                                 self.instr.data_length,
                                 Operand::AH,
@@ -381,7 +387,11 @@ impl CPU {
                             self.sw_int = true;
                             self.instr.sw_int_type = 0;
                         } else {
-                            self.set_reg(self.instr.data_length, Operand::AX, (res * (rep_neg as i32)) as u16);
+                            self.set_reg(
+                                self.instr.data_length,
+                                Operand::AX,
+                                (res * (rep_neg as i32)) as u16,
+                            );
                             self.set_reg(
                                 self.instr.data_length,
                                 Operand::DX,
@@ -422,9 +432,9 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                if count == 1 {
-                    self.flags.o = get_msb(res, self.instr.data_length) ^ self.flags.c;
-                } else if count == 0 {
+                self.flags.o = get_msb(res, self.instr.data_length) ^ self.flags.c;
+
+                if count == 0 {
                     return;
                 }
 
@@ -447,9 +457,9 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                if count == 1 {
-                    self.flags.o = get_msb(val, self.instr.data_length);
-                } else if count == 0 {
+                self.flags.o = get_msb(res, self.instr.data_length);
+
+                if count == 0 {
                     return;
                 }
 
@@ -465,9 +475,9 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                if count == 1 {
-                    self.flags.o = false;
-                } else if count == 0 {
+                self.flags.o = false;
+
+                if count == 0 {
                     return;
                 }
 
@@ -479,11 +489,11 @@ impl CPU {
                 let val = self.get_val(bus, self.instr.operand1);
                 let count = self.get_val(bus, self.instr.operand2) as u32;
 
-                let tmp_count = (count & 0x1F) % self.instr.data_length.get_num_bits() as u32;
+                // let tmp_count = (count & 0x1F) % self.instr.data_length.get_num_bits() as u32;
 
-                let res = rotate_left(val, tmp_count, self.instr.data_length);
+                let res = rotate_left(val, count, self.instr.data_length);
 
-                if tmp_count != 0 {
+                if count != 0 {
                     self.set_val(bus, self.instr.operand1, res);
                 }
 
@@ -502,8 +512,13 @@ impl CPU {
                     self.set_val(bus, self.instr.operand1, res);
                 }
 
-                self.flags
-                    .set_rr_flags(count, self.instr.data_length, val, res, get_msb(res, self.instr.data_length))
+                self.flags.set_rr_flags(
+                    count,
+                    self.instr.data_length,
+                    val,
+                    res,
+                    get_msb(res, self.instr.data_length),
+                )
             }
             Opcode::RCL => {
                 let val = self.get_val(bus, self.instr.operand1);
@@ -637,7 +652,7 @@ impl CPU {
                     }
                     _ => unreachable!(),
                 };
-            },
+            }
             Opcode::RET => match self.instr.ret_type {
                 RetType::NearAdd(val) => {
                     self.ip = self.pop_stack_16(bus);
@@ -748,11 +763,10 @@ impl CPU {
             Opcode::None => {
                 #[cfg(not(feature = "tests"))]
                 println!("SOY TONTO???? {}", self.instr.opcode);
-            }
-            // _ => {
-            //     #[cfg(not(feature = "tests"))]
-            //     println!("SOY TONTO???? {}", self.instr.opcode);
-            // } // _ => unreachable!(),
+            } // _ => {
+              //     #[cfg(not(feature = "tests"))]
+              //     println!("SOY TONTO???? {}", self.instr.opcode);
+              // } // _ => unreachable!(),
         }
     }
 }

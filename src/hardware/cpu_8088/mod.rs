@@ -4,6 +4,8 @@ mod execute;
 pub mod instr_utils;
 pub mod regs;
 
+use std::time::{Duration, Instant};
+
 use super::{bus::Bus, peripheral::fdc_necupd765::FloppyDiskController};
 use cpu_utils::*;
 use instr_utils::*;
@@ -39,6 +41,7 @@ pub struct CPU {
 
     // Ciclos que se ha ejecutado una instr.
     pub cycles: u32,
+    pub rep_cycles: u32,
 
     pub nmi: bool,
     pub nmi_enabled: bool,
@@ -49,6 +52,9 @@ pub struct CPU {
 
     // Usado en instrucciones de Strings cuando tengan que repetirse
     pub to_decode: bool,
+    
+    #[cfg(debug_assertions)]
+    timing_debug: Instant
 }
 
 impl CPU {
@@ -86,6 +92,7 @@ impl CPU {
             instr: Instruction::default(),
 
             cycles: 0,
+            rep_cycles: 0,
 
             nmi: false,
             nmi_enabled: false,
@@ -94,6 +101,9 @@ impl CPU {
             halted: false,
 
             to_decode: true,
+
+            #[cfg(debug_assertions)]
+            timing_debug: Instant::now()
         }
     }
 }
@@ -114,18 +124,23 @@ impl CPU {
     // DEVUELVO LA IP PARA DEBUGEAR
     pub fn fetch_decode_execute(&mut self, bus: &mut Bus) -> (u32, u16) {
         self.cycles = 0;
+
         let ip = self.ip;
 
         if self.to_decode {
+            self.rep_cycles = 0;
             self.instr = Instruction::default();
             let op = self.fetch(bus);
             self.decode(bus, op);
         }
 
         self.execute(bus);
+        self.cycles += self.rep_cycles;
+
         (self.cycles, ip)
     }
 
+    #[allow(unused_variables)]
     pub fn handle_interrupts(
         &mut self,
         bus: &mut Bus,
@@ -154,8 +169,16 @@ impl CPU {
         } else if self.flags.i {
             let pic_interrupt =  bus.pic.get_next();
 
-            if pic_interrupt.is_some() {
-                self.interrupt(bus, (pic_interrupt.unwrap() * 0x04) as u16);
+            if let Some(interrupt) = pic_interrupt {
+                #[cfg(debug_assertions)]
+                if interrupt == 8 {
+                    let t = Instant::now();
+                    let duration = t.duration_since(self.timing_debug);
+                    self.timing_debug = t;
+                    println!("Tiempo desde ultimo IRQ0: {}", duration.as_micros());
+                }
+
+                self.interrupt(bus, (interrupt * 0x04) as u16);
                 bus.pic.try_aeoi();
                 *cycles += 61;
             }
@@ -486,7 +509,7 @@ impl CPU {
             self.cx.set_x(self.cx.get_x() - 1);
             f(self, bus);
             self.adjust_string();
-            self.cycles = cycles;
+            self.rep_cycles = cycles;
         }
     }
 
@@ -502,7 +525,7 @@ impl CPU {
             self.cx.set_x(self.cx.get_x() - 1);
             f(self, bus);
             self.adjust_string();
-            self.cycles = cycles;
+            self.rep_cycles = cycles;
 
             self.to_decode = !self.check_z_str();
         }

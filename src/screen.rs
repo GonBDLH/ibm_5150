@@ -1,5 +1,7 @@
+use std::time::Instant;
+
 use ggez::glam::Vec2;
-use ggez::graphics::{BlendMode, DrawParam, Image, ImageFormat};
+use ggez::graphics::{BlendMode, Canvas, DrawParam, Image, ImageFormat};
 use ggez::input::keyboard::KeyInput;
 use ggez::{timer, Context};
 // A
@@ -18,6 +20,8 @@ pub struct IbmPc {
     pub sys: System,
     img: Image,
     dirty: bool,
+
+    timing_test: Instant
 }
 
 impl IbmPc {
@@ -33,6 +37,8 @@ impl IbmPc {
                 dimensions.1 as u32,
             ),
             dirty: false,
+
+            timing_test: Instant::now()
         }
     }
 }
@@ -40,22 +46,28 @@ impl IbmPc {
 impl EventHandler for IbmPc {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
         while ctx.time.check_update_time(DESIRED_FPS as u32) {
+            let t = Instant::now().duration_since(self.timing_test);
+            self.timing_test = Instant::now();
+
             self.sys.update();
             self.sys.bus.display.inc_frame_counter();
             self.dirty = false;
+
+            println!("FRAMETIME: {}", t.as_millis());
         }
 
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
         if !self.dirty {
             self.img = self.sys.create_frame(ctx);
             self.dirty = true;
         }
 
+        let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
         canvas.set_sampler(graphics::Sampler::nearest_clamp());
+        
         canvas.draw(&self.img, DrawParam::new().scale(Vec2::new(2., 2.)));
         canvas.finish(ctx)?;
 

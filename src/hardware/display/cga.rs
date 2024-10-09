@@ -1,7 +1,6 @@
 use std::{io::Read, mem::transmute};
 
 use crate::hardware::display::process_pixel_slice;
-use ggez::graphics::{Color, Image, ImageFormat};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
     slice::ParallelSliceMut,
@@ -29,8 +28,6 @@ const FULL_PALETTE: [u32; 16] = [
 ];
 
 pub struct CGA {
-    pub img_buffer: Vec<u8>,
-
     font_map: [[[bool; 8]; 8]; 256],
 
     crtc: CRTC6845,
@@ -49,7 +46,6 @@ impl CGA {
         file.read_to_end(&mut buf).unwrap();
 
         Self {
-            img_buffer: vec![0x00; (dimensions.0 * dimensions.1 * 4.) as usize],
             font_map: decode_font_map(&buf[0x1800..]),
             crtc: CRTC6845::default(),
             screen_dimensions: (dimensions.0 as usize, dimensions.1 as usize),
@@ -63,11 +59,12 @@ impl CGA {
         self.crtc.op1 & 0b00001000 > 0
     }
 
-    fn alphanumeric_mode(&mut self, vram: &[u8]) {
+    fn alphanumeric_mode(&mut self, vram: &[u8], img_buffer: &mut [u8]) {
         let screen_character_width = self.screen_dimensions.0 / self.char_dimensions.0;
+        // let mut img_buffer = vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 3];
 
-        self.img_buffer
-            .par_chunks_mut(8 * 4)
+        img_buffer
+            .par_chunks_mut(8 * 3)
             .enumerate()
             .for_each(|(i, pixel_slice)| {
                 let col_index = i % screen_character_width;
@@ -84,19 +81,20 @@ impl CGA {
                 let new_pixel_slice = decode_pixel_slice(&self.font_map, row_index, character);
                 pixel_slice.copy_from_slice(&new_pixel_slice);
             });
-
         // self.add_cursor();
     }
 
-    fn graphic_mode(&mut self, vram: &[u8]) {
+    fn graphic_mode(&mut self, vram: &[u8], img_buffer: &mut [u8]) {
         // TODO GRAPHIC MODE
         // self.img_buffer =
         //     vec![0xFF; (self.screen_dimensions.0 * self.screen_dimensions.1) as usize * 4];
         let palette = (self.color & 0b00100000 != 0) as usize * 2;
         let intensity = (self.color & 0b00010000 != 0) as usize;
 
-        self.img_buffer
-            .par_chunks_mut(self.screen_dimensions.0 * 4)
+        // let mut img_buffer = vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 3];
+
+        img_buffer
+            .par_chunks_mut(self.screen_dimensions.0 * 3)
             .enumerate()
             .for_each(|(i, pixel_slice)| {
                 let row_slice = if i % 2 == 0 {
@@ -114,11 +112,11 @@ impl CGA {
                         let pixel = pixel_group >> (2 * (3 - pixel_offset)) & 3;
                         let color = PALETTE[palette + intensity][pixel as usize];
                         let color_bytes = color.to_be_bytes();
-                        let pixel_slice_start = group_index * 16 + pixel_offset * 4;
-                        let pixel_slice_end = pixel_slice_start + 4;
+                        let pixel_slice_start = group_index * 12 + pixel_offset * 3;
+                        let pixel_slice_end = pixel_slice_start + 3;
 
                         pixel_slice[pixel_slice_start..pixel_slice_end]
-                            .copy_from_slice(&color_bytes)
+                            .copy_from_slice(&color_bytes[0..3])
                     }
                 }
             });
@@ -147,9 +145,9 @@ fn decode_pixel_slice(
     font_map: &[[[bool; 8]; 8]; 256],
     row: usize,
     character: ColorChar,
-) -> [u8; 8 * 4] {
+) -> [u8; 8 * 3] {
     let character_slice = font_map[character.index][row];
-    let mut return_slice = [0x00; 8 * 4];
+    let mut return_slice = [0xFF; 8 * 3];
 
     process_pixel_slice(&mut return_slice, &character_slice, character);
 
@@ -191,37 +189,27 @@ impl Peripheral for CGA {
 }
 
 impl DisplayAdapter for CGA {
-    fn create_frame(&mut self, ctx: &mut ggez::Context, vram: &[u8]) -> Image {
+    fn create_frame(&mut self, vram: &[u8]) -> Vec<u8> {
+        let mut img_buffer = vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 3];
+
         if !self.enabled() {
-            return Image::from_pixels(
-                ctx,
-                &vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 4],
-                ImageFormat::Rgba8UnormSrgb,
-                self.screen_dimensions.0 as u32,
-                self.screen_dimensions.1 as u32,
-            );
+            return img_buffer;
         }
 
         if self.crtc.op1 & 0b00000010 > 0 {
-            self.graphic_mode(vram);
+            self.graphic_mode(vram, &mut img_buffer);
         } else {
-            self.alphanumeric_mode(vram);
+            self.alphanumeric_mode(vram, &mut img_buffer);
         }
 
         self.crtc.add_cursor(
-            &mut self.img_buffer,
+            &mut img_buffer,
             self.screen_dimensions.0 / self.char_dimensions.0,
             self.char_dimensions,
-            0xAAAAAAFF,
+            [0xAA, 0xAA, 0xAA],
         );
 
-        Image::from_pixels(
-            ctx,
-            &self.img_buffer,
-            ImageFormat::Rgba8UnormSrgb,
-            self.screen_dimensions.0 as u32,
-            self.screen_dimensions.1 as u32,
-        )
+        img_buffer
     }
 
     fn inc_frame_counter(&mut self) {

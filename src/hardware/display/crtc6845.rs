@@ -107,7 +107,7 @@ impl CRTC6845 {
         img_buffer: &mut [u8],
         screen_width: usize,
         char_dimensions: (usize, usize),
-        cursor_color: u32,
+        cursor_color: [u8; 3],
     ) {
         let (x, y) = self.get_cursor_xy(screen_width as u16);
         let cursor_size = self.get_cursor_start_end();
@@ -126,8 +126,8 @@ impl CRTC6845 {
                     self.frame_counter = 1;
                     self.cursor_blink_state = !self.cursor_blink_state;
                 }
-            },
-            BlinkMode::NonDisplay => return
+            }
+            BlinkMode::NonDisplay => return,
         };
 
         if self.cursor_blink_state == BlinkState::Dark {
@@ -145,7 +145,7 @@ impl CRTC6845 {
                     + z * char_dimensions.0 * screen_width
                     + y * char_dimensions.0 * screen_width * char_dimensions.1;
 
-                img_buffer[index * 4..index * 4 + 4].copy_from_slice(&cursor_color.to_be_bytes());
+                img_buffer[index * 3..index * 3 + 3].copy_from_slice(&cursor_color);
             }
         }
     }

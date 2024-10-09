@@ -1,96 +1,181 @@
-use std::time::Instant;
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    num::NonZeroU32,
+    rc::Rc,
+    thread,
+    time::{self, Instant},
+};
 
-use ggez::glam::Vec2;
-use ggez::graphics::{BlendMode, Canvas, DrawParam, Image, ImageFormat};
-use ggez::input::keyboard::KeyInput;
-use ggez::{timer, Context};
-// A
-use crate::hardware::display::DisplayAdapter;
-pub use crate::hardware::sys::System;
+use log::{debug, info, trace};
+use softbuffer::{Context, Surface};
+use winit::{
+    application::ApplicationHandler,
+    dpi::{LogicalSize, PhysicalSize, Size},
+    event::{ElementState, KeyEvent, StartCause, WindowEvent},
+    event_loop::ControlFlow,
+    platform::scancode::PhysicalKeyExtScancode,
+    window::{self, Window, WindowId},
+};
 
-pub use ggez::conf::WindowMode;
-pub use ggez::event::{self, EventHandler};
-pub use ggez::graphics::{self, Color};
-pub use ggez::input::keyboard::KeyCode;
-pub use ggez::{GameError, GameResult};
+use crate::hardware::sys::System;
 
 pub const DESIRED_FPS: f32 = 50.;
+const WAIT_TIME: time::Duration = time::Duration::from_millis(20);
+const POLL_SLEEP_TIME: time::Duration = time::Duration::from_millis(5);
 
+struct GraphicsContext {
+    /// The global softbuffer context.
+    context: Context<Rc<Window>>,
+
+    /// The hash map of window IDs to surfaces.
+    surface: Surface<Rc<Window>, Rc<Window>>,
+}
+
+#[derive(Default)]
 pub struct IbmPc {
     pub sys: System,
-    img: Image,
-    dirty: bool,
 
-    timing_test: Instant
+    request_redraw: bool,
+    wait_cancelled: bool,
+    close_requested: bool,
+    window: Option<Rc<Window>>,
+    window_dimensions: (f32, f32),
+
+    frametime: Option<Instant>,
+    poll_cycles: i32,
+
+    graphics_context: Option<GraphicsContext>,
 }
 
 impl IbmPc {
-    // pub fn new(ctx: &Context) -> Self {
-    pub fn new(ctx: &Context, sw1: u8, sw2: u8, dimensions: (f32, f32)) -> Self {
-        IbmPc {
+    pub fn new(sw1: u8, sw2: u8, dimensions: (f32, f32)) -> Self {
+        Self {
             sys: System::new(sw1, sw2, dimensions),
-            img: Image::from_pixels(
-                ctx,
-                &vec![0x00; (dimensions.0 * dimensions.1 * 4.) as usize],
-                ImageFormat::Rgba8Unorm,
-                dimensions.0 as u32,
-                dimensions.1 as u32,
-            ),
-            dirty: false,
+            window_dimensions: dimensions,
+            ..Default::default()
+        }
+    }
 
-            timing_test: Instant::now()
+    fn fill_window(&mut self, img_buffer: Vec<u8>) {
+        if let Some(ctx) = self.graphics_context.as_mut() {
+            let (width, height) = {
+                let size = self.window.as_ref().unwrap().inner_size();
+                (size.width, size.height)
+            };
+
+            // println!("{} {}", width, height);
+            // println!("{} {}", self.window_dimensions.0 as u32, self.window_dimensions.1 as u32);
+
+            ctx.surface
+                .resize(
+                    NonZeroU32::new(self.window_dimensions.0 as u32).unwrap(),
+                    NonZeroU32::new(self.window_dimensions.1 as u32).unwrap(),
+                )
+                .unwrap();
+
+            let mut buffer = ctx.surface.buffer_mut().unwrap();
+            for index in 0..(self.window_dimensions.0 * self.window_dimensions.1) as usize {
+                // let y = index / width;
+                // let x = index % width;
+                let red = img_buffer[index * 3] as u32;
+                let green = img_buffer[index * 3 + 1] as u32;
+                let blue = img_buffer[index * 3 + 2] as u32;
+
+                buffer[index] = blue | (green << 8) | (red << 16);
+            }
+
+            buffer.present().unwrap();
         }
     }
 }
 
-impl EventHandler for IbmPc {
-    fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        while ctx.time.check_update_time(DESIRED_FPS as u32) {
-            let t = Instant::now().duration_since(self.timing_test);
-            self.timing_test = Instant::now();
-
-            self.sys.update();
-            self.sys.bus.display.inc_frame_counter();
-            self.dirty = false;
-
-            println!("FRAMETIME: {}", t.as_millis());
-        }
-
-        Ok(())
-    }
-
-    fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        if !self.dirty {
-            self.img = self.sys.create_frame(ctx);
-            self.dirty = true;
-        }
-
-        let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
-        canvas.set_sampler(graphics::Sampler::nearest_clamp());
-        
-        canvas.draw(&self.img, DrawParam::new().scale(Vec2::new(2., 2.)));
-        canvas.finish(ctx)?;
-
-        timer::yield_now();
-        Ok(())
-    }
-
-    fn key_down_event(
+impl ApplicationHandler for IbmPc {
+    fn new_events(
         &mut self,
-        _ctx: &mut Context,
-        input: KeyInput,
-        repeated: bool,
-    ) -> Result<(), GameError> {
-        if !repeated {
-            self.sys.bus.ppi.key_down(input.scancode);
-        }
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        cause: winit::event::StartCause,
+    ) {
+        if cause == StartCause::Poll {
+            self.poll_cycles += 1;
 
-        Ok(())
+            if self.poll_cycles == 4 {
+                self.poll_cycles = 0;
+                self.window.as_ref().unwrap().request_redraw();
+            }
+
+            let elapsed = self.frametime.unwrap_or(Instant::now()).elapsed();
+
+            self.sys.update(elapsed.as_secs_f32());
+
+            trace!("FRAMETIME: {}", elapsed.as_micros());
+            self.frametime = Some(Instant::now());
+        }
     }
 
-    fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> Result<(), GameError> {
-        self.sys.bus.ppi.key_up(input.scancode);
+    fn window_event(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        _window_id: winit::window::WindowId,
+        event: winit::event::WindowEvent,
+    ) {
+        debug!("{event:?}");
 
-        Ok(())
+        match event {
+            WindowEvent::CloseRequested => {
+                self.close_requested = true;
+            }
+            WindowEvent::RedrawRequested => {
+                let window = self.window.as_ref().unwrap();
+                window.pre_present_notify();
+                let frame = self.sys.create_frame();
+                self.fill_window(frame);
+            }
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        physical_key: key,
+                        state,
+                        ..
+                    },
+                ..
+            } => match state {
+                ElementState::Pressed => {
+                    self.sys.bus.ppi.key_down(key.to_scancode().unwrap() as u8);
+                }
+                ElementState::Released => {
+                    self.sys.bus.ppi.key_up(key.to_scancode().unwrap() as u8);
+                }
+            },
+
+            _ => (),
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        thread::sleep(POLL_SLEEP_TIME);
+        event_loop.set_control_flow(ControlFlow::Poll);
+
+        if self.close_requested {
+            event_loop.exit();
+        }
+    }
+
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        let window_attributes = Window::default_attributes()
+            .with_title("IBM 5150 Emulator")
+            .with_inner_size(PhysicalSize::new(
+                self.window_dimensions.0,
+                self.window_dimensions.1,
+            ))
+            .with_resizable(false);
+        self.window = Some(Rc::new(
+            event_loop.create_window(window_attributes).unwrap(),
+        ));
+
+        let context = Context::new(self.window.as_ref().unwrap().clone()).unwrap();
+        let surface = Surface::new(&context, self.window.as_ref().unwrap().clone()).unwrap();
+
+        self.graphics_context = Some(GraphicsContext { context, surface });
     }
 }

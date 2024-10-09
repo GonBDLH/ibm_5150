@@ -52,9 +52,9 @@ pub struct CPU {
 
     // Usado en instrucciones de Strings cuando tengan que repetirse
     pub to_decode: bool,
-    
-    #[cfg(debug_assertions)]
-    timing_debug: Instant
+
+    // #[cfg(debug_assertions)]
+    timing_debug: Instant,
 }
 
 impl CPU {
@@ -102,8 +102,8 @@ impl CPU {
 
             to_decode: true,
 
-            #[cfg(debug_assertions)]
-            timing_debug: Instant::now()
+            // #[cfg(debug_assertions)]
+            timing_debug: Instant::now(),
         }
     }
 }
@@ -167,10 +167,10 @@ impl CPU {
             self.nmi = false;
             *cycles += 50;
         } else if self.flags.i {
-            let pic_interrupt =  bus.pic.get_next();
+            let pic_interrupt = bus.pic.get_next();
 
             if let Some(interrupt) = pic_interrupt {
-                #[cfg(debug_assertions)]
+                // #[cfg(debug_assertions)]
                 if interrupt == 8 {
                     let t = Instant::now();
                     let duration = t.duration_since(self.timing_debug);
@@ -182,7 +182,6 @@ impl CPU {
                 bus.pic.try_aeoi();
                 *cycles += 61;
             }
-
         } else {
             // TODO ESTO IGUAL ESTA MAL
             self.nmi = false;

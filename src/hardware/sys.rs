@@ -1,12 +1,12 @@
 // use std::fs::File;
 use std::fs::File;
 
-use ggez::graphics::Image;
-use ggez::Context;
+// use ggez::graphics::Image;
+// use ggez::Context;
 
 use super::bus::Bus;
 use super::cpu_8088::{cpu_utils::get_address, CPU};
-use super::display::DisplayAdapter;
+// use super::display::DisplayAdapter;
 use super::peripheral::fdc_necupd765::FloppyDiskController;
 use super::switches_cfg::*;
 
@@ -77,8 +77,8 @@ impl System {
     }
 
     // Llamar cada frame
-    pub fn update(&mut self) {
-        let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
+    pub fn update(&mut self, elapsed: f32) {
+        let max_cycles = (4_772_726.7 * elapsed) as u32;
         let mut cycles_ran = 0;
 
         self.bus.ppi.key_input(&mut self.bus.pic);
@@ -128,7 +128,7 @@ impl System {
     }
 
     pub fn step(&mut self, cycles_ran: &mut u32) {
-        #[cfg(debug_assertions)]
+        // #[cfg(debug_assertions)]
         debug_82(&mut self.cpu);
         let (mut cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
         // println!("{:04X}", _ip);
@@ -195,13 +195,14 @@ impl System {
         }
     }
 
-    pub fn create_frame(&mut self, ctx: &mut Context) -> Image {
+    pub fn create_frame(&mut self) -> Vec<u8> {
         let vram = if self.sw1 & 0b00110000 == DISPLAY_MDA_80_25 {
             &self.bus.memory[0xB0000..0xB4000]
         } else {
             &self.bus.memory[0xB8000..0xBC000]
         };
 
-        self.bus.display.create_frame(ctx, vram)
+        self.bus.display.inc_frame_counter();
+        self.bus.display.create_frame(vram)
     }
 }

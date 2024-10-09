@@ -1,28 +1,35 @@
 use egui::CollapsingHeader;
-use ggez::{
-    graphics::{Color, Image},
-    Context,
-};
 
 pub mod cga;
 pub mod crtc6845;
 pub mod ibm_mda;
 
 pub trait DisplayAdapter {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image;
+    fn create_frame(&mut self, vram: &[u8]) -> Vec<u8>;
     fn inc_frame_counter(&mut self);
+}
+
+struct Color(u8, u8, u8, u8);
+
+impl Color {
+    pub const WHITE: Color = Color(0xFF, 0xFF, 0xFF, 0xFF);
+    pub const BLACK: Color = Color(0x00, 0x00, 0x00, 0xFF);
+
+    pub fn from_rgb(r: u8, g: u8, b: u8) -> Color {
+        Color(r, g, b, 0xFF)
+    }
 }
 
 trait Character {
     fn decode_colors(self, attr: u8) -> Self;
-    fn get_foreground_color(&self) -> Color;
-    fn get_background_color(&self) -> Color;
+    fn get_foreground_color(&self) -> &Color;
+    fn get_background_color(&self) -> &Color;
 }
 
 pub struct BWChar {
     pub index: usize,
-    pub background_color: Color,
-    pub foreground_color: Color,
+    background_color: Color,
+    foreground_color: Color,
 
     pub bright: bool,
     pub underline: bool,
@@ -89,19 +96,19 @@ impl Character for BWChar {
         self
     }
 
-    fn get_foreground_color(&self) -> Color {
-        self.foreground_color
+    fn get_foreground_color(&self) -> &Color {
+        &self.foreground_color
     }
 
-    fn get_background_color(&self) -> Color {
-        self.background_color
+    fn get_background_color(&self) -> &Color {
+        &self.background_color
     }
 }
 
 pub struct ColorChar {
     pub index: usize,
-    pub background_color: Color,
-    pub foreground_color: Color,
+    background_color: Color,
+    foreground_color: Color,
 
     pub bright: bool,
 }
@@ -145,12 +152,12 @@ impl Character for ColorChar {
         self
     }
 
-    fn get_background_color(&self) -> Color {
-        self.background_color
+    fn get_background_color(&self) -> &Color {
+        &self.background_color
     }
 
-    fn get_foreground_color(&self) -> Color {
-        self.foreground_color
+    fn get_foreground_color(&self) -> &Color {
+        &self.foreground_color
     }
 }
 
@@ -172,18 +179,18 @@ fn process_pixel_slice(
     character: impl Character,
 ) {
     return_slice
-        .chunks_mut(4)
+        .chunks_mut(3)
         .zip(character_slice.iter())
         .for_each(|(pixels, val)| {
             let color = if *val {
-                character.get_foreground_color().to_rgba()
+                character.get_foreground_color()
             } else {
-                character.get_background_color().to_rgba()
+                character.get_background_color()
             };
 
             pixels[0] = color.0;
             pixels[1] = color.1;
             pixels[2] = color.2;
-            pixels[3] = color.3;
+            // pixels[3] = color.3;
         });
 }

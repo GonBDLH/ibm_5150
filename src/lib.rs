@@ -4,13 +4,12 @@
 pub mod hardware;
 pub mod util;
 
-pub mod debugger;
+// pub mod debugger;
 pub mod screen;
 
-use std::io::Read;
+use std::{collections::HashMap, io::Read};
 
 use assert_hex::assert_eq_hex;
-use egui::epaint::ahash::HashMap;
 use flate2::read::GzDecoder;
 use hardware::{
     cpu_8088::instr_utils::{Opcode, RepetitionPrefix},

@@ -10,8 +10,8 @@ pub struct PIC8259 {
     icw_step: usize,
 
     icw_4_needed: bool,
-    single: bool,                   // Not necessary, since IBM 5150 only has one PIC
-    call_address_interval: usize,   // Not necessary
+    single: bool,                 // Not necessary, since IBM 5150 only has one PIC
+    call_address_interval: usize, // Not necessary
     trigger_mode: TriggerMode,
 
     interrupt_vector: u8,
@@ -203,7 +203,6 @@ impl Peripheral for PIC8259 {
                     self.lower_priority = 7;
                     // TODO Special Mask Mode cleared and Status Read -> IRR
                     self.special_mask_mode = false;
-
                 } else if val & 0b00011000 == 0 {
                     // TODO OCW2
                     match val & 0b11100000 {
@@ -218,7 +217,6 @@ impl Peripheral for PIC8259 {
                         }
                         0b10100000 => {
                             // TODO ROTATE ON NON-SPECIFIC EOI COMMAND
-
                         }
                         0b10000000 => {
                             // TODO ROTATE IN AEOI MODE SET
@@ -234,22 +232,22 @@ impl Peripheral for PIC8259 {
                             let lower_prio = val & 0b00000111;
                             self.lower_priority = lower_prio;
                         }
-                        _ => {/* NO OPERATION */}
+                        _ => { /* NO OPERATION */ }
                     }
                 } else if val & 0b10011000 == 0b00001000 {
                     // TODO OCW3
                 }
-            },
+            }
             0x21 => {
                 match self.icw_step {
                     1 => {
                         // TODO ICW2
                         self.interrupt_vector = val;
-                    },
+                    }
                     2 => {
                         // ICW3
                         // Not needed, IBM 5150 only has one PIC
-                    },
+                    }
                     3 => {
                         // ICW4
                         self.eoi_mode = if val & 0b00000010 > 0 {
@@ -258,7 +256,7 @@ impl Peripheral for PIC8259 {
                             EOIMode::NormalEOI
                         };
                         self.special_fully_nested_mode = val & 0b00010000 > 0;
-                    },
+                    }
                     _ => {
                         // OCW1
                         self.imr = val;
@@ -267,14 +265,14 @@ impl Peripheral for PIC8259 {
 
                 self.next_icw_step();
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
 
 enum TriggerMode {
     LevelTriggered,
-    EdgeTriggered
+    EdgeTriggered,
 }
 
 #[derive(PartialEq, Eq)]

@@ -1,7 +1,5 @@
 use std::collections::VecDeque;
 
-use ggez::event::ScanCode;
-
 use super::{
     pic_8259::{IRQs, PIC8259},
     Peripheral,
@@ -72,11 +70,13 @@ impl PPI8255 {
         }
     }
 
-    pub fn key_up(&mut self, keycode: ScanCode) {
+    // TODO
+    pub fn key_up(&mut self, keycode: u8) {
         self.kbd.key_queue.push_front(keycode as u8 + 0x80);
     }
 
-    pub fn key_down(&mut self, keycode: ScanCode) {
+    // TODO
+    pub fn key_down(&mut self, keycode: u8) {
         self.kbd.key_queue.push_front(keycode as u8);
     }
 

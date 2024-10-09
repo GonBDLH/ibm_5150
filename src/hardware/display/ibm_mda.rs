@@ -1,10 +1,5 @@
 use std::io::Read;
 
-use ggez::{
-    graphics::{Image, ImageFormat},
-    Context,
-};
-
 use crate::hardware::display::process_pixel_slice;
 use rayon::prelude::*;
 
@@ -19,7 +14,6 @@ use super::{
 
 #[allow(dead_code)]
 pub struct IbmMDA {
-    pub img_buffer: Vec<u8>,
     pub font_rom: Vec<u8>,
 
     font_map: [[[bool; 9]; 14]; 256],
@@ -63,14 +57,13 @@ fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 256] {
 impl IbmMDA {
     pub fn new(dimensions: (f32, f32)) -> IbmMDA {
         // let a: Vec<u8> = (0..IMG_BUFF_SIZE).map(|x| if x % 4 == 3 {0xFF} else {0x00}).collect();
-        let a = vec![0x00; (dimensions.0 * dimensions.1 * 4.) as usize];
+        // let a = vec![0x00; (dimensions.0 * dimensions.1 * 4.) as usize];
         let mut file =
             std::fs::File::open("roms/IBM_5788005_AM9264_1981_CGA_MDA_CARD.BIN").unwrap();
         let mut buf = Vec::new();
         file.read_to_end(&mut buf).unwrap();
 
         IbmMDA {
-            img_buffer: a,
             font_rom: buf.clone(),
             font_map: decode_font_map(&buf),
 
@@ -98,9 +91,9 @@ fn decode_pixel_slice(
     font_map: &[[[bool; 9]; 14]; 256],
     row: usize,
     character: BWChar,
-) -> [u8; 9 * 4] {
+) -> [u8; 9 * 3] {
     let character_slice = font_map[character.index][row];
-    let mut return_slice = [0x00; 9 * 4];
+    let mut return_slice = [0x00; 9 * 3];
 
     process_pixel_slice(&mut return_slice, &character_slice, character);
 
@@ -108,19 +101,15 @@ fn decode_pixel_slice(
 }
 
 impl DisplayAdapter for IbmMDA {
-    fn create_frame(&mut self, ctx: &mut Context, vram: &[u8]) -> Image {
+    fn create_frame(&mut self, vram: &[u8]) -> Vec<u8> {
+        let mut img_buffer = vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 3];
+
         if !self.enabled() {
-            return Image::from_pixels(
-                ctx,
-                &vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 4],
-                ImageFormat::Rgba8Unorm,
-                720,
-                350,
-            );
+            return img_buffer;
         }
 
-        self.img_buffer
-            .par_chunks_mut(9 * 4)
+        img_buffer
+            .par_chunks_mut(9 * 3)
             .enumerate()
             .for_each(|(i, pixel_slice)| {
                 let col_index = i % 80;
@@ -139,13 +128,13 @@ impl DisplayAdapter for IbmMDA {
             });
 
         self.crtc.add_cursor(
-            &mut self.img_buffer,
+            &mut img_buffer,
             self.screen_dimensions.0 / self.char_dimensions.0,
             self.char_dimensions,
-            0xFFFFFFFF,
+            [0xFF, 0xFF, 0xFF],
         );
 
-        Image::from_pixels(ctx, &self.img_buffer, ImageFormat::Rgba8UnormSrgb, 720, 350)
+        img_buffer
     }
 
     fn inc_frame_counter(&mut self) {

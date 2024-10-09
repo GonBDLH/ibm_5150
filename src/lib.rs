@@ -5,7 +5,7 @@ pub mod hardware;
 pub mod util;
 
 // pub mod debugger;
-pub mod screen;
+pub mod frontend;
 
 use std::{collections::HashMap, io::Read};
 

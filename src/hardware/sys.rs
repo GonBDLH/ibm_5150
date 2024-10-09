@@ -66,7 +66,7 @@ impl Default for System {
     }
 }
 
-use crate::{screen::DESIRED_FPS, util::debug_bios::debug_82};
+use crate::util::debug_bios::debug_82;
 
 impl System {
     pub fn rst(&mut self) {
@@ -93,8 +93,8 @@ impl System {
         }
     }
 
-    pub fn update_debugger(&mut self) {
-        let max_cycles = (4_772_726.7 / DESIRED_FPS) as u32;
+    pub fn update_debugger(&mut self, elapsed: f32) {
+        let max_cycles = (4_772_726.7 * elapsed) as u32;
         let mut cycles_ran = 0;
 
         while cycles_ran <= max_cycles {

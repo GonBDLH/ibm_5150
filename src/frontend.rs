@@ -7,7 +7,9 @@ use std::{
     time::{self, Instant},
 };
 
+use egui::emath::Float;
 use log::{debug, info, trace};
+use rayon::{iter::{IndexedParallelIterator, ParallelIterator}, slice::ParallelSliceMut};
 use softbuffer::{Context, Surface};
 use winit::{
     application::ApplicationHandler,
@@ -20,9 +22,15 @@ use winit::{
 
 use crate::hardware::sys::System;
 
-pub const DESIRED_FPS: f32 = 50.;
-const WAIT_TIME: time::Duration = time::Duration::from_millis(20);
-const POLL_SLEEP_TIME: time::Duration = time::Duration::from_millis(5);
+const FRAMETIME_MS: u64 = 20;
+
+// #[cfg(not(debug_assertions))]
+const UPDATE_RATE_MS: u64 = 5;
+
+// #[cfg(debug_assertions)]
+// const UPDATE_RATE_MS: u64 = 19;
+
+const POLL_SLEEP_TIME: time::Duration = time::Duration::from_millis(UPDATE_RATE_MS);
 
 struct GraphicsContext {
     /// The global softbuffer context.
@@ -43,7 +51,7 @@ pub struct IbmPc {
     window_dimensions: (f32, f32),
 
     frametime: Option<Instant>,
-    poll_cycles: i32,
+    poll_cycles: u64,
 
     graphics_context: Option<GraphicsContext>,
 }
@@ -57,33 +65,44 @@ impl IbmPc {
         }
     }
 
-    fn fill_window(&mut self, img_buffer: Vec<u8>) {
+    fn draw_screen(&mut self, img_buffer: Vec<u8>) {
         if let Some(ctx) = self.graphics_context.as_mut() {
             let (width, height) = {
                 let size = self.window.as_ref().unwrap().inner_size();
                 (size.width, size.height)
             };
-
-            // println!("{} {}", width, height);
-            // println!("{} {}", self.window_dimensions.0 as u32, self.window_dimensions.1 as u32);
-
+            
             ctx.surface
                 .resize(
-                    NonZeroU32::new(self.window_dimensions.0 as u32).unwrap(),
-                    NonZeroU32::new(self.window_dimensions.1 as u32).unwrap(),
+                    NonZeroU32::new(width).unwrap(),
+                    NonZeroU32::new(height).unwrap(),
                 )
                 .unwrap();
 
             let mut buffer = ctx.surface.buffer_mut().unwrap();
-            for index in 0..(self.window_dimensions.0 * self.window_dimensions.1) as usize {
-                // let y = index / width;
-                // let x = index % width;
-                let red = img_buffer[index * 3] as u32;
-                let green = img_buffer[index * 3 + 1] as u32;
-                let blue = img_buffer[index * 3 + 2] as u32;
 
-                buffer[index] = blue | (green << 8) | (red << 16);
-            }
+            buffer
+                .par_chunks_mut(width as usize)
+                .enumerate()
+                .for_each(|(y, row)| {
+                    for x in 0..width {
+                        let src_x = ((x as f32) / (width as f32) * self.window_dimensions.0).round() as usize;
+                        let src_y = ((y as f32) / (height as f32) * self.window_dimensions.1).round() as usize;
+                        let src_x = src_x.min((self.window_dimensions.0 - 1.) as usize);
+                        let src_y = src_y.min((self.window_dimensions.1 - 1.) as usize);
+
+                        let src_index = (src_y * self.window_dimensions.0 as usize + src_x) * 3;
+
+                        let red = img_buffer[src_index] as u32;
+                        let green = img_buffer[src_index + 1] as u32;
+                        let blue = img_buffer[src_index + 2] as u32;
+
+                        let src_color = (red << 16) | (green << 8) | blue;
+
+                        row[x as usize] = src_color;
+                    }
+                });
+
 
             buffer.present().unwrap();
         }
@@ -99,7 +118,7 @@ impl ApplicationHandler for IbmPc {
         if cause == StartCause::Poll {
             self.poll_cycles += 1;
 
-            if self.poll_cycles == 4 {
+            if self.poll_cycles == FRAMETIME_MS / UPDATE_RATE_MS {
                 self.poll_cycles = 0;
                 self.window.as_ref().unwrap().request_redraw();
             }
@@ -129,7 +148,7 @@ impl ApplicationHandler for IbmPc {
                 let window = self.window.as_ref().unwrap();
                 window.pre_present_notify();
                 let frame = self.sys.create_frame();
-                self.fill_window(frame);
+                self.draw_screen(frame);
             }
             WindowEvent::KeyboardInput {
                 event:
@@ -165,10 +184,11 @@ impl ApplicationHandler for IbmPc {
         let window_attributes = Window::default_attributes()
             .with_title("IBM 5150 Emulator")
             .with_inner_size(PhysicalSize::new(
-                self.window_dimensions.0,
-                self.window_dimensions.1,
+                self.window_dimensions.0 * 2.,
+                self.window_dimensions.1 * 2.,
             ))
             .with_resizable(false);
+
         self.window = Some(Rc::new(
             event_loop.create_window(window_attributes).unwrap(),
         ));

@@ -1,3 +1,5 @@
+use log::error;
+
 use super::cpu_utils::*;
 use super::instr_utils::*;
 use super::regs::check_p;
@@ -143,29 +145,68 @@ impl CPU {
                 self.set_val(bus, self.instr.operand1, res);
                 self.flags.set_inc_flags(self.instr.data_length, val, res);
             }
+
+            // SACADO DE https://github.com/dbalsom/martypc/blob/version_0_2_3/core/src/cpu_808x/bcd.rs
             Opcode::AAA => {
+                let old_al = self.ax.low;
+                let new_al;
+
                 if (self.ax.low & 0x0F) > 9 || self.flags.a {
-                    let val = self.ax.get_x();
-                    self.ax.set_x(val.wrapping_add(0x106));
+                    self.ax.high = self.ax.high.wrapping_add(1);
+                    new_al = self.ax.low.wrapping_add(0x06);
                     self.flags.a = true;
                     self.flags.c = true;
                 } else {
+                    new_al = self.ax.low;
                     self.flags.a = false;
                     self.flags.c = false;
                 }
-                let val = self.ax.low;
-                self.ax.low = val & 0x0F;
+                self.ax.low = new_al & 0x0F;
+
+                self.flags.z = new_al == 0;
+                self.flags.p = check_p(new_al as u16);
+                self.flags.o = (0x7A..=0x7F).contains(&old_al);
+                self.flags.s = (0x7A..=0xF9).contains(&old_al);
             }
+
+            // SACADO DE https://github.com/dbalsom/martypc/blob/version_0_2_3/core/src/cpu_808x/bcd.rs
             Opcode::DAA => {
                 let old_al = self.ax.low;
+                let old_af = self.flags.a;
+                let old_cf = self.flags.c;
+
+                self.flags.c = false;
+                if old_cf {
+                    if self.ax.low >= 0x1A && self.ax.low <= 0x7F {
+                        self.flags.o = true;
+                    }
+                } else if self.ax.low >= 0x07A && self.ax.low <= 0x7F {
+                    self.flags.o = false;
+                }
+                
                 if (self.ax.low & 0x0F) > 9 || self.flags.a {
                     self.ax.low = self.ax.low.wrapping_add(6);
                     self.flags.a = true;
+                } else {
+                    self.flags.a = false;
                 }
-                if (old_al > 0x99) || self.flags.c {
+                
+                let test_al = if old_af {
+                    0x9F
+                } else {
+                    0x99
+                };
+
+                if (old_al > test_al) || old_cf {
                     self.ax.low = self.ax.low.wrapping_add(0x60);
                     self.flags.c = true;
+                } else {
+                    self.flags.c = false;
                 }
+
+                self.flags.s = check_s(self.ax.low as u16, Length::Byte);
+                self.flags.z = self.ax.low == 0;
+                self.flags.p = check_p(self.ax.low as u16);
             }
             Opcode::SUB => {
                 let val1 = self.get_val(bus, self.instr.operand1);
@@ -206,34 +247,90 @@ impl CPU {
                     .set_sub_flags(self.instr.data_length, val1, val2, res.0, res.1);
             }
             Opcode::AAS => {
+                let old_al = self.ax.low;
+                let old_af = self.flags.a;
+                let new_al;
+
                 if (self.ax.low & 0x0F) > 9 || self.flags.a {
-                    let val = self.ax.get_x();
-                    self.ax.set_x(val.wrapping_sub(6));
+                    new_al = self.ax.low.wrapping_sub(6);
                     self.ax.high = self.ax.high.wrapping_sub(1);
                     self.flags.a = true;
                     self.flags.c = true;
-                    self.ax.low &= 0x0F;
+                    self.ax.low = new_al & 0x0F;
                 } else {
+                    new_al = self.ax.low;
+                    self.ax.low = new_al & 0x0F;
                     self.flags.a = false;
                     self.flags.c = false;
-                    self.ax.low &= 0x0F;
+                }
+
+                self.flags.o = false;
+                self.flags.s = false;
+                self.flags.z = new_al == 0;
+                self.flags.p = check_p(new_al as u16);
+        
+                if old_af && (0x80..=0x85).contains(&old_al) {
+                    self.flags.o = true;
+                }
+                if !old_af && old_al >= 0x80 {
+                    self.flags.s = true;
+                }
+                if old_af && ((old_al <= 0x05) || (old_al >= 0x86)) {
+                    self.flags.s = true;
                 }
             }
+
+            // SACADO DE https://github.com/dbalsom/martypc/blob/version_0_2_3/core/src/cpu_808x/bcd.rs
             Opcode::DAS => {
                 let old_al = self.ax.low;
                 let old_cf = self.flags.c;
+                let old_af = self.flags.a;
+
+                let test_al = if old_af {
+                    0x9F
+                } else {
+                    0x99
+                };
+
+                match (old_af, old_cf) {
+                    (false, false) => {
+                        if (0x9A..=0xDF).contains(&self.ax.low) {
+                            self.flags.o = true;
+                        }
+                    },
+                    (true, false) => {
+                        if (0x80..=0x85).contains(&self.ax.low) || (0xA0..=0xE5).contains(&self.ax.low) {
+                            self.flags.o = true;
+                        }
+                    },
+                    (false, true) => {
+                        if (0x80..=0xDF).contains(&self.ax.low) {
+                            self.flags.o = true;
+                        }
+                    },
+                    (true, true) => {
+                        if (0x80..=0xE5).contains(&self.ax.low) {
+                            self.flags.o = true;
+                        }
+                    }
+                }
+
                 self.flags.c = false;
                 if (self.ax.low & 0x0F) > 9 || self.flags.a {
-                    let val = self.ax.low.overflowing_sub(6);
-                    self.ax.low = val.0;
-                    self.flags.c = old_cf || val.1;
+                    // let val = self.ax.low.overflowing_sub(6);
+                    // self.ax.low = val.0;
+                    // self.flags.c = old_cf || val.1;
+                    // self.flags.a = true;
+                    self.ax.low = self.ax.low.wrapping_sub(6);
                     self.flags.a = true;
                 } else {
                     self.flags.a = false;
                 }
-                if old_al > 0x99 || old_cf {
+                if old_al > test_al || old_cf {
                     self.ax.low = self.ax.low.wrapping_sub(0x60);
                     self.flags.c = true;
+                } else {
+                    self.flags.c = false;
                 }
                 self.flags.set_das_flags(Length::Byte, self.ax.low as u16);
             }
@@ -457,7 +554,7 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.o = get_msb(res, self.instr.data_length);
+                self.flags.o = get_msb(val, self.instr.data_length);
 
                 if count == 0 {
                     return;
@@ -761,12 +858,9 @@ impl CPU {
             Opcode::NOP => {}
 
             Opcode::None => {
-                #[cfg(not(feature = "tests"))]
-                println!("SOY TONTO???? {}", self.instr.opcode);
-            } // _ => {
-              //     #[cfg(not(feature = "tests"))]
-              //     println!("SOY TONTO???? {}", self.instr.opcode);
-              // } // _ => unreachable!(),
+                error!("ERROR DECODING");
+                panic!()
+            }
         }
     }
 }

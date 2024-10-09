@@ -1,6 +1,7 @@
 use std::{io::Read, mem::transmute};
 
 use crate::hardware::display::process_pixel_slice;
+use rand::{thread_rng, Rng};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
     slice::ParallelSliceMut,
@@ -160,6 +161,7 @@ impl Peripheral for CGA {
             0x3D8 => self.crtc.op1 as u16,
             0x3DA => {
                 self.crtc.retrace = (self.crtc.retrace + 1) % 4;
+
                 match self.crtc.retrace {
                     0 => 8,
                     1 => 0,

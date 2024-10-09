@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use super::{bus::Bus, peripheral::fdc_necupd765::FloppyDiskController};
 use cpu_utils::*;
 use instr_utils::*;
+use log::trace;
 use regs::{Flags, GPReg};
 
 pub struct CPU {
@@ -54,7 +55,7 @@ pub struct CPU {
     pub to_decode: bool,
 
     // #[cfg(debug_assertions)]
-    timing_debug: Instant,
+    // timing_debug: Instant,
 }
 
 impl CPU {
@@ -72,20 +73,18 @@ impl CPU {
 
             flags: Flags::new(),
 
-            //#[cfg(feature = "tests")]
             #[cfg(test)]
             cs: 0xF000,
-            //#[cfg(not(feature = "tests"))]
+
             #[cfg(not(test))]
             cs: 0xFFFF,
             ds: 0x0000,
             es: 0x0000,
             ss: 0x0000,
 
-            //#[cfg(feature = "tests")]
             #[cfg(test)]
             ip: 0xFFF0,
-            //#[cfg(not(feature = "tests"))]
+
             #[cfg(not(test))]
             ip: 0x0000,
 
@@ -103,7 +102,7 @@ impl CPU {
             to_decode: true,
 
             // #[cfg(debug_assertions)]
-            timing_debug: Instant::now(),
+            // timing_debug: Instant::now(),
         }
     }
 }
@@ -171,12 +170,12 @@ impl CPU {
 
             if let Some(interrupt) = pic_interrupt {
                 // #[cfg(debug_assertions)]
-                if interrupt == 8 {
-                    let t = Instant::now();
-                    let duration = t.duration_since(self.timing_debug);
-                    self.timing_debug = t;
-                    println!("Tiempo desde ultimo IRQ0: {}", duration.as_micros());
-                }
+                // if interrupt == 8 {
+                //     let t = Instant::now();
+                //     let duration = t.duration_since(self.timing_debug);
+                //     self.timing_debug = t;
+                //     trace!("Tiempo desde ultimo IRQ0: {}", duration.as_micros());
+                // }
 
                 self.interrupt(bus, (interrupt * 0x04) as u16);
                 bus.pic.try_aeoi();

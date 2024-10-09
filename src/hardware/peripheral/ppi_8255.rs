@@ -72,12 +72,12 @@ impl PPI8255 {
 
     // TODO
     pub fn key_up(&mut self, keycode: u8) {
-        self.kbd.key_queue.push_front(keycode as u8 + 0x80);
+        self.kbd.key_queue.push_front(keycode + 0x80);
     }
 
     // TODO
     pub fn key_down(&mut self, keycode: u8) {
-        self.kbd.key_queue.push_front(keycode as u8);
+        self.kbd.key_queue.push_front(keycode);
     }
 
     pub fn key_input(&mut self, pic: &mut PIC8259) {

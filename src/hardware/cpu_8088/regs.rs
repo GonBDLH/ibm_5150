@@ -61,9 +61,9 @@ impl Flags {
             o: false,
             d: false,
             #[cfg(not(test))]
-            //#[cfg(not(feature = "tests"))]
+            
             i: true,
-            //#[cfg(feature = "tests")]
+
             #[cfg(test)]
             i: false,
             t: false,

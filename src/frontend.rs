@@ -50,7 +50,8 @@ pub struct IbmPc {
     window: Option<Rc<Window>>,
     window_dimensions: (f32, f32),
 
-    frametime: Option<Instant>,
+    updatetime: Option<Instant>,
+    frametime: f32,
     poll_cycles: u64,
 
     graphics_context: Option<GraphicsContext>,
@@ -116,19 +117,18 @@ impl ApplicationHandler for IbmPc {
         cause: winit::event::StartCause,
     ) {
         if cause == StartCause::Poll {
-            self.poll_cycles += 1;
-
-            if self.poll_cycles == FRAMETIME_MS / UPDATE_RATE_MS {
-                self.poll_cycles = 0;
+            if self.frametime >= 0.019 {
+                self.frametime -= 0.019;
                 self.window.as_ref().unwrap().request_redraw();
             }
 
-            let elapsed = self.frametime.unwrap_or(Instant::now()).elapsed();
+            let elapsed = self.updatetime.unwrap_or(Instant::now()).elapsed().as_secs_f32();
+            self.frametime += elapsed;
 
-            self.sys.update(elapsed.as_secs_f32());
+            trace!("{}", elapsed);
 
-            trace!("FRAMETIME: {}", elapsed.as_micros());
-            self.frametime = Some(Instant::now());
+            self.sys.update(elapsed);
+            self.updatetime = Some(Instant::now());
         }
     }
 

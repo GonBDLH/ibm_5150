@@ -496,15 +496,15 @@ impl Display for Operand {
             Operand::BXDI => String::from("BX+DI"),
             Operand::BPSI => String::from("BP+SI"),
             Operand::BPDI => String::from("BP+DI"),
-            Operand::DispBXSI(d) => format!("{:04X}+BX+SI", d),
-            Operand::DispBXDI(d) => format!("{:04X}+BX+DI", d),
-            Operand::DispBPSI(d) => format!("{:04X}+BP+SI", d),
-            Operand::DispBPDI(d) => format!("{:04X}+BP+DI", d),
-            Operand::DispSI(d) => format!("{:04X}+SI", d),
-            Operand::DispDI(d) => format!("{:04X}+DI", d),
-            Operand::DispBP(d) => format!("{:04X}+BP", d),
-            Operand::DispBX(d) => format!("{:04X}+BX", d),
-            Operand::Disp(d) => format!("{:04X}", d),
+            Operand::DispBXSI(d) => format!("{:04X}h+BX+SI", d),
+            Operand::DispBXDI(d) => format!("{:04X}h+BX+DI", d),
+            Operand::DispBPSI(d) => format!("{:04X}h+BP+SI", d),
+            Operand::DispBPDI(d) => format!("{:04X}h+BP+DI", d),
+            Operand::DispSI(d) => format!("{:04X}h+SI", d),
+            Operand::DispDI(d) => format!("{:04X}h+DI", d),
+            Operand::DispBP(d) => format!("{:04X}h+BP", d),
+            Operand::DispBX(d) => format!("{:04X}h+BX", d),
+            Operand::Disp(d) => format!("{:04X}h", d),
         };
         write!(f, "{}", val)
     }
@@ -545,7 +545,7 @@ impl Display for OperandType {
             OperandType::Register(r) => write!(f, "{}", r),
             OperandType::SegmentRegister(r) => write!(f, "{}", r),
             OperandType::Memory(r) => write!(f, "[{}]", r),
-            OperandType::Immediate(r) => write!(f, "{:X}", r),
+            OperandType::Immediate(r) => write!(f, "{:X}h", r),
             OperandType::None => write!(f, ""),
         }
     }
@@ -557,7 +557,7 @@ impl Debug for OperandType {
             OperandType::Register(r) => write!(f, "{}", r),
             OperandType::SegmentRegister(r) => write!(f, "{}", r),
             OperandType::Memory(r) => write!(f, "[{}]", r),
-            OperandType::Immediate(r) => write!(f, "{:X}", r),
+            OperandType::Immediate(r) => write!(f, "{:X}h", r),
             OperandType::None => write!(f, ""),
         }
     }

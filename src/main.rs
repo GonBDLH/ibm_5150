@@ -78,7 +78,7 @@ use winit::event_loop::EventLoop;
 fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
 
-    let sw1 = DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2;
+    let sw1 = DD_ENABLE | RESERVED | MEM_64K | DISPLAY_CGA_40_25 | DRIVES_2;
     let sw2 = HIGH_NIBBLE | PLUS_32;
 
     let dimensions = match sw1 & 0b00110000 {
@@ -96,16 +96,16 @@ fn main() -> Result<(), impl std::error::Error> {
     app.sys.rst();
     app.sys.load_roms();
 
-    // app.sys
-    //     .disk_ctrl
-    //     .insert_disk(&mut app.sys.bus, 0, "roms/dos/2.10/Disk01.img");
-    // app.sys
-    //     .disk_ctrl
-    //     .insert_disk(&mut app.sys.bus, 1, "roms/dos/2.10/Disk02.img");
-
     app.sys
         .disk_ctrl
-        .insert_disk(&mut app.sys.bus, 0, "roms/otros/101-MONOCHROME-MAZES.img");
+        .insert_disk(&mut app.sys.bus, 0, "roms/dos/2.10/Disk01.img");
+    app.sys
+        .disk_ctrl
+        .insert_disk(&mut app.sys.bus, 1, "roms/dos/2.10/Disk02.img");
+
+    // app.sys
+    //     .disk_ctrl
+    //     .insert_disk(&mut app.sys.bus, 0, "roms/otros/101-MONOCHROME-MAZES.img");
 
     event_loop.run_app(&mut app)
 }

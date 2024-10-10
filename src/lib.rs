@@ -222,10 +222,6 @@ macro_rules! create_test {
                 );
                 set_state(&i, &mut sys);
 
-                // if i.name == String::from("add byte cs:[bp+si+E7h], bh") {
-                //     println!("ENTRO")
-                // }
-
                 loop {
                     sys.step(&mut 0);
                     if sys.cpu.instr.repetition_prefix != RepetitionPrefix::None

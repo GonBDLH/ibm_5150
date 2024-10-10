@@ -172,10 +172,10 @@ impl Peripheral for TIM8253 {
                     }
                     0b11 => {
                         if self.toggle[channel] {
-                            self.toggle[channel] = false;
+                            self.toggle[channel] = true;
                             self.reload[channel] = self.reload[channel] & 0xFF00 | val & 0x00FF;
                         } else {
-                            self.toggle[channel] = true;
+                            self.toggle[channel] = false;
                             self.reload[channel] = self.reload[channel] & 0x00FF | val & 0xFF00;
                         }
                     }

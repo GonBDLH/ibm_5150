@@ -554,12 +554,13 @@ impl CPU {
 
                 self.set_val(bus, self.instr.operand1, res);
 
-                self.flags.o = get_msb(val, self.instr.data_length);
-
-                if count == 0 {
-                    return;
+                if count == 1 {
+                    self.flags.o = get_msb(val, self.instr.data_length);
+                } else {
+                    self.flags.o = false;
                 }
 
+                self.flags.a = false;
                 self.flags.s = check_s(res, self.instr.data_length);
                 self.flags.z = res == 0;
                 self.flags.p = check_p(res);

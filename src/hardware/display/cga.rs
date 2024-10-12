@@ -1,6 +1,6 @@
 use std::{io::Read, mem::transmute};
 
-use crate::hardware::display::process_pixel_slice;
+use crate::{frontend::ScreenMode, hardware::display::process_pixel_slice};
 use rand::{thread_rng, Rng};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
@@ -18,6 +18,16 @@ const PALETTE: [[u32; 4]; 4] = [
     [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF], // PALETTE_1_HIGH_INTENSITY
 ];
 
+const PALLETE_MEDIUM_RES: [[u32; 3]; 2] = [
+    [0x00AA00FF, 0xAA0000FF, 0xAA5500],
+    [0x00AAAAFF, 0xAA00AAFF, 0xAAAAAA],
+];
+
+const BACKGROUND_MEDIUM_RES: [u32; 16] = [
+    0x000000FF, 0x0000AAFF, 0x00AA00FF, 0x00AAAAFF, 0xAA0000FF, 0xAA00AAFF, 0xAA5500FF, 0xAAAAAAFF,
+    0x555555FF, 0x5555FFFF, 0x55FF55FF, 0x55FFFFFF, 0xFF5555FF, 0xFF55FFFF, 0xFFFF55FF, 0xFFFFFFFF,
+];
+
 // const PALETTE: [[u32; 4]; 4] = [[0x000000FF, 0x00AAAAFF, 0xAA00AAFF, 0xAAAAAAFF],       // PALETTE_0_LOW_INTENSITY
 //                                 [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF],       // PALETTE_0_HIGH_INTENSITY
 //                                 [0x000000FF, 0x00AA00FF, 0xAA0000FF, 0xAA5500FF],       // PALETTE_1_LOW_INTENSITY
@@ -33,14 +43,14 @@ pub struct CGA {
 
     crtc: CRTC6845,
 
-    screen_dimensions: (usize, usize),
+    screen_mode: ScreenMode,
     char_dimensions: (usize, usize),
 
     color: u8,
 }
 
 impl CGA {
-    pub fn new(dimensions: (f32, f32)) -> Self {
+    pub fn new(screen_mode: ScreenMode) -> Self {
         let mut file =
             std::fs::File::open("roms/IBM_5788005_AM9264_1981_CGA_MDA_CARD.BIN").unwrap();
         let mut buf = Vec::new();
@@ -49,7 +59,7 @@ impl CGA {
         Self {
             font_map: decode_font_map(&buf[0x1800..]),
             crtc: CRTC6845::default(),
-            screen_dimensions: (dimensions.0 as usize, dimensions.1 as usize),
+            screen_mode,
             char_dimensions: (8, 8),
 
             color: 0,
@@ -61,7 +71,9 @@ impl CGA {
     }
 
     fn alphanumeric_mode(&mut self, vram: &[u8], img_buffer: &mut [u8]) {
-        let screen_character_width = self.screen_dimensions.0 / self.char_dimensions.0;
+        let dimensions = self.screen_mode.get_pixel_dimensions();
+
+        let screen_character_width = dimensions.0 as usize / self.char_dimensions.0;
         // let mut img_buffer = vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 3];
 
         img_buffer
@@ -85,40 +97,73 @@ impl CGA {
         // self.add_cursor();
     }
 
-    fn graphic_mode(&mut self, vram: &[u8], img_buffer: &mut [u8]) {
-        // TODO GRAPHIC MODE
-        // self.img_buffer =
-        //     vec![0xFF; (self.screen_dimensions.0 * self.screen_dimensions.1) as usize * 4];
-        let palette = (self.color & 0b00100000 != 0) as usize * 2;
-        let intensity = (self.color & 0b00010000 != 0) as usize;
+    #[inline]
+    fn medium_res_mode(&self, pixel_slice: &mut [u8], row_slice: &[u8]) {
+        for (group_index, pixel_group) in row_slice.iter().enumerate() {
+            for pixel_offset in 0..4 {
+                let pixel = pixel_group >> (2 * (3 - pixel_offset)) & 3;
+                // let color = PALETTE[palette + intensity][pixel as usize];
 
-        // let mut img_buffer = vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 3];
+                let color = if pixel == 0b00 {
+                    let color = self.color & 0x0F;
+                    BACKGROUND_MEDIUM_RES[color as usize]
+                } else {
+                    PALLETE_MEDIUM_RES[(self.color >> 5 & 1) as usize][(pixel - 1) as usize]
+                };
+
+                let color_bytes = color.to_be_bytes();
+                let pixel_slice_start = group_index * 12 + pixel_offset * 3;
+                let pixel_slice_end = pixel_slice_start + 3;
+
+                pixel_slice[pixel_slice_start..pixel_slice_end].copy_from_slice(&color_bytes[0..3])
+            }
+        }
+    }
+
+    #[inline]
+    fn high_res_mode(&self, pixel_slice: &mut [u8], row_slice: &[u8]) {
+        for (group_index, pixel_group) in row_slice.iter().enumerate() {
+            for pixel_offset in 0..8 {
+                let pixel = (pixel_group >> (7 - pixel_offset)) & 1;
+
+                let color = 0xFFFFFFFFu32 * pixel as u32;
+
+                let color_bytes = color.to_be_bytes();
+                let pixel_slice_start = group_index * 24 + pixel_offset * 3;
+                let pixel_slice_end = pixel_slice_start + 3;
+
+                pixel_slice[pixel_slice_start..pixel_slice_end].copy_from_slice(&color_bytes[0..3])
+            }
+        }
+    }
+
+    fn graphic_mode(&mut self, vram: &[u8], img_buffer: &mut [u8]) {
+        let dimensions = self.screen_mode.get_pixel_dimensions();
+
+        let scaling = if let ScreenMode::CGA8025 = self.screen_mode {
+            2
+        } else {
+            1
+        };
 
         img_buffer
-            .par_chunks_mut(self.screen_dimensions.0 * 3)
+            .par_chunks_mut(dimensions.0 as usize * 3)
             .enumerate()
             .for_each(|(i, pixel_slice)| {
                 let row_slice = if i % 2 == 0 {
-                    let slice_start = i * self.screen_dimensions.0 / 8;
-                    let slice_end = slice_start + self.screen_dimensions.0 / 4;
+                    let slice_start = i * dimensions.0 as usize / (8 * scaling);
+                    let slice_end = slice_start + dimensions.0 as usize / (4 * scaling);
                     &vram[slice_start..slice_end]
                 } else {
-                    let slice_start = (i - 1) * self.screen_dimensions.0 / 8;
-                    let slice_end = slice_start + self.screen_dimensions.0 / 4;
+                    let slice_start = (i - 1) * dimensions.0 as usize / (8 * scaling);
+                    let slice_end = slice_start + dimensions.0 as usize / (4 * scaling);
                     &vram[(0x2000 + slice_start)..(0x2000 + slice_end)]
                 };
 
-                for (group_index, pixel_group) in row_slice.iter().enumerate() {
-                    for pixel_offset in 0..4 {
-                        let pixel = pixel_group >> (2 * (3 - pixel_offset)) & 3;
-                        let color = PALETTE[palette + intensity][pixel as usize];
-                        let color_bytes = color.to_be_bytes();
-                        let pixel_slice_start = group_index * 12 + pixel_offset * 3;
-                        let pixel_slice_end = pixel_slice_start + 3;
-
-                        pixel_slice[pixel_slice_start..pixel_slice_end]
-                            .copy_from_slice(&color_bytes[0..3])
-                    }
+                if scaling == 2 {
+                    self.high_res_mode(pixel_slice, row_slice);
+                } else {
+                    self.medium_res_mode(pixel_slice, row_slice);
                 }
             });
     }
@@ -192,7 +237,9 @@ impl Peripheral for CGA {
 
 impl DisplayAdapter for CGA {
     fn create_frame(&mut self, vram: &[u8]) -> Vec<u8> {
-        let mut img_buffer = vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 3];
+        let dimensions = self.screen_mode.get_pixel_dimensions();
+
+        let mut img_buffer = vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3];
 
         if !self.enabled() {
             return img_buffer;
@@ -206,7 +253,7 @@ impl DisplayAdapter for CGA {
 
         self.crtc.add_cursor(
             &mut img_buffer,
-            self.screen_dimensions.0 / self.char_dimensions.0,
+            dimensions.0 as usize / self.char_dimensions.0,
             self.char_dimensions,
             [0xAA, 0xAA, 0xAA],
         );

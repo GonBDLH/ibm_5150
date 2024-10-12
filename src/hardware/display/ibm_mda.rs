@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::hardware::display::process_pixel_slice;
+use crate::{frontend::ScreenMode, hardware::display::process_pixel_slice};
 use rayon::prelude::*;
 
 use crate::hardware::peripheral::Peripheral;
@@ -55,13 +55,14 @@ fn decode_font_map(font_rom: &[u8]) -> [[[bool; 9]; 14]; 256] {
 }
 
 impl IbmMDA {
-    pub fn new(dimensions: (f32, f32)) -> IbmMDA {
+    pub fn new(screen_mode: ScreenMode) -> IbmMDA {
         // let a: Vec<u8> = (0..IMG_BUFF_SIZE).map(|x| if x % 4 == 3 {0xFF} else {0x00}).collect();
         // let a = vec![0x00; (dimensions.0 * dimensions.1 * 4.) as usize];
         let mut file =
             std::fs::File::open("roms/IBM_5788005_AM9264_1981_CGA_MDA_CARD.BIN").unwrap();
         let mut buf = Vec::new();
         file.read_to_end(&mut buf).unwrap();
+        let dimensions = screen_mode.get_pixel_dimensions();
 
         IbmMDA {
             font_rom: buf.clone(),
@@ -83,7 +84,7 @@ impl IbmMDA {
 
 impl Default for IbmMDA {
     fn default() -> Self {
-        IbmMDA::new((720., 350.))
+        IbmMDA::new(ScreenMode::MDA4025)
     }
 }
 

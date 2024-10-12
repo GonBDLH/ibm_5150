@@ -61,7 +61,6 @@ impl Flags {
             o: false,
             d: false,
             #[cfg(not(test))]
-            
             i: true,
 
             #[cfg(test)]

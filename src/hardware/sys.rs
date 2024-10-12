@@ -27,14 +27,14 @@ pub struct System {
     sw1: u8,
     sw2: u8,
 
-    screen_dimensions: (f32, f32),
+    screen_mode: ScreenMode,
 }
 
 impl System {
-    pub fn new(sw1: u8, sw2: u8, dimensions: (f32, f32)) -> Self {
+    pub fn new(sw1: u8, sw2: u8, screen_mode: ScreenMode) -> Self {
         let sys = System {
             cpu: CPU::new(),
-            bus: Bus::new(sw1, sw2, dimensions),
+            bus: Bus::new(sw1, sw2, screen_mode),
             disk_ctrl: FloppyDiskController::default(),
 
             running: false,
@@ -49,7 +49,7 @@ impl System {
             sw1,
             sw2,
 
-            screen_dimensions: dimensions,
+            screen_mode,
         };
 
         sys
@@ -60,18 +60,19 @@ impl Default for System {
     fn default() -> Self {
         System::new(
             DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
-            HIGH_NIBBLE | PLUS_0,
-            (720., 350.),
+            HIGH_NIBBLE | TOTAL_RAM_64,
+            ScreenMode::MDA4025,
         )
     }
 }
 
+use crate::frontend::ScreenMode;
 use crate::util::debug_bios::debug_82;
 
 impl System {
     pub fn rst(&mut self) {
         self.cpu = CPU::new();
-        self.bus = Bus::new(self.sw1, self.sw2, self.screen_dimensions);
+        self.bus = Bus::new(self.sw1, self.sw2, self.screen_mode);
 
         self.running = false;
     }
@@ -83,12 +84,6 @@ impl System {
 
         self.bus.ppi.key_input(&mut self.bus.pic);
         while cycles_ran <= max_cycles {
-            if self.cpu.halted {
-                print!("HALTED\r");
-                cycles_ran += 1;
-                continue;
-            }
-
             self.step(&mut cycles_ran);
         }
     }
@@ -130,7 +125,11 @@ impl System {
     pub fn step(&mut self, cycles_ran: &mut u32) {
         // #[cfg(debug_assertions)]
         debug_82(&mut self.cpu);
-        let (mut cycles, _ip) = self.cpu.fetch_decode_execute(&mut self.bus);
+        let (mut cycles, _ip) = if !self.cpu.halted {
+            self.cpu.fetch_decode_execute(&mut self.bus)
+        } else {
+            (1, self.cpu.ip)
+        };
         // println!("{:04X}", _ip);
 
         self.cpu
@@ -178,7 +177,15 @@ impl System {
         }
 
         // BIOS
-        for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
+        // for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
+        //     .unwrap()
+        //     .into_iter()
+        //     .enumerate()
+        // {
+        //     self.bus.memory[0xFE000 + idx] = element;
+        // }
+
+        for (idx, element) in std::fs::read("roms/GLABIOS_0.2.5_8P.ROM")
             .unwrap()
             .into_iter()
             .enumerate()

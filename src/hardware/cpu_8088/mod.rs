@@ -53,7 +53,6 @@ pub struct CPU {
 
     // Usado en instrucciones de Strings cuando tengan que repetirse
     pub to_decode: bool,
-
     // #[cfg(debug_assertions)]
     // timing_debug: Instant,
 }
@@ -100,7 +99,6 @@ impl CPU {
             halted: false,
 
             to_decode: true,
-
             // #[cfg(debug_assertions)]
             // timing_debug: Instant::now(),
         }
@@ -164,6 +162,7 @@ impl CPU {
             // Si hay una NON-MASKABLE INTERRUPT
             self.interrupt(bus, 0x0008);
             self.nmi = false;
+            self.halted = false;
             *cycles += 50;
         } else if self.flags.i {
             let pic_interrupt = bus.pic.get_next();
@@ -179,6 +178,7 @@ impl CPU {
 
                 self.interrupt(bus, (interrupt * 0x04) as u16);
                 bus.pic.try_aeoi();
+                self.halted = false;
                 *cycles += 61;
             }
         } else {

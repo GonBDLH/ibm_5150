@@ -1,5 +1,5 @@
-use ibm_5150::hardware::switches_cfg::*;
 use ibm_5150::frontend::*;
+use ibm_5150::hardware::switches_cfg::*;
 // use ibm_5150::{/*debugger::*,*/ hardware::sys::System};
 
 use winit::event_loop::EventLoop;
@@ -79,29 +79,40 @@ fn main() -> Result<(), impl std::error::Error> {
     let event_loop = EventLoop::new().unwrap();
 
     let sw1 = DD_ENABLE | RESERVED | MEM_64K | DISPLAY_CGA_40_25 | DRIVES_2;
-    let sw2 = HIGH_NIBBLE | PLUS_32;
+    let sw2 = HIGH_NIBBLE | TOTAL_RAM_640;
 
-    let dimensions = match sw1 & 0b00110000 {
+    let screen_mode = match sw1 & 0b00110000 {
         DISPLAY_RESERVED => panic!("Reserved"),
-        DISPLAY_CGA_40_25 => (320., 200.),
-        DISPLAY_CGA_80_25 => (640., 200.),
-        DISPLAY_MDA_80_25 => (720., 350.),
+        DISPLAY_CGA_40_25 => ScreenMode::CGA4025,
+        DISPLAY_CGA_80_25 => ScreenMode::CGA8025,
+        DISPLAY_MDA_80_25 => ScreenMode::MDA4025,
         _ => unreachable!(),
     };
 
     simple_logger::SimpleLogger::new().env().init().unwrap();
 
-    let mut app = IbmPc::new(sw1, sw2, dimensions);
+    let mut app = IbmPc::new(sw1, sw2, screen_mode);
 
     app.sys.rst();
     app.sys.load_roms();
 
+    // app.sys
+    //     .disk_ctrl
+    //     .insert_disk(&mut app.sys.bus, 0, "roms/dos/2.10/Disk01.img");
+    // app.sys
+    //     .disk_ctrl
+    //     .insert_disk(&mut app.sys.bus, 1, "roms/dos/2.10/Disk02.img");
+
+    // app.sys
+    //     .disk_ctrl
+    //     .insert_disk(&mut app.sys.bus, 0, "roms/dos/FreeDOS/FreeDOS 1.3 Disk 1.img");
+    // app.sys
+    //     .disk_ctrl
+    //     .insert_disk(&mut app.sys.bus, 1, "roms/dos/FreeDOS/FreeDOS 1.3 Disk 2.img");
+
     app.sys
         .disk_ctrl
-        .insert_disk(&mut app.sys.bus, 0, "roms/dos/2.10/Disk01.img");
-    app.sys
-        .disk_ctrl
-        .insert_disk(&mut app.sys.bus, 1, "roms/dos/2.10/Disk02.img");
+        .insert_disk(&mut app.sys.bus, 0, "roms/otros/FS.img");
 
     // app.sys
     //     .disk_ctrl

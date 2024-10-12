@@ -30,7 +30,8 @@ pub struct TIM8253 {
     first_clk: [bool; 3],
     reload_clk: [bool; 3],
 
-    toggle: [bool; 3],
+    toggle_read: [bool; 3],
+    toggle_write: [bool; 3],
 
     mode_reg: u8,
 }
@@ -41,7 +42,8 @@ impl TIM8253 {
             active: [false; 3],
             first_clk: [true; 3],
             reload_clk: [false; 3],
-            toggle: [true; 3],
+            toggle_read: [true; 3],
+            toggle_write: [true; 3],
             ..Default::default()
         }
     }
@@ -142,11 +144,11 @@ impl Peripheral for TIM8253 {
                         val >> 8
                     }
                     0b11 => {
-                        if self.toggle[channel] {
-                            self.toggle[channel] = false;
+                        if self.toggle_read[channel] {
+                            self.toggle_read[channel] = false;
                             val as u8 as u16
                         } else {
-                            self.toggle[channel] = true;
+                            self.toggle_read[channel] = true;
                             self.latched[channel] ^= self.latched[channel];
                             val >> 8
                         }
@@ -168,21 +170,21 @@ impl Peripheral for TIM8253 {
                         self.reload[channel] = self.reload[channel] & 0xFF00 | val & 0x00FF;
                     }
                     0b10 => {
-                        self.reload[channel] = self.reload[channel] & 0x00FF | val & 0xFF00;
+                        self.reload[channel] = self.reload[channel] & 0x00FF | (val << 8);
                     }
                     0b11 => {
-                        if self.toggle[channel] {
-                            self.toggle[channel] = true;
+                        if self.toggle_write[channel] {
+                            self.toggle_write[channel] = false;
                             self.reload[channel] = self.reload[channel] & 0xFF00 | val & 0x00FF;
                         } else {
-                            self.toggle[channel] = false;
-                            self.reload[channel] = self.reload[channel] & 0x00FF | val & 0xFF00;
+                            self.toggle_write[channel] = true;
+                            self.reload[channel] = self.reload[channel] & 0x00FF | (val << 8);
                         }
                     }
                     _ => unreachable!(),
                 }
 
-                if self.rl_mode[channel] < 0b11 || self.toggle[channel] {
+                if self.rl_mode[channel] < 0b11 || self.toggle_write[channel] {
                     self.count[channel] = self.reload[channel];
                     self.active[channel] = true;
                     self.out[channel] =

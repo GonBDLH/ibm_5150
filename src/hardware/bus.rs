@@ -1,5 +1,6 @@
 use rayon::prelude::ParallelIterator;
 
+use crate::frontend::ScreenMode;
 use crate::hardware::cpu_8088::cpu_utils::*;
 use crate::hardware::cpu_8088::instr_utils::Length;
 use crate::hardware::cpu_8088::CPU;
@@ -33,7 +34,7 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new(sw1: u8, sw2: u8, dimensions: (f32, f32)) -> Self {
+    pub fn new(sw1: u8, sw2: u8, screen_mode: ScreenMode) -> Self {
         if sw1 & 0b00110000 == DISPLAY_MDA_80_25 {
             Bus {
                 memory: vec![0x00; 0x100000],
@@ -41,7 +42,7 @@ impl Bus {
                 pit: TIM8253::new(),
                 dma: DMA8237::new(),
                 ppi: PPI8255::new(sw1, sw2),
-                display: Box::new(IbmMDA::new(dimensions)),
+                display: Box::new(IbmMDA::new(screen_mode)),
                 fdc: FloppyDiskController::default(),
             }
         } else {
@@ -51,7 +52,7 @@ impl Bus {
                 pit: TIM8253::new(),
                 dma: DMA8237::new(),
                 ppi: PPI8255::new(sw1, sw2),
-                display: Box::new(CGA::new(dimensions)),
+                display: Box::new(CGA::new(screen_mode)),
                 fdc: FloppyDiskController::default(),
             }
         }
@@ -172,8 +173,8 @@ impl Default for Bus {
     fn default() -> Self {
         Self::new(
             DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
-            HIGH_NIBBLE | PLUS_0,
-            (720., 350.),
+            HIGH_NIBBLE | TOTAL_RAM_64,
+            ScreenMode::MDA4025,
         )
     }
 }

@@ -1340,6 +1340,10 @@ impl CPU {
                 self.instr.opcode = Opcode::HLT;
                 self.cycles += 2;
             }
+            0xF0 => {
+                self.instr.opcode = Opcode::NOP;
+                self.cycles += 2;
+            }
 
             _ => {
                 // writeln!(&mut self.file, "Instrucción sin hacer: {:02X}", op).unwrap();

@@ -183,19 +183,15 @@ impl CPU {
                 } else if self.ax.low >= 0x07A && self.ax.low <= 0x7F {
                     self.flags.o = false;
                 }
-                
+
                 if (self.ax.low & 0x0F) > 9 || self.flags.a {
                     self.ax.low = self.ax.low.wrapping_add(6);
                     self.flags.a = true;
                 } else {
                     self.flags.a = false;
                 }
-                
-                let test_al = if old_af {
-                    0x9F
-                } else {
-                    0x99
-                };
+
+                let test_al = if old_af { 0x9F } else { 0x99 };
 
                 if (old_al > test_al) || old_cf {
                     self.ax.low = self.ax.low.wrapping_add(0x60);
@@ -268,7 +264,7 @@ impl CPU {
                 self.flags.s = false;
                 self.flags.z = new_al == 0;
                 self.flags.p = check_p(new_al as u16);
-        
+
                 if old_af && (0x80..=0x85).contains(&old_al) {
                     self.flags.o = true;
                 }
@@ -286,28 +282,26 @@ impl CPU {
                 let old_cf = self.flags.c;
                 let old_af = self.flags.a;
 
-                let test_al = if old_af {
-                    0x9F
-                } else {
-                    0x99
-                };
+                let test_al = if old_af { 0x9F } else { 0x99 };
 
                 match (old_af, old_cf) {
                     (false, false) => {
                         if (0x9A..=0xDF).contains(&self.ax.low) {
                             self.flags.o = true;
                         }
-                    },
+                    }
                     (true, false) => {
-                        if (0x80..=0x85).contains(&self.ax.low) || (0xA0..=0xE5).contains(&self.ax.low) {
+                        if (0x80..=0x85).contains(&self.ax.low)
+                            || (0xA0..=0xE5).contains(&self.ax.low)
+                        {
                             self.flags.o = true;
                         }
-                    },
+                    }
                     (false, true) => {
                         if (0x80..=0xDF).contains(&self.ax.low) {
                             self.flags.o = true;
                         }
-                    },
+                    }
                     (true, true) => {
                         if (0x80..=0xE5).contains(&self.ax.low) {
                             self.flags.o = true;

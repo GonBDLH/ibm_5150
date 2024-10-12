@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
+    default,
     num::NonZeroU32,
     rc::Rc,
     thread,
@@ -9,7 +10,10 @@ use std::{
 
 use egui::emath::Float;
 use log::{debug, info, trace};
-use rayon::{iter::{IndexedParallelIterator, ParallelIterator}, slice::ParallelSliceMut};
+use rayon::{
+    iter::{IndexedParallelIterator, ParallelIterator},
+    slice::ParallelSliceMut,
+};
 use softbuffer::{Context, Surface};
 use winit::{
     application::ApplicationHandler,
@@ -40,6 +44,45 @@ struct GraphicsContext {
     surface: Surface<Rc<Window>, Rc<Window>>,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct ScreenMode {
+    dimensions: (f32, f32),
+    aspect_ratio: f32,
+}
+
+impl ScreenMode {
+    pub const MDA4025: ScreenMode = ScreenMode {
+        dimensions: (720., 350.),
+        aspect_ratio: 1.333,
+    };
+
+    pub const CGA4025: ScreenMode = ScreenMode {
+        dimensions: (320., 200.),
+        aspect_ratio: 1.2,
+    };
+
+    pub const CGA8025: ScreenMode = ScreenMode {
+        dimensions: (640., 200.),
+        aspect_ratio: 2.4,
+    };
+}
+
+impl Default for ScreenMode {
+    fn default() -> Self {
+        ScreenMode::MDA4025
+    }
+}
+
+impl ScreenMode {
+    pub fn get_pixel_dimensions(&self) -> (f32, f32) {
+        self.dimensions
+    }
+
+    pub fn get_aspect_ratio(&self) -> f32 {
+        self.aspect_ratio
+    }
+}
+
 #[derive(Default)]
 pub struct IbmPc {
     pub sys: System,
@@ -48,7 +91,7 @@ pub struct IbmPc {
     wait_cancelled: bool,
     close_requested: bool,
     window: Option<Rc<Window>>,
-    window_dimensions: (f32, f32),
+    screen_mode: ScreenMode,
 
     updatetime: Option<Instant>,
     frametime: f32,
@@ -58,10 +101,10 @@ pub struct IbmPc {
 }
 
 impl IbmPc {
-    pub fn new(sw1: u8, sw2: u8, dimensions: (f32, f32)) -> Self {
+    pub fn new(sw1: u8, sw2: u8, screen_mode: ScreenMode) -> Self {
         Self {
-            sys: System::new(sw1, sw2, dimensions),
-            window_dimensions: dimensions,
+            sys: System::new(sw1, sw2, screen_mode),
+            screen_mode,
             ..Default::default()
         }
     }
@@ -72,7 +115,7 @@ impl IbmPc {
                 let size = self.window.as_ref().unwrap().inner_size();
                 (size.width, size.height)
             };
-            
+
             ctx.surface
                 .resize(
                     NonZeroU32::new(width).unwrap(),
@@ -87,12 +130,20 @@ impl IbmPc {
                 .enumerate()
                 .for_each(|(y, row)| {
                     for x in 0..width {
-                        let src_x = ((x as f32) / (width as f32) * self.window_dimensions.0).round() as usize;
-                        let src_y = ((y as f32) / (height as f32) * self.window_dimensions.1).round() as usize;
-                        let src_x = src_x.min((self.window_dimensions.0 - 1.) as usize);
-                        let src_y = src_y.min((self.window_dimensions.1 - 1.) as usize);
+                        let src_x = ((x as f32) / (width as f32)
+                            * self.screen_mode.get_pixel_dimensions().0)
+                            .round() as usize;
+                        let src_y = ((y as f32) / (height as f32)
+                            * self.screen_mode.get_pixel_dimensions().1)
+                            .round() as usize;
+                        let src_x =
+                            src_x.min((self.screen_mode.get_pixel_dimensions().0 - 1.) as usize);
+                        let src_y =
+                            src_y.min((self.screen_mode.get_pixel_dimensions().1 - 1.) as usize);
 
-                        let src_index = (src_y * self.window_dimensions.0 as usize + src_x) * 3;
+                        let src_index =
+                            (src_y * self.screen_mode.get_pixel_dimensions().0 as usize + src_x)
+                                * 3;
 
                         let red = img_buffer[src_index] as u32;
                         let green = img_buffer[src_index + 1] as u32;
@@ -103,7 +154,6 @@ impl IbmPc {
                         row[x as usize] = src_color;
                     }
                 });
-
 
             buffer.present().unwrap();
         }
@@ -122,7 +172,11 @@ impl ApplicationHandler for IbmPc {
                 self.window.as_ref().unwrap().request_redraw();
             }
 
-            let elapsed = self.updatetime.unwrap_or(Instant::now()).elapsed().as_secs_f32();
+            let elapsed = self
+                .updatetime
+                .unwrap_or(Instant::now())
+                .elapsed()
+                .as_secs_f32();
             self.frametime += elapsed;
 
             trace!("{}", elapsed);
@@ -184,8 +238,10 @@ impl ApplicationHandler for IbmPc {
         let window_attributes = Window::default_attributes()
             .with_title("IBM 5150 Emulator")
             .with_inner_size(PhysicalSize::new(
-                self.window_dimensions.0 * 2.,
-                self.window_dimensions.1 * 2.,
+                self.screen_mode.get_pixel_dimensions().0 * 1.5,
+                self.screen_mode.get_pixel_dimensions().1
+                    * 1.5
+                    * self.screen_mode.get_aspect_ratio(),
             ))
             .with_resizable(false);
 

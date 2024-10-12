@@ -1,3 +1,4 @@
+use eframe::glow::COLOR;
 use egui::CollapsingHeader;
 
 pub mod cga;
@@ -9,11 +10,19 @@ pub trait DisplayAdapter {
     fn inc_frame_counter(&mut self);
 }
 
+#[derive(Clone, Copy)]
 struct Color(u8, u8, u8, u8);
 
 impl Color {
     pub const WHITE: Color = Color(0xFF, 0xFF, 0xFF, 0xFF);
-    pub const BLACK: Color = Color(0x00, 0x00, 0x00, 0xFF);
+    pub const DARK_GREY: Color = Color(0x66, 0x66, 0x66, 0xFF);
+    pub const GREY: Color = Color(0xAA, 0xAA, 0xAA, 0xFF);
+
+    pub const BLACK: Color = Color(0x00, 0x00, 0x00, 0x00);
+
+    pub const GREEN: Color = Color(0x00, 0xC0, 0x00, 0xFF);
+    pub const DARK_GREEN: Color = Color(0x00, 0x40, 0x00, 0xFF);
+    pub const BRIGHT_GREEN: Color = Color(0x00, 0xFF, 0x00, 0xFF);
 
     pub fn from_rgb(r: u8, g: u8, b: u8) -> Color {
         Color(r, g, b, 0xFF)
@@ -30,9 +39,6 @@ pub struct BWChar {
     pub index: usize,
     background_color: Color,
     foreground_color: Color,
-
-    pub bright: bool,
-    pub underline: bool,
 }
 
 impl BWChar {
@@ -50,46 +56,48 @@ impl Default for BWChar {
             index: 0x00,
             background_color: Color::BLACK,
             foreground_color: Color::WHITE,
-
-            bright: false,
-            underline: false,
         }
     }
 }
 
 impl Character for BWChar {
     fn decode_colors(mut self, attr: u8) -> Self {
-        self.bright = attr & 0x08 > 0;
-        self.underline = attr & 0x07 == 0x01;
-
-        let back = attr >> 4 & 0x07;
-        let front = attr & 0x07;
-
-        if attr != 0x07 {
-            let _a = 0;
-        }
-
-        match (back, front) {
-            (0b000, 0b111) => {
-                self.foreground_color = Color::WHITE;
+        match attr {
+            0x00 | 0x08 | 0x80 | 0x88 => {
+                self.foreground_color = Color::BLACK;
                 self.background_color = Color::BLACK;
             }
-            (0b111, 0b000) => {
+            0x70 => {
+                self.foreground_color = Color::BLACK;
+                self.background_color = Color::GREY;
+            }
+            0x78 => {
+                self.foreground_color = Color::DARK_GREY;
+                self.background_color = Color::GREY;
+            }
+            0xF0 => {
+                //TODO BLINK
+
                 self.foreground_color = Color::BLACK;
                 self.background_color = Color::WHITE;
             }
-            (0b000, 0b000) => {
-                self.foreground_color = Color::BLACK;
-                self.background_color = Color::BLACK;
-            }
-            (0b111, 0b111) => {
-                self.foreground_color = Color::WHITE;
+            0xF8 => {
+                //TODO BLINK
+
+                self.foreground_color = Color::DARK_GREY;
                 self.background_color = Color::WHITE;
             }
 
             _ => {
-                self.foreground_color = Color::WHITE;
+                let low_nibble = attr & 0x0F;
+
                 self.background_color = Color::BLACK;
+
+                if low_nibble <= 0x07 {
+                    self.foreground_color = Color::DARK_GREY;
+                } else {
+                    self.foreground_color = Color::WHITE;
+                }
             }
         }
 

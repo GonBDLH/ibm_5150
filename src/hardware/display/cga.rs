@@ -11,33 +11,6 @@ use crate::hardware::peripheral::Peripheral;
 
 use super::{crtc6845::CRTC6845, Character, ColorChar, DisplayAdapter};
 
-const PALETTE: [[u32; 4]; 4] = [
-    [0x000000FF, 0x00AA00FF, 0xAA0000FF, 0xAA5500FF], // PALETTE_0_LOW_INTENSITY
-    [0x555555FF, 0x55FF55FF, 0xFF5555FF, 0xFFFF55FF], // PALETTE_0_HIGH_INTENSITY
-    [0x000000FF, 0x0000AAFF, 0xAA00AAFF, 0xAAAAAAFF], // PALETTE_1_LOW_INTENSITY
-    [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF], // PALETTE_1_HIGH_INTENSITY
-];
-
-const PALLETE_MEDIUM_RES: [[u32; 3]; 2] = [
-    [0x00AA00FF, 0xAA0000FF, 0xAA5500],
-    [0x00AAAAFF, 0xAA00AAFF, 0xAAAAAA],
-];
-
-const BACKGROUND_MEDIUM_RES: [u32; 16] = [
-    0x000000FF, 0x0000AAFF, 0x00AA00FF, 0x00AAAAFF, 0xAA0000FF, 0xAA00AAFF, 0xAA5500FF, 0xAAAAAAFF,
-    0x555555FF, 0x5555FFFF, 0x55FF55FF, 0x55FFFFFF, 0xFF5555FF, 0xFF55FFFF, 0xFFFF55FF, 0xFFFFFFFF,
-];
-
-// const PALETTE: [[u32; 4]; 4] = [[0x000000FF, 0x00AAAAFF, 0xAA00AAFF, 0xAAAAAAFF],       // PALETTE_0_LOW_INTENSITY
-//                                 [0x555555FF, 0x55FFFFFF, 0xFF55FFFF, 0xFFFFFFFF],       // PALETTE_0_HIGH_INTENSITY
-//                                 [0x000000FF, 0x00AA00FF, 0xAA0000FF, 0xAA5500FF],       // PALETTE_1_LOW_INTENSITY
-//                                 [0x555555FF, 0x55FF55FF, 0xFF5555FF, 0xFFFF55FF]];      // PALETTE_1_HIGH_INTENSITY
-
-const FULL_PALETTE: [u32; 16] = [
-    0x000000FF, 0x555555FF, 0x0000AAFF, 0x5555FFFF, 0x00AA00FF, 0x55FF55FF, 0x00AAAAFF, 0x55FFFFFF,
-    0xAA0000FF, 0xFF5555FF, 0xAA00AAFF, 0xFF55FFFF, 0xAA5500FF, 0xFFFF55FF, 0xAAAAAAFF, 0xFFFFFFFF,
-];
-
 pub struct CGA {
     font_map: [[[bool; 8]; 8]; 256],
 
@@ -74,7 +47,6 @@ impl CGA {
         let dimensions = self.screen_mode.get_pixel_dimensions();
 
         let screen_character_width = dimensions.0 as usize / self.char_dimensions.0;
-        // let mut img_buffer = vec![0x00; self.screen_dimensions.0 * self.screen_dimensions.1 * 3];
 
         img_buffer
             .par_chunks_mut(8 * 3)
@@ -99,23 +71,17 @@ impl CGA {
 
     #[inline]
     fn medium_res_mode(&self, pixel_slice: &mut [u8], row_slice: &[u8]) {
+        let palette = (self.color >> 5) & 1;
+
         for (group_index, pixel_group) in row_slice.iter().enumerate() {
             for pixel_offset in 0..4 {
                 let pixel = pixel_group >> (2 * (3 - pixel_offset)) & 3;
-                // let color = PALETTE[palette + intensity][pixel as usize];
+                let color_bytes = [0xAA * (pixel >> 1), 0xAA * (pixel & 1), 0xAA * palette];
 
-                let color = if pixel == 0b00 {
-                    let color = self.color & 0x0F;
-                    BACKGROUND_MEDIUM_RES[color as usize]
-                } else {
-                    PALLETE_MEDIUM_RES[(self.color >> 5 & 1) as usize][(pixel - 1) as usize]
-                };
-
-                let color_bytes = color.to_be_bytes();
                 let pixel_slice_start = group_index * 12 + pixel_offset * 3;
                 let pixel_slice_end = pixel_slice_start + 3;
 
-                pixel_slice[pixel_slice_start..pixel_slice_end].copy_from_slice(&color_bytes[0..3])
+                pixel_slice[pixel_slice_start..pixel_slice_end].copy_from_slice(&color_bytes)
             }
         }
     }
@@ -160,6 +126,7 @@ impl CGA {
                     &vram[(0x2000 + slice_start)..(0x2000 + slice_end)]
                 };
 
+                // TODO No me gusta como esta esto
                 if scaling == 2 {
                     self.high_res_mode(pixel_slice, row_slice);
                 } else {
@@ -224,12 +191,11 @@ impl Peripheral for CGA {
 
     fn port_out(&mut self, val: u16, port: u16) {
         match port {
-            0x3D8 => self.crtc.op1 = val as u8,
-            0x3D4 => self.crtc.adddr_reg = (val as u8) as usize,
-            // 0x3B5 =>  self.crtc_registers[self.crtc_adddr_reg] = val as u8,
-            0x3D5 => self.crtc.reg_write(self.crtc.adddr_reg, val as u8),
-
             0x3D9 => self.color = val as u8,
+            0x3D8 => self.crtc.op1 = val as u8,
+            0x3D5 => self.crtc.reg_write(self.crtc.adddr_reg, val as u8),
+            0x3D4 => self.crtc.adddr_reg = (val as u8) as usize,
+
             _ => {}
         }
     }

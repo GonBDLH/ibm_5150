@@ -177,21 +177,21 @@ impl System {
         }
 
         // BIOS
-        // for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
-        //     .unwrap()
-        //     .into_iter()
-        //     .enumerate()
-        // {
-        //     self.bus.memory[0xFE000 + idx] = element;
-        // }
-
-        for (idx, element) in std::fs::read("roms/GLABIOS_0.2.5_8P.ROM")
+        for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
             .unwrap()
             .into_iter()
             .enumerate()
         {
             self.bus.memory[0xFE000 + idx] = element;
         }
+
+        // for (idx, element) in std::fs::read("roms/GLABIOS_0.2.5_8P.ROM")
+        //     .unwrap()
+        //     .into_iter()
+        //     .enumerate()
+        // {
+        //     self.bus.memory[0xFE000 + idx] = element;
+        // }
     }
 
     pub fn load_test(&mut self, path: &str) {

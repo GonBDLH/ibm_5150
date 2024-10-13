@@ -102,31 +102,6 @@ impl PPI8255 {
             (self.sw2 >> 1) & 0x0F | self.port_c & 0xF0
         }
     }
-
-    // ESTO SIRVE PARA EL KBD_RESET Y LEER EL TECLADO
-    pub fn update(&mut self, pic: &mut PIC8259, cycles: u32) {
-        if self.kbd.clear {
-            self.kbd.clear = false;
-            self.key_code = 0;
-        }
-
-        if self.kbd.counting_low && self.kbd.low_count < KBD_RESET_CYCLES {
-            self.kbd.low_count += cycles;
-        }
-
-        if self.kbd.reset {
-            self.kbd.count_until_reset += cycles;
-
-            if self.kbd.count_until_reset > KBD_RESET_CYCLE_DELAY {
-                self.kbd.reset = false;
-                self.kbd.count_until_reset = 0;
-                self.kbd.resets_counter += 1;
-
-                self.key_code = 0xAA;
-                pic.irq(IRQs::Irq1);
-            }
-        }
-    }
 }
 
 impl Peripheral for PPI8255 {
@@ -173,6 +148,31 @@ impl Peripheral for PPI8255 {
         } else {
             self.kbd.counting_low = false;
             self.kbd.low_count = 0;
+        }
+    }
+
+    // ESTO SIRVE PARA EL KBD_RESET Y LEER EL TECLADO
+    fn update(&mut self, pic: &mut PIC8259, cycles: u32) {
+        if self.kbd.clear {
+            self.kbd.clear = false;
+            self.key_code = 0;
+        }
+
+        if self.kbd.counting_low && self.kbd.low_count < KBD_RESET_CYCLES {
+            self.kbd.low_count += cycles;
+        }
+
+        if self.kbd.reset {
+            self.kbd.count_until_reset += cycles;
+
+            if self.kbd.count_until_reset > KBD_RESET_CYCLE_DELAY {
+                self.kbd.reset = false;
+                self.kbd.count_until_reset = 0;
+                self.kbd.resets_counter += 1;
+
+                self.key_code = 0xAA;
+                pic.irq(IRQs::Irq1);
+            }
         }
     }
 }

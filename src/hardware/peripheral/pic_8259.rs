@@ -268,6 +268,10 @@ impl Peripheral for PIC8259 {
             _ => unreachable!(),
         }
     }
+
+    fn update(&mut self, _pic: &mut PIC8259, _cycles: u32) {
+        
+    }
 }
 
 enum TriggerMode {

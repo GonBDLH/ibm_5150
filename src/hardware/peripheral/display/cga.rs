@@ -1,6 +1,6 @@
 use std::{io::Read, mem::transmute};
 
-use crate::frontend::ScreenMode;
+use crate::{frontend::ScreenMode, hardware::peripheral::pic_8259::PIC8259};
 use rand::{thread_rng, Rng};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
@@ -198,6 +198,10 @@ impl Peripheral for CGA {
 
             _ => {}
         }
+    }
+
+    fn update(&mut self, _pic: &mut PIC8259, _cycles: u32) {
+        
     }
 }
 

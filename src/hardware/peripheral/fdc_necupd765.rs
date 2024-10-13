@@ -38,6 +38,10 @@ impl Peripheral for FloppyDiskController {
             _ => {}
         }
     }
+
+    fn update(&mut self, _pic: &mut super::pic_8259::PIC8259, _cycles: u32) {
+        
+    }
 }
 
 impl Default for FloppyDiskController {

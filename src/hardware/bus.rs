@@ -59,16 +59,7 @@ impl Bus {
     }
 
     pub fn update_peripherals(&mut self, cycles: u32) {
-        self.update_timer(cycles);
-        self.update_ppi(cycles);
-    }
-
-    fn update_timer(&mut self, cycles: u32) {
-        self.pit.cycles += cycles;
-        self.pit.update(&mut self.pic, &mut self.ppi);
-    }
-
-    fn update_ppi(&mut self, cycles: u32) {
+        self.pit.update(&mut self.pic, cycles);
         self.ppi.update(&mut self.pic, cycles);
     }
 

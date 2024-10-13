@@ -82,7 +82,7 @@ impl System {
         let max_cycles = (4_772_726.7 * elapsed) as u32;
         let mut cycles_ran = 0;
 
-        self.bus.ppi.key_input(&mut self.bus.pic);
+        self.bus.ppi.key_input();
         while cycles_ran <= max_cycles {
             self.step(&mut cycles_ran);
         }
@@ -177,21 +177,21 @@ impl System {
         }
 
         // BIOS
-        for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
-            .unwrap()
-            .into_iter()
-            .enumerate()
-        {
-            self.bus.memory[0xFE000 + idx] = element;
-        }
-
-        // for (idx, element) in std::fs::read("roms/GLABIOS_0.2.5_8P.ROM")
+        // for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
         //     .unwrap()
         //     .into_iter()
         //     .enumerate()
         // {
         //     self.bus.memory[0xFE000 + idx] = element;
         // }
+
+        for (idx, element) in std::fs::read("roms/GLABIOS_0.2.5_8P.ROM")
+            .unwrap()
+            .into_iter()
+            .enumerate()
+        {
+            self.bus.memory[0xFE000 + idx] = element;
+        }
     }
 
     pub fn load_test(&mut self, path: &str) {

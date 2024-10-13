@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::{frontend::ScreenMode, hardware::peripheral::pic_8259::PIC8259};
+use crate::frontend::ScreenMode;
 use rayon::prelude::*;
 
 use crate::hardware::peripheral::Peripheral;
@@ -175,7 +175,7 @@ impl Peripheral for IbmMDA {
         }
     }
 
-    fn update(&mut self, _pic: &mut PIC8259, _cycles: u32) {
+    fn update(&mut self, _cycles: u32) {
         
     }
 }

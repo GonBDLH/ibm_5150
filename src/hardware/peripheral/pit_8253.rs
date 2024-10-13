@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use super::{
     pic_8259::{IRQs, PIC8259},
     ppi_8255::PPI8255,
@@ -17,7 +19,7 @@ enum Mode {
 
 #[derive(Default)]
 pub struct TIM8253 {
-    pub cycles: u32,
+    cycles: u32,
 
     count: [u16; 3],
     reload: [u16; 3],
@@ -34,47 +36,50 @@ pub struct TIM8253 {
     toggle_write: [bool; 3],
 
     mode_reg: u8,
+
+    pub pic: Rc<RefCell<PIC8259>>
 }
 
 impl TIM8253 {
-    pub fn new() -> Self {
+    pub fn new(pic: Rc<RefCell<PIC8259>>) -> Self {
         Self {
             active: [false; 3],
             first_clk: [true; 3],
             reload_clk: [false; 3],
             toggle_read: [true; 3],
             toggle_write: [true; 3],
+            pic,
             ..Default::default()
         }
     }
 
-    fn output(&mut self, channel: usize, state: bool, pic: &mut PIC8259) {
+    fn output(&mut self, channel: usize, state: bool) {
         if !self.out[channel] && state && channel == 0 {
-            pic.irq(IRQs::Irq0);
+            self.pic.borrow_mut().irq(IRQs::Irq0);
         }
         self.out[channel] = state;
     }
 
-    fn mode0(&mut self, i: usize, pic: &mut PIC8259) {
+    fn mode0(&mut self, i: usize) {
         if self.count[i] == 0 {
-            self.output(i, true, pic);
+            self.output(i, true);
         } else {
             self.count[i] = self.count[i].wrapping_sub(1);
-            self.output(i, false, pic)
+            self.output(i, false)
         }
     }
 
-    fn mode2(&mut self, i: usize, pic: &mut PIC8259) {
+    fn mode2(&mut self, i: usize) {
         self.count[i] = self.count[i].wrapping_sub(1);
         if self.count[i] == 1 {
-            self.output(i, false, pic);
+            self.output(i, false);
         } else if self.count[i] == 0 {
-            self.output(i, true, pic);
+            self.output(i, true);
             self.count[i] = self.reload[i];
         }
     }
 
-    fn mode3(&mut self, i: usize, pic: &mut PIC8259) {
+    fn mode3(&mut self, i: usize) {
         if self.first_clk[i] && self.count[i] % 2 != 0 && self.out[i] {
             if self.reload_clk[i] {
                 self.count[i] = self.count[i].wrapping_sub(3);
@@ -94,7 +99,7 @@ impl TIM8253 {
             if self.out[i] {
                 self.reload_clk[i] = true;
             }
-            self.output(i, !self.out[i], pic);
+            self.output(i, !self.out[i]);
         }
     }
 }
@@ -196,7 +201,7 @@ impl Peripheral for TIM8253 {
         }
     }
 
-    fn update(&mut self, pic: &mut PIC8259, cycles: u32) {
+    fn update(&mut self, cycles: u32) {
         self.cycles += cycles;
 
         while self.cycles > 3 {
@@ -206,9 +211,9 @@ impl Peripheral for TIM8253 {
                 }
 
                 match self.mode[i] {
-                    Mode::Mode0 => self.mode0(i, pic),
-                    Mode::Mode2 => self.mode2(i, pic),
-                    Mode::Mode3 => self.mode3(i, pic),
+                    Mode::Mode0 => self.mode0(i),
+                    Mode::Mode2 => self.mode2(i),
+                    Mode::Mode3 => self.mode3(i),
 
                     _ => {
                         println!("Modo no implementado")

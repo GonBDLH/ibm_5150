@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use super::{
     pic_8259::{IRQs, PIC8259},
@@ -21,6 +21,8 @@ pub struct PPI8255 {
 
     sw1: u8,
     sw2: u8,
+
+    pub pic: Rc<RefCell<PIC8259>>
 }
 
 pub struct Keyboard {
@@ -62,10 +64,11 @@ impl Default for Keyboard {
 }
 
 impl PPI8255 {
-    pub fn new(sw1: u8, sw2: u8) -> Self {
+    pub fn new(sw1: u8, sw2: u8, pic: Rc<RefCell<PIC8259>>) -> Self {
         PPI8255 {
             sw1,
             sw2,
+            pic,
             ..Default::default()
         }
     }
@@ -80,10 +83,10 @@ impl PPI8255 {
         self.kbd.key_queue.push_front(keycode);
     }
 
-    pub fn key_input(&mut self, pic: &mut PIC8259) {
+    pub fn key_input(&mut self) {
         if let Some(key_code) = self.kbd.key_queue.pop_back() {
             self.key_code = key_code;
-            pic.irq(IRQs::Irq1);
+            self.pic.borrow_mut().irq(IRQs::Irq1);
         }
     }
 
@@ -152,7 +155,7 @@ impl Peripheral for PPI8255 {
     }
 
     // ESTO SIRVE PARA EL KBD_RESET Y LEER EL TECLADO
-    fn update(&mut self, pic: &mut PIC8259, cycles: u32) {
+    fn update(&mut self, cycles: u32) {
         if self.kbd.clear {
             self.kbd.clear = false;
             self.key_code = 0;
@@ -171,7 +174,7 @@ impl Peripheral for PPI8255 {
                 self.kbd.resets_counter += 1;
 
                 self.key_code = 0xAA;
-                pic.irq(IRQs::Irq1);
+                self.pic.borrow_mut().irq(IRQs::Irq1);
             }
         }
     }

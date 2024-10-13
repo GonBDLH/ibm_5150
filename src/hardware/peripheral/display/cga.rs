@@ -1,6 +1,6 @@
 use std::{io::Read, mem::transmute};
 
-use crate::{frontend::ScreenMode, hardware::peripheral::pic_8259::PIC8259};
+use crate::frontend::ScreenMode;
 use rand::{thread_rng, Rng};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
@@ -71,17 +71,23 @@ impl CGA {
 
     #[inline]
     fn medium_res_mode(&self, pixel_slice: &mut [u8], row_slice: &[u8]) {
-        let palette = (self.color >> 5) & 1;
+        let palette = ((self.color >> 5) & 1) as u32;
 
         for (group_index, pixel_group) in row_slice.iter().enumerate() {
             for pixel_offset in 0..4 {
-                let pixel = pixel_group >> (2 * (3 - pixel_offset)) & 3;
-                let color_bytes = [0xAA * (pixel >> 1), 0xAA * (pixel & 1), 0xAA * palette];
+                let pixel = (pixel_group >> (2 * (3 - pixel_offset)) & 3) as u32;
+                let mut color = 0xAA000000 * (pixel >> 1) +  0x00AA0000 * (pixel & 1) +  0x0000AA00 * palette;
+
+                if color == 0xAAAA0000 {
+                    color = 0xAA550000;
+                }
+
+                let color_bytes = color.to_be_bytes();
 
                 let pixel_slice_start = group_index * 12 + pixel_offset * 3;
                 let pixel_slice_end = pixel_slice_start + 3;
 
-                pixel_slice[pixel_slice_start..pixel_slice_end].copy_from_slice(&color_bytes)
+                pixel_slice[pixel_slice_start..pixel_slice_end].copy_from_slice(&color_bytes[0..3])
             }
         }
     }
@@ -200,7 +206,7 @@ impl Peripheral for CGA {
         }
     }
 
-    fn update(&mut self, _pic: &mut PIC8259, _cycles: u32) {
+    fn update(&mut self, _cycles: u32) {
         
     }
 }

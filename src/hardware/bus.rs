@@ -6,9 +6,9 @@ use crate::hardware::cpu_8088::instr_utils::Length;
 use crate::hardware::cpu_8088::CPU;
 
 use super::cpu_8088::instr_utils::Segment;
-use super::display::cga::CGA;
-use super::display::ibm_mda::IbmMDA;
-use super::display::DisplayAdapter;
+use super::peripheral::display::cga::CGA;
+use super::peripheral::display::ibm_mda::IbmMDA;
+use super::peripheral::display::DisplayAdapter;
 use super::peripheral::dma_8237::DMA8237;
 use super::peripheral::fdc_necupd765::FloppyDiskController;
 use super::peripheral::pic_8259::PIC8259;

@@ -1,6 +1,6 @@
 use std::{io::Read, mem::transmute};
 
-use crate::{frontend::ScreenMode, hardware::display::process_pixel_slice};
+use crate::frontend::ScreenMode;
 use rand::{thread_rng, Rng};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
@@ -9,7 +9,7 @@ use rayon::{
 
 use crate::hardware::peripheral::Peripheral;
 
-use super::{crtc6845::CRTC6845, Character, ColorChar, DisplayAdapter};
+use super::{crtc6845::CRTC6845, process_pixel_slice, Character, ColorChar, DisplayAdapter};
 
 pub struct CGA {
     font_map: [[[bool; 8]; 8]; 256],

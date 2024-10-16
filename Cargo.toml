@@ -8,23 +8,26 @@ edition = "2021"
 rand = "0.8.5"
 lazy_static = "1.5.0"
 rayon = "1.10.0"
-eframe = "0.29.1"
-egui = "0.29.1"
 regex = "1.7.3"
-egui_extras = "0.29.1"
 flate2 = "1.0.34"
 serde = { version = "1.0.188", features = ["derive"]}
 serde_json = "1.0.128"
 assert_hex = "0.4.1"
-ntest = "0.9.0"
-winit = "0.30.5"
+ntest = "0.9.3"
 log = "0.4.22"
 env_logger = "0.11.5"
 rfd = "0.15.0"
-egui-wgpu = "0.29.1"
-wgpu = "22.1.0"
+
 pollster = "0.3.0"
+
+eframe = "0.29.1"
+egui = "0.29.1"
+egui_extras = "0.29.1"
+egui-wgpu = "0.29.1"
 egui-winit = "0.29.1"
+
+wgpu = "22.1.0"
+winit = "0.30.5"
 # simple_logger = "5.0.0"
 
 [features]

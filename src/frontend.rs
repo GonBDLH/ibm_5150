@@ -283,7 +283,7 @@ impl Emulator {
     }
 
     fn add_screen_windows(&mut self, ctx: &Context) {
-        let size = (720. / 1.125, 350. * 1.33 / 1.125);
+        let size = (720., 350. * 1.33);
 
         if self.show_mda {
             egui::Window::new("MDA")

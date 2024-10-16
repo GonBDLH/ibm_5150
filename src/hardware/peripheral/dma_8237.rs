@@ -72,7 +72,5 @@ impl Peripheral for DMA8237 {
         }
     }
 
-    fn update(&mut self, _cycles: u32) {
-        
-    }
+    fn update(&mut self, _cycles: u32) {}
 }

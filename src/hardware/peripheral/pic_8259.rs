@@ -271,9 +271,7 @@ impl Peripheral for PIC8259 {
         }
     }
 
-    fn update(&mut self, _cycles: u32) {
-        
-    }
+    fn update(&mut self, _cycles: u32) {}
 }
 
 enum TriggerMode {

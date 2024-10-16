@@ -24,7 +24,7 @@ use winit::{
     window::{self, Window, WindowId},
 };
 
-use crate::hardware::sys::System;
+use crate::hardware::sys::{ScreenMode, System};
 
 const FRAMETIME_MS: u64 = 20;
 
@@ -42,45 +42,6 @@ struct GraphicsContext {
 
     /// The hash map of window IDs to surfaces.
     surface: Surface<Rc<Window>, Rc<Window>>,
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub struct ScreenMode {
-    dimensions: (f32, f32),
-    aspect_ratio: f32,
-}
-
-impl ScreenMode {
-    pub const MDA4025: ScreenMode = ScreenMode {
-        dimensions: (720., 350.),
-        aspect_ratio: 1.333,
-    };
-
-    pub const CGA4025: ScreenMode = ScreenMode {
-        dimensions: (320., 200.),
-        aspect_ratio: 1.2,
-    };
-
-    pub const CGA8025: ScreenMode = ScreenMode {
-        dimensions: (640., 200.),
-        aspect_ratio: 2.4,
-    };
-}
-
-impl Default for ScreenMode {
-    fn default() -> Self {
-        ScreenMode::MDA4025
-    }
-}
-
-impl ScreenMode {
-    pub fn get_pixel_dimensions(&self) -> (f32, f32) {
-        self.dimensions
-    }
-
-    pub fn get_aspect_ratio(&self) -> f32 {
-        self.aspect_ratio
-    }
 }
 
 #[derive(Default)]
@@ -201,7 +162,7 @@ impl ApplicationHandler for IbmPc {
             WindowEvent::RedrawRequested => {
                 let window = self.window.as_ref().unwrap();
                 window.pre_present_notify();
-                let frame = self.sys.create_frame();
+                let frame = self.sys.create_mda_frame();
                 self.draw_screen(frame);
             }
             WindowEvent::KeyboardInput {

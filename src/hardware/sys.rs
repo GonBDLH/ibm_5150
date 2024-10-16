@@ -6,6 +6,7 @@ use std::fs::File;
 
 use super::bus::Bus;
 use super::cpu_8088::{cpu_utils::get_address, CPU};
+use super::peripheral::display::DisplayAdapter;
 // use super::display::DisplayAdapter;
 use super::peripheral::fdc_necupd765::FloppyDiskController;
 use super::switches_cfg::*;
@@ -37,7 +38,7 @@ impl System {
             bus: Bus::new(sw1, sw2, screen_mode),
             disk_ctrl: FloppyDiskController::default(),
 
-            running: false,
+            running: true,
 
             file: OpenOptions::new()
                 .create(true)
@@ -66,7 +67,6 @@ impl Default for System {
     }
 }
 
-use crate::frontend::ScreenMode;
 use crate::util::debug_bios::debug_82;
 
 impl System {
@@ -74,11 +74,15 @@ impl System {
         self.cpu = CPU::new();
         self.bus = Bus::new(self.sw1, self.sw2, self.screen_mode);
 
-        self.running = false;
+        // self.running = false;
     }
 
     // Llamar cada frame
     pub fn update(&mut self, elapsed: f32) {
+        if !self.running {
+            return;
+        }
+
         let max_cycles = (4_772_726.7 * elapsed) as u32;
         let mut cycles_ran = 0;
 
@@ -88,39 +92,39 @@ impl System {
         }
     }
 
-    pub fn update_debugger(&mut self, elapsed: f32) {
-        let max_cycles = (4_772_726.7 * elapsed) as u32;
-        let mut cycles_ran = 0;
+    // pub fn update_debugger(&mut self, elapsed: f32) {
+    //     let max_cycles = (4_772_726.7 * elapsed) as u32;
+    //     let mut cycles_ran = 0;
 
-        while cycles_ran <= max_cycles {
-            if self.cpu.halted {
-                print!("HALTED\r");
-                cycles_ran += 1;
-                continue;
-            }
+    //     while cycles_ran <= max_cycles {
+    //         if self.cpu.halted {
+    //             print!("HALTED\r");
+    //             cycles_ran += 1;
+    //             continue;
+    //         }
 
-            if !self.running || self.cpu.halted {
-                break;
-            }
+    //         if !self.running || self.cpu.halted {
+    //             break;
+    //         }
 
-            self.step(&mut cycles_ran);
+    //         self.step(&mut cycles_ran);
 
-            if get_address(&self.cpu) == 0x1A23 {
-                self.running = false;
-                break;
-            }
+    //         if get_address(&self.cpu) == 0x1A23 {
+    //             self.running = false;
+    //             break;
+    //         }
 
-            if get_address(&self.cpu) == 0x193B {
-                self.running = false;
-                break;
-            }
+    //         if get_address(&self.cpu) == 0x193B {
+    //             self.running = false;
+    //             break;
+    //         }
 
-            if get_address(&self.cpu) == 0x7C00 {
-                self.running = false;
-                break;
-            }
-        }
-    }
+    //         if get_address(&self.cpu) == 0x7C00 {
+    //             self.running = false;
+    //             break;
+    //         }
+    //     }
+    // }
 
     pub fn step(&mut self, cycles_ran: &mut u32) {
         // #[cfg(debug_assertions)]
@@ -202,14 +206,109 @@ impl System {
         }
     }
 
-    pub fn create_frame(&mut self) -> Vec<u8> {
-        let vram = if self.sw1 & 0b00110000 == DISPLAY_MDA_80_25 {
-            &self.bus.memory[0xB0000..0xB4000]
-        } else {
-            &self.bus.memory[0xB8000..0xBC000]
-        };
+    // pub fn create_frame(&mut self) -> Vec<u8> {
+    //     let vram = if self.sw1 & 0b00110000 == DISPLAY_MDA_80_25 {
+    //         &self.bus.memory[0xB0000..0xB4000]
+    //     } else {
+    //         &self.bus.memory[0xB8000..0xBC000]
+    //     };
 
-        self.bus.display.inc_frame_counter();
-        self.bus.display.create_frame(vram)
+    //     if let Some(display) = &mut self.bus.mda {
+    //         display.inc_frame_counter();
+    //         display.create_frame(vram)
+    //     } else if let Some(display) = &mut self.bus.cga {
+    //         display.inc_frame_counter();
+    //         display.create_frame(vram)
+    //     } else {
+    //         let dimensions = self.screen_mode.get_pixel_dimensions();
+    //         vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
+    //     }
+    // }
+
+    pub fn create_mda_frame(&mut self) -> Vec<u8> {
+        if self.screen_mode == ScreenMode::MDA4025 {
+            let vram = &self.bus.memory[0xB0000..0xB4000];
+
+            if let Some(display) = &mut self.bus.mda {
+                display.inc_frame_counter();
+                display.create_frame(vram)
+            } else {
+                let dimensions = self.screen_mode.get_pixel_dimensions();
+                vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
+            }
+        } else {
+            vec![0x00; 720 * 350 * 3]
+        }
+    }
+
+    pub fn create_cga_40x25_frame(&mut self) -> Vec<u8> {
+        if self.screen_mode == ScreenMode::CGA4025 {
+            let vram = &self.bus.memory[0xB8000..0xBC000];
+
+            if let Some(display) = &mut self.bus.cga {
+                display.inc_frame_counter();
+                display.create_frame(vram)
+            } else {
+                let dimensions = self.screen_mode.get_pixel_dimensions();
+                vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
+            }
+        } else {
+            vec![0x00; 320 * 200 * 3]
+        }
+    }
+
+    pub fn create_cga_80x25_frame(&mut self) -> Vec<u8> {
+        if self.screen_mode == ScreenMode::CGA8025 {
+            let vram = &self.bus.memory[0xB8000..0xBC000];
+
+            if let Some(display) = &mut self.bus.cga {
+                display.inc_frame_counter();
+                display.create_frame(vram)
+            } else {
+                let dimensions = self.screen_mode.get_pixel_dimensions();
+                vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
+            }
+        } else {
+            vec![0x00; 640 * 200 * 3]
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct ScreenMode {
+    dimensions: (f32, f32),
+    aspect_ratio: f32,
+}
+
+impl ScreenMode {
+    pub const MDA4025: ScreenMode = ScreenMode {
+        dimensions: (720., 350.),
+        aspect_ratio: 1.333,
+    };
+
+    pub const CGA4025: ScreenMode = ScreenMode {
+        dimensions: (320., 200.),
+        aspect_ratio: 1.2,
+    };
+
+    pub const CGA8025: ScreenMode = ScreenMode {
+        dimensions: (640., 200.),
+        aspect_ratio: 2.4,
+    };
+}
+
+impl Default for ScreenMode {
+    fn default() -> Self {
+        ScreenMode::MDA4025
+    }
+}
+
+impl ScreenMode {
+    pub fn get_pixel_dimensions(&self) -> (f32, f32) {
+        self.dimensions
+    }
+
+    pub fn get_aspect_ratio(&self) -> f32 {
+        self.aspect_ratio
     }
 }

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, Mutex};
 
 use super::{
     pic_8259::{IRQs, PIC8259},
@@ -37,11 +37,11 @@ pub struct TIM8253 {
 
     mode_reg: u8,
 
-    pub pic: Rc<RefCell<PIC8259>>
+    pub pic: Arc<Mutex<PIC8259>>,
 }
 
 impl TIM8253 {
-    pub fn new(pic: Rc<RefCell<PIC8259>>) -> Self {
+    pub fn new(pic: Arc<Mutex<PIC8259>>) -> Self {
         Self {
             active: [false; 3],
             first_clk: [true; 3],
@@ -55,7 +55,7 @@ impl TIM8253 {
 
     fn output(&mut self, channel: usize, state: bool) {
         if !self.out[channel] && state && channel == 0 {
-            self.pic.borrow_mut().irq(IRQs::Irq0);
+            self.pic.lock().unwrap().irq(IRQs::Irq0);
         }
         self.out[channel] = state;
     }

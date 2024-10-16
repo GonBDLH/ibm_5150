@@ -1,12 +1,12 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::borrow::BorrowMut;
+use std::sync::{Arc, Mutex};
 
 use rayon::prelude::ParallelIterator;
 
-use crate::frontend::ScreenMode;
 use crate::hardware::cpu_8088::cpu_utils::*;
 use crate::hardware::cpu_8088::instr_utils::Length;
 use crate::hardware::cpu_8088::CPU;
+use crate::hardware::sys::ScreenMode;
 
 use super::cpu_8088::instr_utils::Segment;
 use super::peripheral::display::cga::CGA;
@@ -28,17 +28,18 @@ impl DisplayPeripheral for IbmMDA {}
 pub struct Bus {
     // pub memory: [u8; 0x100000],
     pub memory: Vec<u8>,
-    pub pic: Rc<RefCell<PIC8259>>,
+    pub pic: Arc<Mutex<PIC8259>>,
     pub pit: TIM8253,
     pub dma: DMA8237,
     pub ppi: PPI8255,
-    pub display: Box<dyn DisplayPeripheral>,
+    pub mda: Option<IbmMDA>,
+    pub cga: Option<CGA>,
     pub fdc: FloppyDiskController,
 }
 
 impl Bus {
     pub fn new(sw1: u8, sw2: u8, screen_mode: ScreenMode) -> Self {
-        let pic = Rc::new(RefCell::new(PIC8259::new()));
+        let pic = Arc::new(Mutex::new(PIC8259::new()));
 
         if sw1 & 0b00110000 == DISPLAY_MDA_80_25 {
             Bus {
@@ -47,7 +48,9 @@ impl Bus {
                 pit: TIM8253::new(pic.clone()),
                 dma: DMA8237::new(),
                 ppi: PPI8255::new(sw1, sw2, pic.clone()),
-                display: Box::new(IbmMDA::new(screen_mode)),
+                // display: Box::new(IbmMDA::new(screen_mode)),
+                mda: Some(IbmMDA::new(screen_mode)),
+                cga: None,
                 fdc: FloppyDiskController::default(),
             }
         } else {
@@ -57,7 +60,8 @@ impl Bus {
                 pit: TIM8253::new(pic.clone()),
                 dma: DMA8237::new(),
                 ppi: PPI8255::new(sw1, sw2, pic.clone()),
-                display: Box::new(CGA::new(screen_mode)),
+                mda: None,
+                cga: Some(CGA::new(screen_mode)),
                 fdc: FloppyDiskController::default(),
             }
         }
@@ -71,7 +75,7 @@ impl Bus {
     pub fn port_in(&mut self, port: u16) -> u16 {
         match port {
             0x00..=0x0F => self.dma.port_in(port),
-            0x20..=0x21 => self.pic.borrow_mut().port_in(port),
+            0x20..=0x21 => self.pic.lock().unwrap().port_in(port),
             0x40..=0x43 => self.pit.port_in(port),
             0x60..=0x63 => self.ppi.port_in(port),
             0x80..=0x83 => {
@@ -80,8 +84,20 @@ impl Bus {
             }
             0xA0..=0xAF => 0,
 
-            0x3B0..=0x3BF => self.display.port_in(port), // MDA
-            0x3D0..=0x3DF => self.display.port_in(port), // CGA
+            0x3B0..=0x3BF => {
+                if let Some(mda) = &mut self.mda {
+                    mda.port_in(port) // MDA
+                } else {
+                    0
+                }
+            }
+            0x3D0..=0x3DF => {
+                if let Some(cga) = &mut self.cga {
+                    cga.port_in(port) // CGA
+                } else {
+                    0
+                }
+            }
             0x3F0..=0x3F7 => self.fdc.port_in(port),
             _ => 0,
         }
@@ -90,14 +106,23 @@ impl Bus {
     pub fn port_out(&mut self, cpu: &mut CPU, val: u16, port: u16) {
         match port {
             0x00..=0x0F => self.dma.port_out(val, port),
-            0x20..=0x21 => self.pic.borrow_mut().port_out(val, port),
+            0x20..=0x21 => self.pic.lock().unwrap().port_out(val, port),
             0x40..=0x43 => self.pit.port_out(val, port),
             0x60..=0x63 => self.ppi.port_out(val, port),
             0x80..=0x83 => { /* TODO Reg pagina DMA */ }
             0xA0..=0xAF => cpu.nmi_out(val),
 
-            0x3B0..=0x3BF => self.display.port_out(val, port), // MDA
-            0x3D0..=0x3DF => self.display.port_out(val, port), // CGA
+            0x3B0..=0x3BF => {
+                if let Some(mda) = &mut self.mda {
+                    mda.port_out(val, port)   // MDA
+                }
+            }
+            0x3D0..=0x3DF => {
+                if let Some(cga) = &mut self.cga {
+                    cga.port_out(val, port)                     // CGA
+                };
+            }
+                , // CGA
             0x3F0..=0x3F7 => self.fdc.port_out(val, port),
             _ => {}
         };

@@ -218,7 +218,7 @@ macro_rules! create_test {
                 let mut sys = System::new(
                     DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
                     HIGH_NIBBLE | TOTAL_RAM_64,
-                    crate::frontend::ScreenMode::MDA4025,
+                    crate::hardware::sys::ScreenMode::MDA4025,
                 );
                 set_state(&i, &mut sys);
 

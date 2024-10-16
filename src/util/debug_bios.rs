@@ -24,22 +24,22 @@ pub fn debug_82(cpu: &mut CPU) {
     }
 
     match get_address(cpu) {
-        0xFE05B => info!("8088 TEST"),
-        0xFE0AE => info!("ROS CHECKSUM TEST 1"),
-        0xFE0D3 => info!("8237 DMA INIT CHANNEL REGISTER TEST"),
-        0xFE14B => info!("BASE 16K R/W STORAGE TEST"),
-        0xFE217 => info!("8259 INTERRUPT CONTROLER TEST"),
-        0xFE23F => info!("8253 TIMER CHECKOUT"),
-        0xFE2AD => info!("INIT AND START CTR CONTROLLER. TEST VIDEO R/W STORAGE"),
-        0xFE31E => info!("SETUP VIDEO DATA ON SCREEN FOR VIDEO LINE TEST"),
-        0xFE32E => info!("CRT INTERFACE LINES TEST"),
-        0xFE382 => info!("EXPANSION I/O BOX TEST"),
-        0xFE3C4 => info!("ADDITIONAL R/W STORAGE TEST"),
-        0xFE43B => info!("KEYBOARD TEST"),
-        0xFE483 => info!("CASSETTE DATA WRAP TEST"),
-        0xFE4BC => info!("CHECK FOR OPTIONAL ROM FROM C8000->F4000"),
-        0xFE4DC => info!("ROS CHECKSUM 2"),
-        0xFE4F1 => info!("DISKETTE ATTACHMENT TEST"),
+        0xFE05B => warn!("8088 TEST"),
+        0xFE0AE => warn!("ROS CHECKSUM TEST 1"),
+        0xFE0D3 => warn!("8237 DMA INIT CHANNEL REGISTER TEST"),
+        0xFE14B => warn!("BASE 16K R/W STORAGE TEST"),
+        0xFE217 => warn!("8259 INTERRUPT CONTROLER TEST"),
+        0xFE23F => warn!("8253 TIMER CHECKOUT"),
+        0xFE2AD => warn!("INIT AND START CTR CONTROLLER. TEST VIDEO R/W STORAGE"),
+        0xFE31E => warn!("SETUP VIDEO DATA ON SCREEN FOR VIDEO LINE TEST"),
+        0xFE32E => warn!("CRT INTERFACE LINES TEST"),
+        0xFE382 => warn!("EXPANSION I/O BOX TEST"),
+        0xFE3C4 => warn!("ADDITIONAL R/W STORAGE TEST"),
+        0xFE43B => warn!("KEYBOARD TEST"),
+        0xFE483 => warn!("CASSETTE DATA WRAP TEST"),
+        0xFE4BC => warn!("CHECK FOR OPTIONAL ROM FROM C8000->F4000"),
+        0xFE4DC => warn!("ROS CHECKSUM 2"),
+        0xFE4F1 => warn!("DISKETTE ATTACHMENT TEST"),
 
         0xFE0AD => warn!(" - ERROR 1: {:04X?}", ip_queue_lock),
         0xFE3BD => warn!(" - EXP ERROR: {:04X?}", ip_queue_lock),
@@ -47,8 +47,8 @@ pub fn debug_82(cpu: &mut CPU) {
         0xFE6BA => warn!(" - P_MSG: {:04X?}", ip_queue_lock),
         0xFE5CF => warn!(" - ERROR BEEP SUBROUTINE: {:04X?}", ip_queue_lock),
 
-        0xF6000 => info!("BASIC"),
-        0x07C00 => info!("DOS"),
+        0xF6000 => warn!("BASIC"),
+        0x07C00 => warn!("DOS"),
         _ => {}
     }
 }

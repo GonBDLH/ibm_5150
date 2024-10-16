@@ -165,7 +165,7 @@ impl CPU {
             self.halted = false;
             *cycles += 50;
         } else if self.flags.i {
-            let pic_interrupt = bus.pic.borrow_mut().get_next();
+            let pic_interrupt = bus.pic.lock().unwrap().get_next();
 
             if let Some(interrupt) = pic_interrupt {
                 // #[cfg(debug_assertions)]
@@ -177,7 +177,7 @@ impl CPU {
                 // }
 
                 self.interrupt(bus, (interrupt * 0x04) as u16);
-                bus.pic.borrow_mut().try_aeoi();
+                bus.pic.lock().unwrap().try_aeoi();
                 self.halted = false;
                 *cycles += 61;
             }

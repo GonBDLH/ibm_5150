@@ -39,9 +39,7 @@ impl Peripheral for FloppyDiskController {
         }
     }
 
-    fn update(&mut self, _cycles: u32) {
-        
-    }
+    fn update(&mut self, _cycles: u32) {}
 }
 
 impl Default for FloppyDiskController {

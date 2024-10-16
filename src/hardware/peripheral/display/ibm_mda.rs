@@ -1,12 +1,13 @@
 use std::io::Read;
 
-use crate::frontend::ScreenMode;
+use crate::hardware::sys::ScreenMode;
 use rayon::prelude::*;
 
 use crate::hardware::peripheral::Peripheral;
 
 use super::{
-    crtc6845::{BlinkMode, CRTC6845}, process_pixel_slice, BWChar, Character, DisplayAdapter
+    crtc6845::{BlinkMode, CRTC6845},
+    process_pixel_slice, BWChar, Character, DisplayAdapter,
 };
 
 // const IMG_SIZE: usize = 720 * 350;
@@ -175,7 +176,5 @@ impl Peripheral for IbmMDA {
         }
     }
 
-    fn update(&mut self, _cycles: u32) {
-        
-    }
+    fn update(&mut self, _cycles: u32) {}
 }

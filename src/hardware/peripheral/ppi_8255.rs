@@ -1,4 +1,7 @@
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
 
 use super::{
     pic_8259::{IRQs, PIC8259},
@@ -22,7 +25,7 @@ pub struct PPI8255 {
     sw1: u8,
     sw2: u8,
 
-    pub pic: Rc<RefCell<PIC8259>>
+    pub pic: Arc<Mutex<PIC8259>>,
 }
 
 pub struct Keyboard {
@@ -64,7 +67,7 @@ impl Default for Keyboard {
 }
 
 impl PPI8255 {
-    pub fn new(sw1: u8, sw2: u8, pic: Rc<RefCell<PIC8259>>) -> Self {
+    pub fn new(sw1: u8, sw2: u8, pic: Arc<Mutex<PIC8259>>) -> Self {
         PPI8255 {
             sw1,
             sw2,
@@ -86,7 +89,7 @@ impl PPI8255 {
     pub fn key_input(&mut self) {
         if let Some(key_code) = self.kbd.key_queue.pop_back() {
             self.key_code = key_code;
-            self.pic.borrow_mut().irq(IRQs::Irq1);
+            self.pic.lock().unwrap().irq(IRQs::Irq1);
         }
     }
 
@@ -174,7 +177,7 @@ impl Peripheral for PPI8255 {
                 self.kbd.resets_counter += 1;
 
                 self.key_code = 0xAA;
-                self.pic.borrow_mut().irq(IRQs::Irq1);
+                self.pic.lock().unwrap().irq(IRQs::Irq1);
             }
         }
     }

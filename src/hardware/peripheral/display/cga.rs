@@ -1,6 +1,6 @@
-use std::{io::Read, mem::transmute};
+use std::io::Read;
 
-use crate::frontend::ScreenMode;
+use crate::hardware::sys::ScreenMode;
 use rand::{thread_rng, Rng};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
@@ -76,7 +76,8 @@ impl CGA {
         for (group_index, pixel_group) in row_slice.iter().enumerate() {
             for pixel_offset in 0..4 {
                 let pixel = (pixel_group >> (2 * (3 - pixel_offset)) & 3) as u32;
-                let mut color = 0xAA000000 * (pixel >> 1) +  0x00AA0000 * (pixel & 1) +  0x0000AA00 * palette;
+                let mut color =
+                    0xAA000000 * (pixel >> 1) + 0x00AA0000 * (pixel & 1) + 0x0000AA00 * palette;
 
                 if color == 0xAAAA0000 {
                     color = 0xAA550000;
@@ -206,9 +207,7 @@ impl Peripheral for CGA {
         }
     }
 
-    fn update(&mut self, _cycles: u32) {
-        
-    }
+    fn update(&mut self, _cycles: u32) {}
 }
 
 impl DisplayAdapter for CGA {

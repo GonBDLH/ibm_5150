@@ -28,7 +28,7 @@ impl DisplayPeripheral for IbmMDA {}
 pub struct Bus {
     // pub memory: [u8; 0x100000],
     pub memory: Vec<u8>,
-    pub pic: Arc<Mutex<PIC8259>>,
+    pub pic: PIC8259,
     pub pit: TIM8253,
     pub dma: DMA8237,
     pub ppi: PPI8255,
@@ -39,15 +39,13 @@ pub struct Bus {
 
 impl Bus {
     pub fn new(sw1: u8, sw2: u8, screen_mode: ScreenMode) -> Self {
-        let pic = Arc::new(Mutex::new(PIC8259::new()));
-
         if sw1 & 0b00110000 == DISPLAY_MDA_80_25 {
             Bus {
                 memory: vec![0x00; 0x100000],
-                pic: pic.clone(),
-                pit: TIM8253::new(pic.clone()),
+                pic: PIC8259::new(),
+                pit: TIM8253::new(),
                 dma: DMA8237::new(),
-                ppi: PPI8255::new(sw1, sw2, pic.clone()),
+                ppi: PPI8255::new(sw1, sw2),
                 // display: Box::new(IbmMDA::new(screen_mode)),
                 mda: Some(IbmMDA::new(screen_mode)),
                 cga: None,
@@ -56,10 +54,10 @@ impl Bus {
         } else {
             Bus {
                 memory: vec![0x00; 0x100000],
-                pic: pic.clone(),
-                pit: TIM8253::new(pic.clone()),
+                pic: PIC8259::new(),
+                pit: TIM8253::new(),
                 dma: DMA8237::new(),
-                ppi: PPI8255::new(sw1, sw2, pic.clone()),
+                ppi: PPI8255::new(sw1, sw2),
                 mda: None,
                 cga: Some(CGA::new(screen_mode)),
                 fdc: FloppyDiskController::default(),
@@ -68,14 +66,14 @@ impl Bus {
     }
 
     pub fn update_peripherals(&mut self, cycles: u32) {
-        self.pit.update(cycles);
-        self.ppi.update(cycles);
+        self.pit.update(&mut self.pic, cycles);
+        self.ppi.update(&mut self.pic, cycles);
     }
 
     pub fn port_in(&mut self, port: u16) -> u16 {
         match port {
             0x00..=0x0F => self.dma.port_in(port),
-            0x20..=0x21 => self.pic.lock().unwrap().port_in(port),
+            0x20..=0x21 => self.pic.port_in(port),
             0x40..=0x43 => self.pit.port_in(port),
             0x60..=0x63 => self.ppi.port_in(port),
             0x80..=0x83 => {
@@ -106,7 +104,7 @@ impl Bus {
     pub fn port_out(&mut self, cpu: &mut CPU, val: u16, port: u16) {
         match port {
             0x00..=0x0F => self.dma.port_out(val, port),
-            0x20..=0x21 => self.pic.lock().unwrap().port_out(val, port),
+            0x20..=0x21 => self.pic.port_out(val, port),
             0x40..=0x43 => self.pit.port_out(val, port),
             0x60..=0x63 => self.ppi.port_out(val, port),
             0x80..=0x83 => { /* TODO Reg pagina DMA */ }

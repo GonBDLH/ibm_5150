@@ -1,4 +1,4 @@
-use super::Peripheral;
+use super::{pic_8259::PIC8259, Peripheral};
 
 #[derive(Default, Clone, Copy)]
 struct Channel {
@@ -72,5 +72,5 @@ impl Peripheral for DMA8237 {
         }
     }
 
-    fn update(&mut self, _cycles: u32) {}
+    fn update(&mut self, _pic: &mut PIC8259, _cycles: u32) {}
 }

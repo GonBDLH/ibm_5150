@@ -36,50 +36,47 @@ pub struct TIM8253 {
     toggle_write: [bool; 3],
 
     mode_reg: u8,
-
-    pub pic: Arc<Mutex<PIC8259>>,
 }
 
 impl TIM8253 {
-    pub fn new(pic: Arc<Mutex<PIC8259>>) -> Self {
+    pub fn new() -> Self {
         Self {
             active: [false; 3],
             first_clk: [true; 3],
             reload_clk: [false; 3],
             toggle_read: [true; 3],
             toggle_write: [true; 3],
-            pic,
             ..Default::default()
         }
     }
 
-    fn output(&mut self, channel: usize, state: bool) {
+    fn output(&mut self, pic: &mut PIC8259, channel: usize, state: bool) {
         if !self.out[channel] && state && channel == 0 {
-            self.pic.lock().unwrap().irq(IRQs::Irq0);
+            pic.irq(IRQs::Irq0);
         }
         self.out[channel] = state;
     }
 
-    fn mode0(&mut self, i: usize) {
+    fn mode0(&mut self, pic: &mut PIC8259, i: usize) {
         if self.count[i] == 0 {
-            self.output(i, true);
+            self.output(pic, i, true);
         } else {
             self.count[i] = self.count[i].wrapping_sub(1);
-            self.output(i, false)
+            self.output(pic, i, false)
         }
     }
 
-    fn mode2(&mut self, i: usize) {
+    fn mode2(&mut self, pic: &mut PIC8259, i: usize) {
         self.count[i] = self.count[i].wrapping_sub(1);
         if self.count[i] == 1 {
-            self.output(i, false);
+            self.output(pic, i, false);
         } else if self.count[i] == 0 {
-            self.output(i, true);
+            self.output(pic, i, true);
             self.count[i] = self.reload[i];
         }
     }
 
-    fn mode3(&mut self, i: usize) {
+    fn mode3(&mut self, pic: &mut PIC8259, i: usize) {
         if self.first_clk[i] && self.count[i] % 2 != 0 && self.out[i] {
             if self.reload_clk[i] {
                 self.count[i] = self.count[i].wrapping_sub(3);
@@ -99,7 +96,7 @@ impl TIM8253 {
             if self.out[i] {
                 self.reload_clk[i] = true;
             }
-            self.output(i, !self.out[i]);
+            self.output(pic, i, !self.out[i]);
         }
     }
 }
@@ -201,7 +198,7 @@ impl Peripheral for TIM8253 {
         }
     }
 
-    fn update(&mut self, cycles: u32) {
+    fn update(&mut self, pic: &mut PIC8259, cycles: u32) {
         self.cycles += cycles;
 
         while self.cycles > 3 {
@@ -211,9 +208,9 @@ impl Peripheral for TIM8253 {
                 }
 
                 match self.mode[i] {
-                    Mode::Mode0 => self.mode0(i),
-                    Mode::Mode2 => self.mode2(i),
-                    Mode::Mode3 => self.mode3(i),
+                    Mode::Mode0 => self.mode0(pic, i),
+                    Mode::Mode2 => self.mode2(pic, i),
+                    Mode::Mode3 => self.mode3(pic, i),
 
                     _ => {
                         println!("Modo no implementado")

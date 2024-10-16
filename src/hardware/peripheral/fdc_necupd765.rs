@@ -5,7 +5,7 @@ use std::{
 
 use crate::hardware::{bus::Bus, cpu_8088::CPU};
 
-use super::Peripheral;
+use super::{pic_8259::PIC8259, Peripheral};
 
 pub struct FloppyDiskController {
     dor_register: u8,
@@ -39,7 +39,7 @@ impl Peripheral for FloppyDiskController {
         }
     }
 
-    fn update(&mut self, _cycles: u32) {}
+    fn update(&mut self, _pic: &mut PIC8259, _cycles: u32) {}
 }
 
 impl Default for FloppyDiskController {

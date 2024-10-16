@@ -1,4 +1,4 @@
-use ibm_5150::{frontend::{Application, EmulatorConfig}, hardware::{switches_cfg::*, sys::ScreenMode}};
+use ibm_5150::{frontend::{Application, app_state::EmulatorConfig}, hardware::{switches_cfg::*, sys::ScreenMode}};
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
@@ -12,11 +12,13 @@ async fn run() {
 
     event_loop.set_control_flow(ControlFlow::Poll);
 
-    let mut app = Application::new(EmulatorConfig {
-        sw1: DD_ENABLE | RESERVED | MEM_64K | DISPLAY_CGA_40_25 | DRIVES_2,
-        sw2: HIGH_NIBBLE | TOTAL_RAM_64,
-        screen_mode: ScreenMode::CGA4025,
-    });
+    let mut app = Application::new(EmulatorConfig::builder()
+        .enable_disk_drives()
+        .set_conventional_ram(MEM_64K)
+        .set_screen_mode(ScreenMode::CGA4025)
+        .set_disk_drives_number(DRIVES_2)
+        .set_total_ram(TOTAL_RAM_128)
+    );
 
     event_loop.run_app(&mut app).expect("Failed to run app");
 }

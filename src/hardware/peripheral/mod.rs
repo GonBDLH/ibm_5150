@@ -10,5 +10,5 @@ pub mod ppi_8255;
 pub trait Peripheral {
     fn port_in(&mut self, port: u16) -> u16;
     fn port_out(&mut self, val: u16, port: u16);
-    fn update(&mut self, cycles: u32);
+    fn update(&mut self, pic: &mut PIC8259, cycles: u32);
 }

@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::hardware::sys::ScreenMode;
+use crate::hardware::{peripheral::pic_8259::PIC8259, sys::ScreenMode};
 use rand::{thread_rng, Rng};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
@@ -207,7 +207,7 @@ impl Peripheral for CGA {
         }
     }
 
-    fn update(&mut self, _cycles: u32) {}
+    fn update(&mut self, _pic: &mut PIC8259, _cycles: u32) {}
 }
 
 impl DisplayAdapter for CGA {

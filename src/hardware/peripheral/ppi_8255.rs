@@ -24,8 +24,6 @@ pub struct PPI8255 {
 
     sw1: u8,
     sw2: u8,
-
-    pub pic: Arc<Mutex<PIC8259>>,
 }
 
 pub struct Keyboard {
@@ -67,11 +65,10 @@ impl Default for Keyboard {
 }
 
 impl PPI8255 {
-    pub fn new(sw1: u8, sw2: u8, pic: Arc<Mutex<PIC8259>>) -> Self {
+    pub fn new(sw1: u8, sw2: u8) -> Self {
         PPI8255 {
             sw1,
             sw2,
-            pic,
             ..Default::default()
         }
     }
@@ -86,10 +83,10 @@ impl PPI8255 {
         self.kbd.key_queue.push_front(keycode);
     }
 
-    pub fn key_input(&mut self) {
+    pub fn key_input(&mut self, pic: &mut PIC8259) {
         if let Some(key_code) = self.kbd.key_queue.pop_back() {
             self.key_code = key_code;
-            self.pic.lock().unwrap().irq(IRQs::Irq1);
+            pic.irq(IRQs::Irq1);
         }
     }
 
@@ -158,7 +155,7 @@ impl Peripheral for PPI8255 {
     }
 
     // ESTO SIRVE PARA EL KBD_RESET Y LEER EL TECLADO
-    fn update(&mut self, cycles: u32) {
+    fn update(&mut self, pic: &mut PIC8259, cycles: u32) {
         if self.kbd.clear {
             self.kbd.clear = false;
             self.key_code = 0;
@@ -177,7 +174,7 @@ impl Peripheral for PPI8255 {
                 self.kbd.resets_counter += 1;
 
                 self.key_code = 0xAA;
-                self.pic.lock().unwrap().irq(IRQs::Irq1);
+                pic.irq(IRQs::Irq1);
             }
         }
     }

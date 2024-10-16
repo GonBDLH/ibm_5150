@@ -181,21 +181,21 @@ impl System {
         }
 
         // BIOS
-        // for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
-        //     .unwrap()
-        //     .into_iter()
-        //     .enumerate()
-        // {
-        //     self.bus.memory[0xFE000 + idx] = element;
-        // }
-
-        for (idx, element) in std::fs::read("roms/GLABIOS_0.2.5_8P.ROM")
+        for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
             .unwrap()
             .into_iter()
             .enumerate()
         {
             self.bus.memory[0xFE000 + idx] = element;
         }
+
+        // for (idx, element) in std::fs::read("roms/GLABIOS_0.2.5_8P.ROM")
+        //     .unwrap()
+        //     .into_iter()
+        //     .enumerate()
+        // {
+        //     self.bus.memory[0xFE000 + idx] = element;
+        // }
     }
 
     pub fn load_test(&mut self, path: &str) {
@@ -271,6 +271,18 @@ impl System {
         } else {
             vec![0x00; 640 * 200 * 3]
         }
+    }
+
+    pub fn inser_floppy_disk(&mut self, path: &str, floppy: usize) {
+        self.disk_ctrl.insert_disk(&mut self.bus, floppy, path);
+    }
+
+    pub fn key_down(&mut self, keycode: u8) {
+        self.bus.ppi.key_down(keycode);
+    }
+
+    pub fn key_up(&mut self, keycode: u8) {
+        self.bus.ppi.key_up(keycode);
     }
 }
 

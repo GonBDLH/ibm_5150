@@ -84,7 +84,7 @@ impl IbmMDA {
 
 impl Default for IbmMDA {
     fn default() -> Self {
-        IbmMDA::new(ScreenMode::MDA4025)
+        IbmMDA::new(ScreenMode::MDA8025)
     }
 }
 

@@ -6,6 +6,8 @@ use std::fs::File;
 
 use super::bus::Bus;
 use super::cpu_8088::{cpu_utils::get_address, CPU};
+use super::peripheral::display::cga::CGA;
+use super::peripheral::display::ibm_mda::IbmMDA;
 use super::peripheral::display::DisplayAdapter;
 // use super::display::DisplayAdapter;
 use super::peripheral::fdc_necupd765::FloppyDiskController;
@@ -27,15 +29,13 @@ pub struct System {
 
     sw1: u8,
     sw2: u8,
-
-    screen_mode: ScreenMode,
 }
 
 impl System {
-    pub fn new(sw1: u8, sw2: u8, screen_mode: ScreenMode) -> Self {
+    pub fn new(sw1: u8, sw2: u8) -> Self {
         let sys = System {
             cpu: CPU::new(),
-            bus: Bus::new(sw1, sw2, screen_mode),
+            bus: Bus::new(sw1, sw2),
             disk_ctrl: FloppyDiskController::default(),
 
             running: true,
@@ -49,8 +49,6 @@ impl System {
             cycles_step: 0,
             sw1,
             sw2,
-
-            screen_mode,
         };
 
         sys
@@ -62,7 +60,6 @@ impl Default for System {
         System::new(
             DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
             HIGH_NIBBLE | TOTAL_RAM_64,
-            ScreenMode::MDA4025,
         )
     }
 }
@@ -72,9 +69,25 @@ use crate::util::debug_bios::debug_82;
 impl System {
     pub fn rst(&mut self) {
         self.cpu = CPU::new();
-        self.bus = Bus::new(self.sw1, self.sw2, self.screen_mode);
+        self.bus = Bus::new(self.sw1, self.sw2);
 
         // self.running = false;
+    }
+
+    pub fn update_sw(&mut self, sw1: u8, sw2: u8) {
+        self.sw1 = sw1;
+        self.sw2 = sw2;
+
+        let screen_mode = ScreenMode::from_sw1(sw1);
+
+        if screen_mode == ScreenMode::MDA8025 {
+            self.bus.mda = Some(IbmMDA::new(screen_mode))
+        } else if screen_mode == ScreenMode::CGA4025 || screen_mode == ScreenMode::CGA8025 {
+            self.bus.cga = Some(CGA::new(screen_mode))
+        }
+
+        self.bus.ppi.sw1 = sw1;
+        self.bus.ppi.sw2 = sw2;
     }
 
     // Llamar cada frame
@@ -146,7 +159,7 @@ impl System {
         *cycles_ran += cycles;
     }
 
-    pub fn load_roms(&mut self) {
+    pub fn load_roms(&mut self, bios_selected: &BiosSelected) {
         // BASIC
         for (idx, element) in std::fs::read("roms/basic_1.10/IBM_5150-C1.10-U29-5000019.bin")
             .unwrap()
@@ -181,19 +194,13 @@ impl System {
         }
 
         // BIOS
-        // for (idx, element) in std::fs::read("roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN")
-        //     .unwrap()
-        //     .into_iter()
-        //     .enumerate()
-        // {
-        //     self.bus.memory[0xFE000 + idx] = element;
-        // }
 
-        for (idx, element) in std::fs::read("roms/GLABIOS_0.2.5_8P.ROM")
-            .unwrap()
-            .into_iter()
-            .enumerate()
-        {
+        let path = match bios_selected {
+            BiosSelected::IbmPc => "roms/BIOS_IBM5150_27OCT82_1501476_U33.BIN",
+            BiosSelected::GlaBios => "roms/GLABIOS_0.2.5_8P.ROM",
+        };
+
+        for (idx, element) in std::fs::read(path).unwrap().into_iter().enumerate() {
             self.bus.memory[0xFE000 + idx] = element;
         }
     }
@@ -226,14 +233,16 @@ impl System {
     // }
 
     pub fn create_mda_frame(&mut self) -> Vec<u8> {
-        if self.screen_mode == ScreenMode::MDA4025 {
+        let screen_mode = ScreenMode::from_sw1(self.sw1);
+
+        if screen_mode == ScreenMode::MDA8025 {
             let vram = &self.bus.memory[0xB0000..0xB4000];
 
             if let Some(display) = &mut self.bus.mda {
                 display.inc_frame_counter();
                 display.create_frame(vram)
             } else {
-                let dimensions = self.screen_mode.get_pixel_dimensions();
+                let dimensions = screen_mode.get_pixel_dimensions();
                 vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
             }
         } else {
@@ -242,14 +251,16 @@ impl System {
     }
 
     pub fn create_cga_40x25_frame(&mut self) -> Vec<u8> {
-        if self.screen_mode == ScreenMode::CGA4025 {
+        let screen_mode = ScreenMode::from_sw1(self.sw1);
+
+        if screen_mode == ScreenMode::CGA4025 {
             let vram = &self.bus.memory[0xB8000..0xBC000];
 
             if let Some(display) = &mut self.bus.cga {
                 display.inc_frame_counter();
                 display.create_frame(vram)
             } else {
-                let dimensions = self.screen_mode.get_pixel_dimensions();
+                let dimensions = screen_mode.get_pixel_dimensions();
                 vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
             }
         } else {
@@ -258,14 +269,16 @@ impl System {
     }
 
     pub fn create_cga_80x25_frame(&mut self) -> Vec<u8> {
-        if self.screen_mode == ScreenMode::CGA8025 {
+        let screen_mode = ScreenMode::from_sw1(self.sw1);
+
+        if screen_mode == ScreenMode::CGA8025 {
             let vram = &self.bus.memory[0xB8000..0xBC000];
 
             if let Some(display) = &mut self.bus.cga {
                 display.inc_frame_counter();
                 display.create_frame(vram)
             } else {
-                let dimensions = self.screen_mode.get_pixel_dimensions();
+                let dimensions = screen_mode.get_pixel_dimensions();
                 vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
             }
         } else {
@@ -297,7 +310,7 @@ pub struct ScreenMode {
 }
 
 impl ScreenMode {
-    pub const MDA4025: ScreenMode = ScreenMode {
+    pub const MDA8025: ScreenMode = ScreenMode {
         dimensions: (720., 350.),
         aspect_ratio: 1.333,
     };
@@ -311,11 +324,21 @@ impl ScreenMode {
         dimensions: (640., 200.),
         aspect_ratio: 2.4,
     };
+
+    pub fn from_sw1(sw1: u8) -> Self {
+        match sw1 & 0b00110000 {
+            DISPLAY_MDA_80_25 => Self::MDA8025,
+            DISPLAY_CGA_40_25 => Self::CGA4025,
+            DISPLAY_CGA_80_25 => Self::CGA8025,
+            DISPLAY_RESERVED => Self::MDA8025, // TODO
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl Default for ScreenMode {
     fn default() -> Self {
-        ScreenMode::MDA4025
+        ScreenMode::MDA8025
     }
 }
 
@@ -327,4 +350,11 @@ impl ScreenMode {
     pub fn get_aspect_ratio(&self) -> f32 {
         self.aspect_ratio
     }
+}
+
+#[derive(Default, PartialEq, Clone)]
+pub enum BiosSelected {
+    #[default]
+    IbmPc,
+    GlaBios,
 }

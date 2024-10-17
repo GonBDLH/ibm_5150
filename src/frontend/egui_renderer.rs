@@ -1,6 +1,6 @@
 use egui::Context;
-use egui_wgpu::{Renderer, ScreenDescriptor};
 use egui_wgpu::wgpu::{CommandEncoder, Device, Queue, StoreOp, TextureFormat, TextureView};
+use egui_wgpu::{Renderer, ScreenDescriptor};
 use winit::event::WindowEvent;
 use winit::window::Window;
 

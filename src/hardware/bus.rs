@@ -38,7 +38,7 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new(sw1: u8, sw2: u8, screen_mode: ScreenMode) -> Self {
+    pub fn new(sw1: u8, sw2: u8) -> Self {
         if sw1 & 0b00110000 == DISPLAY_MDA_80_25 {
             Bus {
                 memory: vec![0x00; 0x100000],
@@ -47,7 +47,7 @@ impl Bus {
                 dma: DMA8237::new(),
                 ppi: PPI8255::new(sw1, sw2),
                 // display: Box::new(IbmMDA::new(screen_mode)),
-                mda: Some(IbmMDA::new(screen_mode)),
+                mda: Some(IbmMDA::new(ScreenMode::from_sw1(sw1))),
                 cga: None,
                 fdc: FloppyDiskController::default(),
             }
@@ -59,7 +59,7 @@ impl Bus {
                 dma: DMA8237::new(),
                 ppi: PPI8255::new(sw1, sw2),
                 mda: None,
-                cga: Some(CGA::new(screen_mode)),
+                cga: Some(CGA::new(ScreenMode::from_sw1(sw1))),
                 fdc: FloppyDiskController::default(),
             }
         }
@@ -193,7 +193,6 @@ impl Default for Bus {
         Self::new(
             DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
             HIGH_NIBBLE | TOTAL_RAM_64,
-            ScreenMode::MDA4025,
         )
     }
 }

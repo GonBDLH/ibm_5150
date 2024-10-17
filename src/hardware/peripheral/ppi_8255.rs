@@ -22,8 +22,8 @@ pub struct PPI8255 {
 
     kbd: Keyboard,
 
-    sw1: u8,
-    sw2: u8,
+    pub sw1: u8,
+    pub sw2: u8,
 }
 
 pub struct Keyboard {

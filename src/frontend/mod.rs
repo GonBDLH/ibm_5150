@@ -23,32 +23,29 @@ use winit::{
 
 use crate::{hardware::sys::System, *};
 
-mod egui_renderer;
 pub mod app_state;
+mod egui_renderer;
+mod toggle_switch;
 
 #[derive(Default)]
 pub struct Application {
     instance: wgpu::Instance,
     state: Option<AppState>,
     window: Option<Arc<Window>>,
-
-    config: EmulatorConfig
 }
 
 impl Application {
-    pub fn new(config: EmulatorConfig) -> Self {
+    pub fn new() -> Self {
         let instance = egui_wgpu::wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
         Self {
             state: None,
             instance,
             window: None,
-
-            config
         }
     }
 
-    async fn set_window(&mut self, window: Window) {
+    async fn set_window(&mut self, window: Window, emulator_config: EmulatorConfig) {
         let window = Arc::new(window);
         let initial_width = 1360;
         let initial_height = 768;
@@ -66,7 +63,7 @@ impl Application {
             &window,
             initial_width,
             initial_height,
-            &self.config
+            emulator_config,
         )
         .await;
 
@@ -176,7 +173,7 @@ impl ApplicationHandler for Application {
             .create_window(Window::default_attributes())
             .unwrap();
 
-        pollster::block_on(self.set_window(window));
+        pollster::block_on(self.set_window(window, EmulatorConfig::default()));
 
         self.set_texture_handles();
 

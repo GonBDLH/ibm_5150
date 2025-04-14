@@ -69,6 +69,7 @@ impl Peripheral for DMA8237 {
 
             self.write(val, channel as usize, opt);
         } else {
+            // TODO
         }
     }
 

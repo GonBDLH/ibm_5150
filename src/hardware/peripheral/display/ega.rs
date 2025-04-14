@@ -7,7 +7,7 @@ pub struct EGA {
 }
 
 impl DisplayAdapter for EGA {
-    fn create_frame(&mut self, vram: &[u8]) -> Vec<u8> {
+    fn create_frame(&mut self, _vram: &[u8]) -> Vec<u8> {
         todo!() 
     }
 

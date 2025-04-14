@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::hardware::{peripheral::pic_8259::PIC8259, sys::ScreenMode};
+use crate::hardware::{peripheral::pic_8259::PIC8259, sys::{ScreenMode, ScreenModeData, ScreenModeVariant}};
 use rand::{thread_rng, Rng};
 use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
@@ -44,7 +44,7 @@ impl CGA {
     }
 
     fn alphanumeric_mode(&mut self, vram: &[u8], img_buffer: &mut [u8]) {
-        let dimensions = self.screen_mode.get_pixel_dimensions();
+        let dimensions = self.screen_mode.data.get_pixel_dimensions();
 
         let screen_character_width = dimensions.0 as usize / self.char_dimensions.0;
 
@@ -111,9 +111,9 @@ impl CGA {
     }
 
     fn graphic_mode(&mut self, vram: &[u8], img_buffer: &mut [u8]) {
-        let dimensions = self.screen_mode.get_pixel_dimensions();
+        let dimensions = self.screen_mode.data.get_pixel_dimensions();
 
-        let scaling = if let ScreenMode::CGA8025 = self.screen_mode {
+        let scaling = if let ScreenModeVariant::CGA8025 = self.screen_mode.variant {
             2
         } else {
             1
@@ -212,7 +212,7 @@ impl Peripheral for CGA {
 
 impl DisplayAdapter for CGA {
     fn create_frame(&mut self, vram: &[u8]) -> Vec<u8> {
-        let dimensions = self.screen_mode.get_pixel_dimensions();
+        let dimensions = self.screen_mode.data.get_pixel_dimensions();
 
         let mut img_buffer = vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3];
 

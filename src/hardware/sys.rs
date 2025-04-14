@@ -80,10 +80,12 @@ impl System {
 
         let screen_mode = ScreenMode::from_sw1(sw1);
 
-        if screen_mode == ScreenMode::MDA8025 {
-            self.bus.mda = Some(IbmMDA::new(screen_mode))
-        } else if screen_mode == ScreenMode::CGA4025 || screen_mode == ScreenMode::CGA8025 {
-            self.bus.cga = Some(CGA::new(screen_mode))
+        match screen_mode.variant {
+            ScreenModeVariant::CGA4025 | ScreenModeVariant::CGA8025 => {
+                self.bus.cga = Some(CGA::new(screen_mode))
+            }
+            ScreenModeVariant::MDA8025 => self.bus.mda = Some(IbmMDA::new(screen_mode)),
+            _ => (), // TODO EGA
         }
 
         self.bus.ppi.sw1 = sw1;
@@ -235,66 +237,93 @@ impl System {
     pub fn create_mda_frame(&mut self) -> Vec<u8> {
         let screen_mode = ScreenMode::from_sw1(self.sw1);
 
-        if screen_mode == ScreenMode::MDA8025 {
-            let vram = &self.bus.memory[0xB0000..0xB4000];
+        // if let ScreenMode::MDA8025(data) = screen_mode {
+        //     let vram = &self.bus.memory[0xB0000..0xB4000];
 
-            if let Some(display) = &mut self.bus.mda {
-                display.inc_frame_counter();
-                display.create_frame(vram)
-            } else {
-                let dimensions = screen_mode.get_pixel_dimensions();
-                vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
-            }
+        //     if let Some(display) = &mut self.bus.mda {
+        //         display.inc_frame_counter();
+        //         display.create_frame(vram)
+        //     } else {
+        //         let dimensions = data.get_pixel_dimensions();
+        //         vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
+        //     }
+        // } else {
+        //     vec![0x00; 720 * 350 * 3]
+        // }
+        let vram = &self.bus.memory[0xB0000..0xB4000];
+
+        if let Some(display) = &mut self.bus.mda {
+            display.inc_frame_counter();
+            display.create_frame(vram)
         } else {
-            vec![0x00; 720 * 350 * 3]
+            let dimensions = screen_mode.data.get_pixel_dimensions();
+            vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
         }
     }
 
     pub fn create_cga_40x25_frame(&mut self) -> Vec<u8> {
         let screen_mode = ScreenMode::from_sw1(self.sw1);
 
-        if screen_mode == ScreenMode::CGA4025 {
-            let vram = &self.bus.memory[0xB8000..0xBC000];
+        // if let ScreenMode::CGA4025(data) = screen_mode  {
+        //     let vram = &self.bus.memory[0xB8000..0xBC000];
 
-            if let Some(display) = &mut self.bus.cga {
-                display.inc_frame_counter();
-                display.create_frame(vram)
-            } else {
-                let dimensions = screen_mode.get_pixel_dimensions();
-                vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
-            }
+        //     if let Some(display) = &mut self.bus.cga {
+        //         display.inc_frame_counter();
+        //         display.create_frame(vram)
+        //     } else {
+        //         let dimensions = data.get_pixel_dimensions();
+        //         vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
+        //     }
+        // } else {
+        //     vec![0x00; 320 * 200 * 3]
+        // }
+        let vram = &self.bus.memory[0xB8000..0xBC000];
+
+        if let Some(display) = &mut self.bus.cga {
+            display.inc_frame_counter();
+            display.create_frame(vram)
         } else {
-            vec![0x00; 320 * 200 * 3]
+            let dimensions = screen_mode.data.get_pixel_dimensions();
+            vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
         }
     }
 
     pub fn create_cga_80x25_frame(&mut self) -> Vec<u8> {
         let screen_mode = ScreenMode::from_sw1(self.sw1);
 
-        if screen_mode == ScreenMode::CGA8025 {
-            let vram = &self.bus.memory[0xB8000..0xBC000];
+        // if let ScreenMode::CGA8025(data) = screen_mode {
+        //     let vram = &self.bus.memory[0xB8000..0xBC000];
 
-            if let Some(display) = &mut self.bus.cga {
-                display.inc_frame_counter();
-                display.create_frame(vram)
-            } else {
-                let dimensions = screen_mode.get_pixel_dimensions();
-                vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
-            }
+        //     if let Some(display) = &mut self.bus.cga {
+        //         display.inc_frame_counter();
+        //         display.create_frame(vram)
+        //     } else {
+        //         let dimensions = data.get_pixel_dimensions();
+        //         vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
+        //     }
+        // } else {
+        //     vec![0x00; 640 * 200 * 3]
+        // }
+        let vram = &self.bus.memory[0xB8000..0xBC000];
+
+        if let Some(display) = &mut self.bus.cga {
+            display.inc_frame_counter();
+            display.create_frame(vram)
         } else {
-            vec![0x00; 640 * 200 * 3]
+            let dimensions = screen_mode.data.get_pixel_dimensions();
+            vec![0x00; dimensions.0 as usize * dimensions.1 as usize * 3]
         }
     }
 
     pub fn create_ega_320x200_16_frame(&mut self) -> Vec<u8> {
         // TODO
-        
+
         vec![0x00; 320 * 200 * 3]
     }
 
     pub fn create_ega_640x350_16_frame(&mut self) -> Vec<u8> {
         // TODO
-        
+
         vec![0x00; 640 * 350 * 3]
     }
 
@@ -316,43 +345,57 @@ impl System {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct ScreenMode {
+pub struct ScreenModeData {
     dimensions: (f32, f32),
     aspect_ratio: f32,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum ScreenModeVariant {
+    MDA8025,
+    CGA4025,
+    CGA8025,
+    EGA320X200X16,
+    EGA640x350X16,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct ScreenMode {
+    pub variant: ScreenModeVariant,
+    pub data: ScreenModeData,
+}
+
 impl ScreenMode {
-    pub const MDA8025: ScreenMode = ScreenMode {
-        dimensions: (720., 350.),
-        aspect_ratio: 1.333,
-    };
-
-    pub const CGA4025: ScreenMode = ScreenMode {
-        dimensions: (320., 200.),
-        aspect_ratio: 1.2,
-    };
-
-    pub const CGA8025: ScreenMode = ScreenMode {
-        dimensions: (640., 200.),
-        aspect_ratio: 2.4,
-    };
-
-    pub const EGA_320X200_16: ScreenMode = ScreenMode {
-        dimensions: (320., 200.),
-        aspect_ratio: 1.2,
-    };
-
-    pub const EGA_640X350_16: ScreenMode = ScreenMode {
-        dimensions: (640., 350.),
-        aspect_ratio: 1.37,
-    };
-
     pub fn from_sw1(sw1: u8) -> Self {
         match sw1 & 0b00110000 {
-            DISPLAY_MDA_80_25 => Self::MDA8025,
-            DISPLAY_CGA_40_25 => Self::CGA4025,
-            DISPLAY_CGA_80_25 => Self::CGA8025,
-            DISPLAY_RESERVED => Self::MDA8025, // TODO
+            DISPLAY_MDA_80_25 => Self {
+                variant: ScreenModeVariant::MDA8025,
+                data: ScreenModeData {
+                    dimensions: (720., 350.),
+                    aspect_ratio: 1.333,
+                },
+            },
+            DISPLAY_CGA_40_25 => Self {
+                variant: ScreenModeVariant::CGA4025,
+                data: ScreenModeData {
+                    dimensions: (320., 200.),
+                    aspect_ratio: 1.2,
+                },
+            },
+            DISPLAY_CGA_80_25 => Self {
+                variant: ScreenModeVariant::CGA8025,
+                data: ScreenModeData {
+                    dimensions: (640., 200.),
+                    aspect_ratio: 1.2,
+                },
+            },
+            DISPLAY_EGA => Self {
+                variant: ScreenModeVariant::EGA640x350X16,
+                data: ScreenModeData {
+                    dimensions: (640., 350.),
+                    aspect_ratio: 1.37,
+                },
+            }, // TODO
             _ => unreachable!(),
         }
     }
@@ -360,11 +403,17 @@ impl ScreenMode {
 
 impl Default for ScreenMode {
     fn default() -> Self {
-        ScreenMode::MDA8025
+        ScreenMode {
+            variant: ScreenModeVariant::MDA8025,
+            data: ScreenModeData {
+                dimensions: (720., 350.),
+                aspect_ratio: 1.333,
+            },
+        }
     }
 }
 
-impl ScreenMode {
+impl ScreenModeData {
     pub fn get_pixel_dimensions(&self) -> (f32, f32) {
         self.dimensions
     }

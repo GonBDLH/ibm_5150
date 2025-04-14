@@ -3,6 +3,8 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use crate::hardware::sys::ScreenModeVariant;
+
 use super::egui_renderer::EguiRenderer;
 use super::hardware::sys::{ScreenMode, System};
 use super::*;
@@ -662,10 +664,11 @@ pub struct EmulatorConfig {
 
 impl Default for EmulatorConfig {
     fn default() -> Self {
+        let sw1 = DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2;
+        let sw2 = HIGH_NIBBLE | TOTAL_RAM_640;
         Self {
-            sw1: DD_ENABLE | RESERVED | MEM_64K | DISPLAY_MDA_80_25 | DRIVES_2,
-            sw2: HIGH_NIBBLE | TOTAL_RAM_640,
-            screen_mode: ScreenMode::MDA8025,
+            sw1, sw2,
+            screen_mode: ScreenMode::default(),
         }
     }
 }
@@ -675,7 +678,7 @@ impl EmulatorConfig {
         Self {
             sw1: 0,
             sw2: HIGH_NIBBLE,
-            screen_mode: ScreenMode::MDA8025,
+            screen_mode: ScreenMode::default(),
         }
     }
 
@@ -705,14 +708,14 @@ impl EmulatorConfig {
     }
 
     pub fn set_screen_mode(mut self, screen_mode: ScreenMode) -> Self {
-        let sw1 = match screen_mode {
-            ScreenMode::MDA8025 => Some(DISPLAY_MDA_80_25),
+        let sw1 = match screen_mode.variant {
+            ScreenModeVariant::MDA8025 => Some(DISPLAY_MDA_80_25),
+            ScreenModeVariant::CGA4025 => Some(DISPLAY_CGA_40_25),
+            ScreenModeVariant::CGA8025 => Some(DISPLAY_CGA_80_25),
+            ScreenModeVariant::EGA320X200X16 => Some(DISPLAY_EGA),
+            ScreenModeVariant::EGA640x350X16 => Some(DISPLAY_EGA),
 
-            ScreenMode::CGA4025 => Some(DISPLAY_CGA_40_25),
-
-            ScreenMode::CGA8025 => Some(DISPLAY_CGA_80_25),
-
-            _ => None,
+            // _ => None,
         };
 
         if let Some(sw1_display) = sw1 {

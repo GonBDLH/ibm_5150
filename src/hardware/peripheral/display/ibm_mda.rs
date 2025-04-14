@@ -62,7 +62,8 @@ impl IbmMDA {
             std::fs::File::open("roms/IBM_5788005_AM9264_1981_CGA_MDA_CARD.BIN").unwrap();
         let mut buf = Vec::new();
         file.read_to_end(&mut buf).unwrap();
-        let dimensions = screen_mode.get_pixel_dimensions();
+
+        let dimensions = screen_mode.data.get_pixel_dimensions();
 
         IbmMDA {
             font_rom: buf.clone(),
@@ -84,7 +85,7 @@ impl IbmMDA {
 
 impl Default for IbmMDA {
     fn default() -> Self {
-        IbmMDA::new(ScreenMode::MDA8025)
+        IbmMDA::new(ScreenMode::default())
     }
 }
 

@@ -18,10 +18,10 @@ pub const DRIVES_4: u8 = 0b11000000;
 // SW2 CONF
 pub const HIGH_NIBBLE: u8 = 0b11100000;
 pub const TOTAL_RAM_0: u8 = 0;
-pub const TOTAL_RAM_16: u8 = 0b00000000;
-pub const TOTAL_RAM_32: u8 = 0b00000000;
-pub const TOTAL_RAM_64: u8 = 0b00000000;
-pub const TOTAL_RAM_96: u8 = 0b00000001;
+pub const TOTAL_RAM_16 : u8 = 0b00000000;
+pub const TOTAL_RAM_32 : u8 = 0b00000000;
+pub const TOTAL_RAM_64 : u8 = 0b00000000;
+pub const TOTAL_RAM_96 : u8 = 0b00000001;
 pub const TOTAL_RAM_128: u8 = 0b00000010;
 pub const TOTAL_RAM_160: u8 = 0b00000011;
 pub const TOTAL_RAM_192: u8 = 0b00000100;

@@ -1,10 +1,4 @@
-use ibm_5150::{
-    frontend::{
-        app_state::{bool_array_to_u8, u8_to_bool_array, EmulatorConfig},
-        Application,
-    },
-    hardware::{switches_cfg::*, sys::ScreenMode},
-};
+use ibm_5150::frontend::{app_state::{bool_array_to_u8, u8_to_bool_array}, Application};
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {

@@ -102,7 +102,7 @@ impl PPI8255 {
         if self.port_b & 0x04 != 0 {
             self.sw2 & 0x0F | self.port_c & 0xF0
         } else {
-            (self.sw2 >> 1) & 0x0F | self.port_c & 0xF0
+            (self.sw2 >> 4) & 0x0F | self.port_c & 0xF0
         }
     }
 }

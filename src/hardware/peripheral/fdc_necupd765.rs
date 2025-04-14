@@ -197,13 +197,12 @@ impl FloppyDiskController {
         self.disks[num].heads = hpc;
     }
 
-    // RETURNS FALSE IF FLOPPY OR ERROR OR TRUE IF HDD
     pub fn insert_disk(&mut self, bus: &mut Bus, num: usize, path: &str) {
         // let read_result = fs::File::open(path);
         let read_result = OpenOptions::new().write(true).read(true).open(path);
 
-        if read_result.is_err() {
-            println!("Error reading file");
+        if let Err(v) = read_result {
+            println!("{}", v);
             return;
         }
 

@@ -119,8 +119,7 @@ impl Bus {
                 if let Some(cga) = &mut self.cga {
                     cga.port_out(val, port)                     // CGA
                 };
-            }
-                , // CGA
+            } , // CGA
             0x3F0..=0x3F7 => self.fdc.port_out(val, port),
             _ => {}
         };

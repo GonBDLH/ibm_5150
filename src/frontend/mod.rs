@@ -161,6 +161,28 @@ impl Application {
                     ImageData::Color(Arc::new(ColorImage::new([640, 200], Color32::BLACK))),
                     TextureOptions::NEAREST,
                 ),
+            self.state
+                .as_ref()
+                .unwrap()
+                .egui_renderer
+                .state
+                .egui_ctx()
+                .load_texture(
+                    "ega_320x200_16",
+                    ImageData::Color(Arc::new(ColorImage::new([320, 200], Color32::BLACK))),
+                    TextureOptions::NEAREST
+                ),
+            self.state
+                .as_ref()
+                .unwrap()
+                .egui_renderer
+                .state
+                .egui_ctx()
+                .load_texture(
+                    "ega_640x350_16",
+                    ImageData::Color(Arc::new(ColorImage::new([640, 350], Color32::BLACK))),
+                    TextureOptions::NEAREST
+                ),
         ];
 
         self.state.as_mut().unwrap().emulator.texture_handles = Some(texture_handles);

@@ -73,7 +73,7 @@ impl CRTC6845 {
     }
 
     pub fn get_cursor_xy(&self, screen_width: u16) -> (usize, usize) {
-        let ch = self.cursorh_reg;
+        let ch = self.cursorh_reg & 0b00111111;
         let cl = self.cursorl_reg;
         let cursor_addres = to_u16(cl, ch);
 
@@ -86,7 +86,7 @@ impl CRTC6845 {
     pub fn get_cursor_start_end(&self) -> (usize, usize) {
         (
             (self.cursor_start_reg & 0b00011111) as usize,
-            self.cursor_end_reg as usize,
+            (self.cursor_end_reg & 0b00011111) as usize,
         )
     }
 
@@ -94,9 +94,9 @@ impl CRTC6845 {
         let blink_control = (self.cursor_start_reg & 0b01100000) >> 5;
 
         match blink_control {
-            0b10 => BlinkMode::NonBlink,
+            0b00 => BlinkMode::NonBlink,
             0b01 => BlinkMode::NonDisplay,
-            0b00 => BlinkMode::Blink1_16,
+            0b10 => BlinkMode::Blink1_16,
             0b11 => BlinkMode::Blink1_32,
             _ => unreachable!(),
         }
@@ -112,6 +112,8 @@ impl CRTC6845 {
         let (x, y) = self.get_cursor_xy(screen_width as u16);
         let cursor_size = self.get_cursor_start_end();
         let blink_mode = self.get_cursor_blink();
+
+
 
         match blink_mode {
             BlinkMode::NonBlink => self.cursor_blink_state = BlinkState::Bright,

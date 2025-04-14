@@ -4,6 +4,7 @@ use egui::CollapsingHeader;
 pub mod cga;
 pub mod crtc6845;
 pub mod ibm_mda;
+pub mod ega;
 
 pub trait DisplayAdapter {
     fn create_frame(&mut self, vram: &[u8]) -> Vec<u8>;

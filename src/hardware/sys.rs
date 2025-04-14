@@ -286,6 +286,18 @@ impl System {
         }
     }
 
+    pub fn create_ega_320x200_16_frame(&mut self) -> Vec<u8> {
+        // TODO
+        
+        vec![0x00; 320 * 200 * 3]
+    }
+
+    pub fn create_ega_640x350_16_frame(&mut self) -> Vec<u8> {
+        // TODO
+        
+        vec![0x00; 640 * 350 * 3]
+    }
+
     pub fn inser_floppy_disk(&mut self, path: &str, floppy: usize) {
         self.disk_ctrl.insert_disk(&mut self.bus, floppy, path);
     }
@@ -323,6 +335,16 @@ impl ScreenMode {
     pub const CGA8025: ScreenMode = ScreenMode {
         dimensions: (640., 200.),
         aspect_ratio: 2.4,
+    };
+
+    pub const EGA_320X200_16: ScreenMode = ScreenMode {
+        dimensions: (320., 200.),
+        aspect_ratio: 1.2,
+    };
+
+    pub const EGA_640X350_16: ScreenMode = ScreenMode {
+        dimensions: (640., 350.),
+        aspect_ratio: 1.37,
     };
 
     pub fn from_sw1(sw1: u8) -> Self {

@@ -713,7 +713,7 @@ impl EmulatorConfig {
             ScreenModeVariant::CGA4025 => Some(DISPLAY_CGA_40_25),
             ScreenModeVariant::CGA8025 => Some(DISPLAY_CGA_80_25),
             ScreenModeVariant::EGA320X200X16 => Some(DISPLAY_EGA),
-            ScreenModeVariant::EGA640x350X16 => Some(DISPLAY_EGA),
+            ScreenModeVariant::EGA640X350X16 => Some(DISPLAY_EGA),
 
             // _ => None,
         };

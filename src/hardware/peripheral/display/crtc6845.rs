@@ -38,7 +38,7 @@ pub struct CRTC6845 {
 }
 
 impl CRTC6845 {
-    pub fn reg_write(&mut self, port: usize, val: u8) {
+    pub fn write_reg(&mut self, port: usize, val: u8) {
         match port {
             0 => self.horizontal_total_reg = val,
             1 => self.horizontal_displayed_reg = val,

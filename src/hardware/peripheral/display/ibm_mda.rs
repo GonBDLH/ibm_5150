@@ -172,7 +172,7 @@ impl Peripheral for IbmMDA {
             0x3B8 => self.crtc.op1 = val as u8,
             0x3B4 => self.crtc.adddr_reg = (val as u8) as usize,
             // 0x3B5 =>  self.crtc_registers[self.crtc_adddr_reg] = val as u8,
-            0x3B5 => self.crtc.reg_write(self.crtc.adddr_reg, val as u8),
+            0x3B5 => self.crtc.write_reg(self.crtc.adddr_reg, val as u8),
             _ => {}
         }
     }

@@ -10,6 +10,7 @@ use crate::hardware::sys::ScreenMode;
 
 use super::cpu_8088::instr_utils::Segment;
 use super::peripheral::display::cga::CGA;
+use super::peripheral::display::ega::EGA;
 use super::peripheral::display::ibm_mda::IbmMDA;
 use super::peripheral::display::DisplayAdapter;
 use super::peripheral::dma_8237::DMA8237;
@@ -24,6 +25,7 @@ pub trait DisplayPeripheral: DisplayAdapter + Peripheral {}
 
 impl DisplayPeripheral for CGA {}
 impl DisplayPeripheral for IbmMDA {}
+impl DisplayPeripheral for EGA {}
 
 pub struct Bus {
     // pub memory: [u8; 0x100000],
@@ -34,6 +36,7 @@ pub struct Bus {
     pub ppi: PPI8255,
     pub mda: Option<IbmMDA>,
     pub cga: Option<CGA>,
+    pub ega: Option<EGA>, // TODO Las combinaciones pueden ser MDA/EGA-CGA o MDA-EGA/CGA
     pub fdc: FloppyDiskController,
 }
 
@@ -49,6 +52,19 @@ impl Bus {
                 // display: Box::new(IbmMDA::new(screen_mode)),
                 mda: Some(IbmMDA::new(ScreenMode::from_sw1(sw1))),
                 cga: None,
+                ega: None,
+                fdc: FloppyDiskController::default(),
+            }
+        } else if sw1 & 0b00110000 == DISPLAY_CGA_40_25 || sw1 & 0b00110000 == DISPLAY_CGA_80_25 {
+            Bus {
+                memory: vec![0x00; 0x100000],
+                pic: PIC8259::new(),
+                pit: TIM8253::new(),
+                dma: DMA8237::new(),
+                ppi: PPI8255::new(sw1, sw2),
+                mda: None,
+                cga: Some(CGA::new(ScreenMode::from_sw1(sw1))),
+                ega: None,
                 fdc: FloppyDiskController::default(),
             }
         } else {
@@ -59,7 +75,8 @@ impl Bus {
                 dma: DMA8237::new(),
                 ppi: PPI8255::new(sw1, sw2),
                 mda: None,
-                cga: Some(CGA::new(ScreenMode::from_sw1(sw1))),
+                cga: None,
+                ega: Some(EGA::new()),
                 fdc: FloppyDiskController::default(),
             }
         }
@@ -82,20 +99,27 @@ impl Bus {
             }
             0xA0..=0xAF => 0,
 
-            0x3B0..=0x3BF => {
-                if let Some(mda) = &mut self.mda {
-                    mda.port_in(port) // MDA
+            // TODO QUIZAS AQUI HAY QUE CAMBIAR ALGO, EGA SOLO LEE EN 0x3B2
+            0x3B0..=0x3BF => match (&mut self.mda, &mut self.ega) {
+                (None, None) => 0,
+                (Some(mda), None) => mda.port_in(port),
+                (None, Some(ega)) => ega.port_in(port),
+                (Some(mda), Some(_)) => mda.port_in(port),
+            },
+            0x3C0..=0x3CF => {
+                if let Some(ega) = &mut self.ega {
+                    ega.port_in(port)
                 } else {
                     0
                 }
             }
-            0x3D0..=0x3DF => {
-                if let Some(cga) = &mut self.cga {
-                    cga.port_in(port) // CGA
-                } else {
-                    0
-                }
-            }
+            // TODO QUIZAS AQUI HAY QUE CAMBIAR ALGO, EGA SOLO LEE EN 0x3D2
+            0x3D0..=0x3DF => match (&mut self.cga, &mut self.ega) {
+                (None, None) => 0,
+                (Some(cga), None) => cga.port_in(port),
+                (None, Some(ega)) => ega.port_in(port),
+                (Some(cga), Some(_)) => cga.port_in(port),
+            },
             0x3F0..=0x3F7 => self.fdc.port_in(port),
             _ => 0,
         }
@@ -110,16 +134,25 @@ impl Bus {
             0x80..=0x83 => { /* TODO Reg pagina DMA */ }
             0xA0..=0xAF => cpu.nmi_out(val),
 
-            0x3B0..=0x3BF => {
-                if let Some(mda) = &mut self.mda {
-                    mda.port_out(val, port)   // MDA
+            // TODO QUIZAS AQUI HAY QUE CAMBIAR ALGO, EGA SOLO ESCRIBE EN 0x3B2
+            0x3B0..=0x3BF => match (&mut self.mda, &mut self.ega) {
+                (None, None) => {},
+                (Some(mda), None) => mda.port_out(val, port),
+                (None, Some(ega)) => ega.port_out(val, port),
+                (Some(mda), Some(_)) => mda.port_out(val, port),
+            },
+            0x3C0..=0x3CF => {
+                if let Some(ega) = &mut self.ega {
+                    ega.port_out(val, port)
                 }
             }
-            0x3D0..=0x3DF => {
-                if let Some(cga) = &mut self.cga {
-                    cga.port_out(val, port)                     // CGA
-                };
-            } , // CGA
+            // TODO QUIZAS AQUI HAY QUE CAMBIAR ALGO, EGA SOLO ESCRIBE EN 0x3D2
+            0x3D0..=0x3DF => match (&mut self.cga, &mut self.ega) {
+                (None, None) => {},
+                (Some(cga), None) => cga.port_out(val, port),
+                (None, Some(ega)) => ega.port_out(val, port),
+                (Some(cga), Some(_)) => cga.port_out(val, port),
+            },
             0x3F0..=0x3F7 => self.fdc.port_out(val, port),
             _ => {}
         };

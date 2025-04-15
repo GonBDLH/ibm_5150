@@ -200,7 +200,7 @@ impl Peripheral for CGA {
         match port {
             0x3D9 => self.color = val as u8,
             0x3D8 => self.crtc.op1 = val as u8,
-            0x3D5 => self.crtc.reg_write(self.crtc.adddr_reg, val as u8),
+            0x3D5 => self.crtc.write_reg(self.crtc.adddr_reg, val as u8),
             0x3D4 => self.crtc.adddr_reg = (val as u8) as usize,
 
             _ => {}
